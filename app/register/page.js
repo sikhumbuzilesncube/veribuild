@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../../lib/supabase';
 
 export default function Register() {
   const router = useRouter();
@@ -57,7 +57,7 @@ export default function Register() {
           {
             full_name: formData.fullName,
             email: formData.email,
-            password_hash: formData.password, // TEMP - will hash later
+            password_hash: formData.password,
             phone: formData.phone || null,
             company: formData.company || null,
             user_type: formData.userType,
@@ -76,7 +76,6 @@ export default function Register() {
 
       setSuccess('Account created successfully! Redirecting...');
       
-      // Wait 1 second then redirect to login
       setTimeout(() => {
         router.push('/login');
       }, 1500);
@@ -90,7 +89,6 @@ export default function Register() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center px-4 py-8">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
-        {/* Logo */}
         <div className="text-center mb-6">
           <div className="flex justify-center items-center gap-2 mb-2">
             <div className="w-10 h-10 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-xl">
@@ -101,21 +99,18 @@ export default function Register() {
           <p className="text-gray-500 text-sm">Create your free account</p>
         </div>
 
-        {/* Success Message */}
         {success && (
           <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
             {success}
           </div>
         )}
 
-        {/* Error Message */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
             {error}
           </div>
         )}
 
-        {/* Registration Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
