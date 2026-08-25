@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 export default function Register() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function Register() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -26,6 +28,7 @@ export default function Register() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccess('');
 
     // Validation
     if (!formData.fullName || !formData.email || !formData.password) {
@@ -46,11 +49,42 @@ export default function Register() {
       return;
     }
 
-    // Simulate registration (will connect to Supabase later)
-    setTimeout(() => {
+    try {
+      // Save user to Supabase
+      const { data, error } = await supabase
+        .from('users')
+        .insert([
+          {
+            full_name: formData.fullName,
+            email: formData.email,
+            password_hash: formData.password, // TEMP - will hash later
+            phone: formData.phone || null,
+            company: formData.company || null,
+            user_type: formData.userType,
+          },
+        ]);
+
+      if (error) {
+        if (error.code === '23505') {
+          setError('This email is already registered. Please log in.');
+        } else {
+          setError('Registration failed. Please try again.');
+        }
+        setLoading(false);
+        return;
+      }
+
+      setSuccess('Account created successfully! Redirecting...');
+      
+      // Wait 1 second then redirect to login
+      setTimeout(() => {
+        router.push('/login');
+      }, 1500);
+
+    } catch (err) {
+      setError('Something went wrong. Please try again.');
       setLoading(false);
-      router.push('/dashboard');
-    }, 1000);
+    }
   };
 
   return (
@@ -66,6 +100,13 @@ export default function Register() {
           </div>
           <p className="text-gray-500 text-sm">Create your free account</p>
         </div>
+
+        {/* Success Message */}
+        {success && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
+            {success}
+          </div>
+        )}
 
         {/* Error Message */}
         {error && (
@@ -196,4 +237,4 @@ export default function Register() {
       </div>
     </div>
   );
-    }
+}
