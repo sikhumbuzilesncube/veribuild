@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 export default function Register() {
   const router = useRouter();
@@ -30,7 +30,6 @@ export default function Register() {
     setError('');
     setSuccess('');
 
-    // Validation
     if (!formData.fullName || !formData.email || !formData.password) {
       setError('Please fill in all required fields');
       setLoading(false);
@@ -50,7 +49,6 @@ export default function Register() {
     }
 
     try {
-      // Save user to Supabase
       const { data, error } = await supabase
         .from('users')
         .insert([
@@ -232,4 +230,4 @@ export default function Register() {
       </div>
     </div>
   );
-}
+    }
