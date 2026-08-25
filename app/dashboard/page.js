@@ -3,28 +3,53 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState('User');
 
   useEffect(() => {
-    // Simulate loading user data (will connect to Supabase later)
-    setTimeout(() => {
-      setUser({
-        name: 'John Doe',
-        email: 'john@example.com',
-        company: 'BuildCo',
-        projects: [
-          { id: 1, name: '3-Bedroom House', status: 'Completed', date: '2026-08-24', cost: 4850 },
-          { id: 2, name: 'Office Renovation', status: 'Draft', date: '2026-08-20', cost: 2300 },
-          { id: 3, name: 'Duplex Construction', status: 'Processing', date: '2026-08-15', cost: 12400 },
-        ]
-      });
+    async function loadUser() {
+      // Get the current session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        router.push('/login');
+        return;
+      }
+
+      // Fetch user data from users table
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', session.user.email)
+        .single();
+
+      if (error) {
+        console.error('Error loading user:', error);
+        setLoading(false);
+        return;
+      }
+
+      if (data) {
+        setUser(data);
+        setUserName(data.full_name || 'User');
+      }
       setLoading(false);
-    }, 500);
-  }, []);
+    }
+
+    loadUser();
+  }, [router]);
+
+  // Demo projects (will be replaced with real projects later)
+  const projects = [
+    { id: 1, name: '3-Bedroom House', status: 'Completed', date: '2026-08-24', cost: 4850 },
+    { id: 2, name: 'Office Renovation', status: 'Draft', date: '2026-08-20', cost: 2300 },
+    { id: 3, name: 'Duplex Construction', status: 'Processing', date: '2026-08-15', cost: 12400 },
+  ];
 
   if (loading) {
     return (
@@ -61,7 +86,13 @@ export default function Dashboard() {
           <Link href="/profile" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
             ⚙️ Settings
           </Link>
-          <button className="block w-full text-left py-2 px-4 hover:bg-red-500/20 rounded-lg transition font-medium mt-8 text-red-300">
+          <button 
+            onClick={async () => {
+              await supabase.auth.signOut();
+              router.push('/login');
+            }}
+            className="block w-full text-left py-2 px-4 hover:bg-red-500/20 rounded-lg transition font-medium mt-8 text-red-300"
+          >
             🚪 Logout
           </button>
         </nav>
@@ -73,7 +104,7 @@ export default function Dashboard() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-2xl font-bold text-[#2C3E50]">Dashboard</h1>
-            <p className="text-gray-600">Welcome back, {user?.name || 'User'}!</p>
+            <p className="text-gray-600">Welcome back, {userName}!</p>
           </div>
           <Link
             href="/dashboard/new-project"
@@ -87,19 +118,19 @@ export default function Dashboard() {
         <div className="grid md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <p className="text-gray-500 text-sm">Total Projects</p>
-            <p className="text-3xl font-bold text-[#2C3E50]">{user?.projects?.length || 0}</p>
+            <p className="text-3xl font-bold text-[#2C3E50]">{projects.length}</p>
           </div>
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <p className="text-gray-500 text-sm">Total BOQs</p>
-            <p className="text-3xl font-bold text-[#2C3E50]">{user?.projects?.filter(p => p.status === 'Completed').length || 0}</p>
+            <p className="text-3xl font-bold text-[#2C3E50]">{projects.filter(p => p.status === 'Completed').length}</p>
           </div>
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <p className="text-gray-500 text-sm">Average Cost</p>
-            <p className="text-3xl font-bold text-[#2C3E50]">${user?.projects?.reduce((sum, p) => sum + p.cost, 0) / user?.projects?.length || 0}</p>
+            <p className="text-3xl font-bold text-[#2C3E50]">${projects.reduce((sum, p) => sum + p.cost, 0) / projects.length}</p>
           </div>
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <p className="text-gray-500 text-sm">Active Projects</p>
-            <p className="text-3xl font-bold text-[#2C3E50]">{user?.projects?.filter(p => p.status !== 'Completed').length || 0}</p>
+            <p className="text-3xl font-bold text-[#2C3E50]">{projects.filter(p => p.status !== 'Completed').length}</p>
           </div>
         </div>
 
@@ -118,7 +149,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {user?.projects?.map((project) => (
+                {projects.map((project) => (
                   <tr key={project.id} className="border-b last:border-0">
                     <td className="py-3 font-medium text-[#2C3E50]">{project.name}</td>
                     <td className="py-3 text-gray-600">{project.date}</td>
@@ -146,4 +177,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-               }
+          }
