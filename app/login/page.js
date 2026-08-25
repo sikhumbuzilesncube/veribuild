@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 export default function Login() {
   const router = useRouter();
@@ -16,18 +17,40 @@ export default function Login() {
     setLoading(true);
     setError('');
 
-    // For now, simple validation
     if (!email || !password) {
       setError('Please fill in all fields');
       setLoading(false);
       return;
     }
 
-    // Simulate login (will connect to Supabase later)
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      console.log('Attempting login for:', email);
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+      });
+
+      console.log('Login response:', { data, error });
+
+      if (error) {
+        console.error('Login error details:', error);
+        setError(error.message || 'Login failed. Please check your credentials.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Login successful! User:', data.user);
+      setError('');
+      
+      // Redirect to dashboard
       router.push('/dashboard');
-    }, 1000);
+      
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      setError('Something went wrong. Please try again.');
+      setLoading(false);
+    }
   };
 
   return (
@@ -97,4 +120,4 @@ export default function Login() {
       </div>
     </div>
   );
-        }
+    }
