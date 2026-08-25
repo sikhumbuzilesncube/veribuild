@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #F47B20;
+  --secondary: #2C3E50;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+.btn-primary {
+  background-color: #F47B20;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.btn-primary:hover {
+  background-color: #E06B10;
+}
+
+.btn-secondary {
+  background-color: #2C3E50;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.btn-secondary:hover {
+  background-color: #1a2a3a;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.highlight-missing {
+  background-color: #FFF3CD;
+  border: 2px solid #FFC107;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.highlight-verify {
+  background-color: #D1ECF1;
+  border: 2px solid #17A2B8;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.highlight-correct {
+  background-color: #D4EDDA;
+  border: 2px solid #28A745;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
