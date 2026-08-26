@@ -13,7 +13,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function loadUser() {
-      // Get the current session
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
@@ -21,29 +20,17 @@ export default function Dashboard() {
         return;
       }
 
-      // Get user data from the session
       const user = session.user;
       const metadata = user.user_metadata || {};
       
       setUserName(metadata.full_name || user.email || 'User');
       setUserEmail(user.email || '');
-
-      console.log('User loaded:', {
-        id: user.id,
-        email: user.email,
-        full_name: metadata.full_name,
-        phone: metadata.phone,
-        company: metadata.company,
-        user_type: metadata.user_type
-      });
-
       setLoading(false);
     }
 
     loadUser();
   }, [router]);
 
-  // Demo projects (will be replaced with real projects later)
   const projects = [
     { id: 1, name: '3-Bedroom House', status: 'Completed', date: '2026-08-24', cost: 4850 },
     { id: 2, name: 'Office Renovation', status: 'Draft', date: '2026-08-20', cost: 2300 },
@@ -177,4 +164,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-                   }
+    }
