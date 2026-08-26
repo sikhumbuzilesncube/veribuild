@@ -15,7 +15,7 @@ export default function NewProject() {
   const [projectName, setProjectName] = useState('');
   const [planType, setPlanType] = useState('residential');
   const [cityId, setCityId] = useState(1);
-  const [uploadMethod, setUploadMethod] = useState('file'); // 'file' or 'camera'
+  const [uploadMethod, setUploadMethod] = useState('file');
 
   const cities = [
     { id: 1, name: 'Harare' },
@@ -83,27 +83,40 @@ export default function NewProject() {
         return;
       }
 
-      // First, upload file to Supabase Storage
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
-      
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('plans')
-        .upload(fileName, file);
+      console.log('Session user:', session.user);
+      console.log('User ID:', session.user.id);
 
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        setError('Failed to upload file. Please try again.');
-        setLoading(false);
-        return;
+      // Check if user exists in public.users
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', session.user.id)
+        .single();
+
+      if (userError || !userData) {
+        // User doesn't exist in public.users - create them
+        console.log('User not found in public.users, creating...');
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert([
+            {
+              id: session.user.id,
+              full_name: session.user.user_metadata?.full_name || 'User',
+              email: session.user.email,
+              password_hash: 'auth_managed',
+              user_type: session.user.user_metadata?.user_type || 'client',
+            }
+          ]);
+
+        if (insertError) {
+          console.error('User insert error:', insertError);
+          setError('Failed to create user profile. Please try again.');
+          setLoading(false);
+          return;
+        }
       }
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('plans')
-        .getPublicUrl(fileName);
-
-      // Create project in database
+      // Now create the project
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .insert([
@@ -113,7 +126,7 @@ export default function NewProject() {
             city_id: cityId,
             plan_type: planType,
             status: 'processing',
-            file_url: urlData.publicUrl,
+            file_url: file.name,
           },
         ])
         .select();
@@ -125,7 +138,7 @@ export default function NewProject() {
         return;
       }
 
-      // Redirect to verification page
+      console.log('Project created:', projectData);
       router.push(`/dashboard/verify/${projectData[0].id}`);
 
     } catch (err) {
@@ -143,7 +156,6 @@ export default function NewProject() {
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Project Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Project Name <span className="text-red-500">*</span>
@@ -158,7 +170,6 @@ export default function NewProject() {
               />
             </div>
 
-            {/* Plan Type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Plan Type <span className="text-red-500">*</span>
@@ -174,7 +185,6 @@ export default function NewProject() {
               </select>
             </div>
 
-            {/* City */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Project Location <span className="text-red-500">*</span>
@@ -190,13 +200,11 @@ export default function NewProject() {
               </select>
             </div>
 
-            {/* File Upload with Camera Option */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Upload Floor Plan <span className="text-red-500">*</span>
               </label>
 
-              {/* Upload Method Toggle */}
               <div className="flex gap-4 mb-4">
                 <button
                   type="button"
@@ -222,7 +230,6 @@ export default function NewProject() {
                 </button>
               </div>
 
-              {/* File Upload Area */}
               <div 
                 className={`border-2 border-dashed rounded-xl p-8 text-center transition ${
                   file ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-[#F47B20]'
@@ -244,7 +251,6 @@ export default function NewProject() {
                         : 'Supported: PDF, JPEG, PNG (Max 20MB)'}
                     </p>
                     
-                    {/* File Input (hidden) */}
                     <input
                       type="file"
                       ref={fileInputRef}
@@ -254,7 +260,6 @@ export default function NewProject() {
                       id="file-upload"
                     />
                     
-                    {/* Camera Input (hidden) */}
                     <input
                       type="file"
                       ref={cameraInputRef}
@@ -265,7 +270,6 @@ export default function NewProject() {
                       id="camera-upload"
                     />
 
-                    {/* Button */}
                     <label
                       htmlFor={uploadMethod === 'camera' ? 'camera-upload' : 'file-upload'}
                       className="inline-block mt-4 px-6 py-2 bg-[#F47B20] text-white rounded-lg font-semibold cursor-pointer hover:bg-[#E06B10] transition"
@@ -294,14 +298,12 @@ export default function NewProject() {
               </div>
             </div>
 
-            {/* Error */}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
@@ -323,4 +325,4 @@ export default function NewProject() {
       </div>
     </div>
   );
-            }
+      }
