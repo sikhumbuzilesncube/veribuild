@@ -83,45 +83,54 @@ export default function NewProject() {
         return;
       }
 
-      console.log('Session user:', session.user);
-      console.log('User ID:', session.user.id);
+      const userId = session.user.id;
+      const userEmail = session.user.email;
+      const userMetadata = session.user.user_metadata || {};
+      
+      console.log('Session user:', { userId, userEmail, userMetadata });
 
       // Check if user exists in public.users
-      const { data: userData, error: userError } = await supabase
+      const { data: existingUser, error: checkError } = await supabase
         .from('users')
         .select('id')
-        .eq('id', session.user.id)
-        .single();
+        .eq('id', userId)
+        .maybeSingle();
 
-      if (userError || !userData) {
-        // User doesn't exist in public.users - create them
-        console.log('User not found in public.users, creating...');
+      if (checkError) {
+        console.error('Check user error:', checkError);
+      }
+
+      // If user doesn't exist, create them
+      if (!existingUser) {
+        console.log('Creating user profile...');
         const { error: insertError } = await supabase
           .from('users')
           .insert([
             {
-              id: session.user.id,
-              full_name: session.user.user_metadata?.full_name || 'User',
-              email: session.user.email,
+              id: userId,
+              full_name: userMetadata.full_name || userEmail.split('@')[0] || 'User',
+              email: userEmail,
               password_hash: 'auth_managed',
-              user_type: session.user.user_metadata?.user_type || 'client',
+              user_type: userMetadata.user_type || 'client',
             }
           ]);
 
         if (insertError) {
           console.error('User insert error:', insertError);
-          setError('Failed to create user profile. Please try again.');
+          setError(`Failed to create user profile: ${insertError.message}`);
           setLoading(false);
           return;
         }
+        console.log('User profile created successfully');
       }
 
       // Now create the project
+      console.log('Creating project...');
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .insert([
           {
-            user_id: session.user.id,
+            user_id: userId,
             project_name: projectName,
             city_id: cityId,
             plan_type: planType,
@@ -325,4 +334,4 @@ export default function NewProject() {
       </div>
     </div>
   );
-      }
+    }
