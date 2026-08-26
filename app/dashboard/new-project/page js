@@ -1,0 +1,296 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+
+export default function NewProject() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [file, setFile] = useState(null);
+  const [projectName, setProjectName] = useState('');
+  const [planType, setPlanType] = useState('residential');
+  const [city, setCity] = useState('Harare');
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  // Zimbabwe cities
+  const cities = ['Harare', 'Bulawayo', 'Mutare', 'Gweru', 'Kwekwe', 'Masvingo', 'Chinhoyi', 'Marondera', 'Victoria Falls', 'Zvishavane'];
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
+
+    // Validate file size (20MB max)
+    if (selectedFile.size > 20 * 1024 * 1024) {
+      setError('File size exceeds 20MB limit');
+      return;
+    }
+
+    // Validate file type
+    const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+    if (!validTypes.includes(selectedFile.type)) {
+      setError('Please upload a PDF, JPEG, or PNG file');
+      return;
+    }
+
+    setFile(selectedFile);
+    setError('');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!file) {
+      setError('Please upload a floor plan');
+      return;
+    }
+
+    if (!projectName) {
+      setError('Please enter a project name');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setUploadProgress(10);
+
+    try {
+      // Get current user
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/login');
+        return;
+      }
+
+      // 1. Upload file to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('plans')
+        .upload(fileName, file);
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        setError('Failed to upload file');
+        setLoading(false);
+        return;
+      }
+
+      setUploadProgress(40);
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('plans')
+        .getPublicUrl(fileName);
+
+      setUploadProgress(60);
+
+      // 2. Create project in database
+      const { data: projectData, error: projectError } = await supabase
+        .from('projects')
+        .insert([
+          {
+            user_id: session.user.id,
+            project_name: projectName,
+            city_id: cities.indexOf(city) + 1, // Simple mapping
+            plan_type: planType,
+            status: 'processing',
+            file_url: urlData.publicUrl,
+          },
+        ])
+        .select();
+
+      if (projectError) {
+        console.error('Project error:', projectError);
+        setError('Failed to create project');
+        setLoading(false);
+        return;
+      }
+
+      setUploadProgress(80);
+
+      // 3. Redirect to verification page
+      const projectId = projectData[0].id;
+      
+      // Simulate AI processing (will be replaced with actual OCR)
+      setTimeout(() => {
+        router.push(`/dashboard/verify/${projectId}`);
+      }, 1000);
+
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      setError('Something went wrong. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold text-[#2C3E50] mb-2">New BOQ</h1>
+        <p className="text-gray-600 mb-8">Upload your floor plan and generate a professional BOQ</p>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Project Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Project Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                placeholder="e.g., 3-Bedroom House, Highlands"
+                required
+              />
+            </div>
+
+            {/* Plan Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Plan Type <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={planType}
+                onChange={(e) => setPlanType(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+              >
+                <option value="residential">Residential - $10</option>
+                <option value="townhouse">Townhouse - $10</option>
+                <option value="commercial">Commercial - $30</option>
+              </select>
+              <p className="text-sm text-gray-500 mt-1">
+                {planType === 'commercial' ? 'Commercial plans include multi-story support and priority processing' : 'Standard residential plan with 3 exports'}
+              </p>
+            </div>
+
+            {/* City */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Project Location <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+              >
+                {cities.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <p className="text-sm text-gray-500 mt-1">
+                Hardware stores and workers will be selected from this city
+              </p>
+            </div>
+
+            {/* File Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Upload Floor Plan <span className="text-red-500">*</span>
+              </label>
+              <div 
+                className={`border-2 border-dashed rounded-xl p-8 text-center transition ${
+                  file ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-[#F47B20]'
+                }`}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const droppedFile = e.dataTransfer.files[0];
+                  if (droppedFile) {
+                    handleFileChange({ target: { files: [droppedFile] } });
+                  }
+                }}
+              >
+                {!file ? (
+                  <>
+                    <div className="text-5xl mb-4">📤</div>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">Drag & drop your plan here</h3>
+                    <p className="text-gray-500 text-sm mb-4">or click to browse</p>
+                    <p className="text-gray-400 text-xs">Supported: PDF, JPEG, PNG (Max 20MB)</p>
+                    <input
+                      type="file"
+                      onChange={handleFileChange}
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      className="hidden"
+                      id="file-upload"
+                    />
+                    <label
+                      htmlFor="file-upload"
+                      className="inline-block mt-4 px-6 py-2 bg-[#F47B20] text-white rounded-lg font-semibold cursor-pointer hover:bg-[#E06B10] transition"
+                    >
+                      Browse Files
+                    </label>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <span className="text-3xl">📄</span>
+                      <div className="text-left">
+                        <p className="font-medium text-gray-700">{file.name}</p>
+                        <p className="text-sm text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFile(null)}
+                      className="text-red-500 hover:text-red-700 font-medium"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            {/* Progress */}
+            {loading && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Uploading and processing...</span>
+                  <span className="text-[#F47B20] font-semibold">{uploadProgress}%</span>
+                </div>
+                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-[#F47B20] transition-all duration-300 rounded-full"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition disabled:opacity-50 disabled:cursor-not-allowed text-lg"
+            >
+              {loading ? 'Processing...' : 'Upload & Generate BOQ →'}
+            </button>
+          </form>
+        </div>
+
+        {/* Info Box */}
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+          <strong>💡 Tip:</strong> For best results, ensure your floor plan has:
+          <ul className="list-disc list-inside mt-2 space-y-1 ml-4">
+            <li>Clear dimensions (e.g., 5.0m x 4.0m)</li>
+            <li>Visible labels (Door, Window, Electrical)</li>
+            <li>Scale bar (1:100, 1:50, etc.)</li>
+            <li>Good lighting if taking a photo</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
