@@ -11,6 +11,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resetSent, setResetSent] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,39 +25,54 @@ export default function Login() {
     }
 
     try {
-      console.log('Attempting login for:', email);
-
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email,
         password: password,
       });
 
-      console.log('Login response:', { data, error });
-
       if (error) {
-        console.error('Login error details:', error);
         setError(error.message || 'Login failed. Please check your credentials.');
         setLoading(false);
         return;
       }
 
-      console.log('Login successful! User:', data.user);
-      setError('');
-      
-      // Redirect to dashboard
       router.push('/dashboard');
       
     } catch (err) {
-      console.error('Unexpected error:', err);
       setError('Something went wrong. Please try again.');
       setLoading(false);
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Please enter your email address first');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setResetSent(true);
+        setError('');
+      }
+    } catch (err) {
+      setError('Something went wrong. Please try again.');
+    }
+    setLoading(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center px-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex justify-center items-center gap-2 mb-2">
             <div className="w-10 h-10 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-xl">
@@ -67,14 +83,18 @@ export default function Login() {
           <p className="text-gray-500 text-sm">Welcome back! Log in to your account</p>
         </div>
 
-        {/* Error Message */}
+        {resetSent && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
+            Password reset email sent! Check your inbox.
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
             {error}
           </div>
         )}
 
-        {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
@@ -100,6 +120,16 @@ export default function Login() {
             />
           </div>
 
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              className="text-sm text-[#F47B20] hover:underline font-medium"
+            >
+              Forgot Password?
+            </button>
+          </div>
+
           <button
             type="submit"
             disabled={loading}
@@ -120,4 +150,4 @@ export default function Login() {
       </div>
     </div>
   );
-    }
+  }
