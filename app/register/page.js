@@ -49,13 +49,15 @@ export default function Register() {
     }
 
     try {
-      // STEP 1: Create Auth user
+      // Create Auth user with all metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
             full_name: formData.fullName,
+            phone: formData.phone || '',
+            company: formData.company || '',
             user_type: formData.userType,
           }
         }
@@ -71,33 +73,11 @@ export default function Register() {
         return;
       }
 
-      // STEP 2: Insert into users table using the service role key (bypasses RLS)
-      const { error: dbError } = await supabase
-        .from('users')
-        .insert([
-          {
-            id: authData.user.id,
-            full_name: formData.fullName,
-            email: formData.email,
-            password_hash: 'auth_managed',
-            phone: formData.phone || null,
-            company: formData.company || null,
-            user_type: formData.userType,
-          }
-        ]);
-
-      if (dbError) {
-        console.error('Database insert error:', dbError);
-        setError('Account created but profile save failed. Please contact support.');
-        setLoading(false);
-        return;
-      }
-
-      setSuccess('Account created successfully! Redirecting to login...');
+      setSuccess('Account created! Please check your email to confirm your address.');
       
       setTimeout(() => {
         router.push('/login');
-      }, 2000);
+      }, 3000);
 
     } catch (err) {
       console.error('Unexpected error:', err);
@@ -252,4 +232,4 @@ export default function Register() {
       </div>
     </div>
   );
-  }
+    }
