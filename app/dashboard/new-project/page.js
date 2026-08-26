@@ -89,11 +89,11 @@ export default function NewProject() {
       
       console.log('Session user:', { userId, userEmail, userMetadata });
 
-      // Check if user exists in public.users
+      // Check if user exists in public.users using email
       const { data: existingUser, error: checkError } = await supabase
         .from('users')
-        .select('id')
-        .eq('id', userId)
+        .select('id, email')
+        .eq('email', userEmail)
         .maybeSingle();
 
       if (checkError) {
@@ -122,6 +122,8 @@ export default function NewProject() {
           return;
         }
         console.log('User profile created successfully');
+      } else {
+        console.log('User already exists:', existingUser);
       }
 
       // Now create the project
@@ -334,4 +336,4 @@ export default function NewProject() {
       </div>
     </div>
   );
-    }
+      }
