@@ -57,10 +57,8 @@ export default function NewProject() {
         return;
       }
 
-      // Get city ID
       const cityId = cities.indexOf(city) + 1;
 
-      // Create project in database
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .insert([
@@ -81,7 +79,6 @@ export default function NewProject() {
         return;
       }
 
-      // Redirect to verification page with project ID
       const projectId = projectData[0].id;
       router.push(`/dashboard/verify/${projectId}`);
 
@@ -100,7 +97,6 @@ export default function NewProject() {
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Project Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Project Name <span className="text-red-500">*</span>
@@ -115,7 +111,6 @@ export default function NewProject() {
               />
             </div>
 
-            {/* Plan Type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Plan Type <span className="text-red-500">*</span>
@@ -131,7 +126,6 @@ export default function NewProject() {
               </select>
             </div>
 
-            {/* City */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Project Location <span className="text-red-500">*</span>
@@ -147,7 +141,6 @@ export default function NewProject() {
               </select>
             </div>
 
-            {/* File Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Upload Floor Plan <span className="text-red-500">*</span>
@@ -197,14 +190,12 @@ export default function NewProject() {
               </div>
             </div>
 
-            {/* Error */}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
@@ -215,7 +206,6 @@ export default function NewProject() {
           </form>
         </div>
 
-        {/* Back Button */}
         <div className="mt-4">
           <button
             onClick={() => router.push('/dashboard')}
