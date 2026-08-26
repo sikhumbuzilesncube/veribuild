@@ -7,9 +7,9 @@ import { supabase } from '@/lib/supabase';
 
 export default function Dashboard() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('User');
+  const [userEmail, setUserEmail] = useState('');
 
   useEffect(() => {
     async function loadUser() {
@@ -21,23 +21,22 @@ export default function Dashboard() {
         return;
       }
 
-      // Fetch user data from users table
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', session.user.email)
-        .single();
+      // Get user data from the session
+      const user = session.user;
+      const metadata = user.user_metadata || {};
+      
+      setUserName(metadata.full_name || user.email || 'User');
+      setUserEmail(user.email || '');
 
-      if (error) {
-        console.error('Error loading user:', error);
-        setLoading(false);
-        return;
-      }
+      console.log('User loaded:', {
+        id: user.id,
+        email: user.email,
+        full_name: metadata.full_name,
+        phone: metadata.phone,
+        company: metadata.company,
+        user_type: metadata.user_type
+      });
 
-      if (data) {
-        setUser(data);
-        setUserName(data.full_name || 'User');
-      }
       setLoading(false);
     }
 
@@ -105,6 +104,7 @@ export default function Dashboard() {
           <div>
             <h1 className="text-2xl font-bold text-[#2C3E50]">Dashboard</h1>
             <p className="text-gray-600">Welcome back, {userName}!</p>
+            <p className="text-sm text-gray-400">{userEmail}</p>
           </div>
           <Link
             href="/dashboard/new-project"
@@ -177,4 +177,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-          }
+    }
