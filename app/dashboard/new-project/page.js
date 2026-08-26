@@ -86,39 +86,7 @@ export default function NewProject() {
       const userId = session.user.id;
       console.log('Creating project for user ID:', userId);
 
-      // First, check if user exists in public.users
-      const { data: userCheck, error: userCheckError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('id', userId)
-        .single();
-
-      console.log('User check result:', userCheck, userCheckError);
-
-      if (userCheckError || !userCheck) {
-        // User doesn't exist - insert them
-        console.log('Creating user in public.users...');
-        const { error: insertUserError } = await supabase
-          .from('users')
-          .insert({
-            id: userId,
-            full_name: session.user.user_metadata?.full_name || 'User',
-            email: session.user.email,
-            password_hash: 'auth_managed',
-            user_type: session.user.user_metadata?.user_type || 'client',
-          });
-
-        if (insertUserError) {
-          console.error('Insert user error:', insertUserError);
-          setError(`Failed to create user: ${insertUserError.message}`);
-          setLoading(false);
-          return;
-        }
-        console.log('User created successfully');
-      }
-
-      // Now create the project
-      console.log('Creating project...');
+      // DIRECTLY create project (user already exists in database)
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .insert([
