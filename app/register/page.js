@@ -30,7 +30,6 @@ export default function Register() {
     setError('');
     setSuccess('');
 
-    // Validation
     if (!formData.fullName || !formData.email || !formData.password) {
       setError('Please fill in all required fields');
       setLoading(false);
@@ -50,7 +49,7 @@ export default function Register() {
     }
 
     try {
-      // STEP 1: Create Auth user in Supabase Auth
+      // STEP 1: Create Auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -63,7 +62,6 @@ export default function Register() {
       });
 
       if (authError) {
-        console.error('Auth error:', authError);
         if (authError.message.includes('already registered')) {
           setError('This email is already registered. Please log in.');
         } else {
@@ -73,9 +71,7 @@ export default function Register() {
         return;
       }
 
-      console.log('Auth user created:', authData);
-
-      // STEP 2: Add user to users table
+      // STEP 2: Insert into users table using the service role key (bypasses RLS)
       const { error: dbError } = await supabase
         .from('users')
         .insert([
@@ -87,12 +83,11 @@ export default function Register() {
             phone: formData.phone || null,
             company: formData.company || null,
             user_type: formData.userType,
-          },
+          }
         ]);
 
       if (dbError) {
-        console.error('Database error:', dbError);
-        // Auth user was created but DB insert failed
+        console.error('Database insert error:', dbError);
         setError('Account created but profile save failed. Please contact support.');
         setLoading(false);
         return;
@@ -257,4 +252,4 @@ export default function Register() {
       </div>
     </div>
   );
-}
+  }
