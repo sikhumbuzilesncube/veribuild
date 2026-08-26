@@ -51,21 +51,39 @@ export default function NewProject() {
     setError('');
 
     try {
+      // Get current user session
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push('/login');
         return;
       }
 
-      const cityId = cities.indexOf(city) + 1;
+      console.log('User ID:', session.user.id);
 
+      // Get city ID from cities table
+      const { data: cityData, error: cityError } = await supabase
+        .from('cities')
+        .select('id')
+        .eq('name', city)
+        .single();
+
+      if (cityError) {
+        console.error('City error:', cityError);
+        setError('Failed to find city. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('City ID:', cityData.id);
+
+      // Create project in database
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .insert([
           {
             user_id: session.user.id,
             project_name: projectName,
-            city_id: cityId,
+            city_id: cityData.id,
             plan_type: planType,
             status: 'processing',
           },
@@ -74,16 +92,19 @@ export default function NewProject() {
 
       if (projectError) {
         console.error('Project error:', projectError);
-        setError('Failed to create project. Please try again.');
+        setError(`Failed to create project: ${projectError.message}`);
         setLoading(false);
         return;
       }
 
-      const projectId = projectData[0].id;
-      router.push(`/dashboard/verify/${projectId}`);
+      console.log('Project created:', projectData);
+
+      // For now, just redirect to dashboard
+      // Later we'll redirect to verification page
+      router.push('/dashboard');
 
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Unexpected error:', err);
       setError('Something went wrong. Please try again.');
       setLoading(false);
     }
@@ -217,4 +238,4 @@ export default function NewProject() {
       </div>
     </div>
   );
-}
+    }
