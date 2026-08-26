@@ -30,6 +30,7 @@ export default function Register() {
     setError('');
     setSuccess('');
 
+    // Validation
     if (!formData.fullName || !formData.email || !formData.password) {
       setError('Please fill in all required fields');
       setLoading(false);
@@ -49,36 +50,62 @@ export default function Register() {
     }
 
     try {
-      const { data, error } = await supabase
+      // STEP 1: Create Auth user in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.fullName,
+            user_type: formData.userType,
+          }
+        }
+      });
+
+      if (authError) {
+        console.error('Auth error:', authError);
+        if (authError.message.includes('already registered')) {
+          setError('This email is already registered. Please log in.');
+        } else {
+          setError(`Registration failed: ${authError.message}`);
+        }
+        setLoading(false);
+        return;
+      }
+
+      console.log('Auth user created:', authData);
+
+      // STEP 2: Add user to users table
+      const { error: dbError } = await supabase
         .from('users')
         .insert([
           {
+            id: authData.user.id,
             full_name: formData.fullName,
             email: formData.email,
-            password_hash: formData.password,
+            password_hash: 'auth_managed',
             phone: formData.phone || null,
             company: formData.company || null,
             user_type: formData.userType,
           },
         ]);
 
-      if (error) {
-        if (error.code === '23505') {
-          setError('This email is already registered. Please log in.');
-        } else {
-          setError('Registration failed. Please try again.');
-        }
+      if (dbError) {
+        console.error('Database error:', dbError);
+        // Auth user was created but DB insert failed
+        setError('Account created but profile save failed. Please contact support.');
         setLoading(false);
         return;
       }
 
-      setSuccess('Account created successfully! Redirecting...');
+      setSuccess('Account created successfully! Redirecting to login...');
       
       setTimeout(() => {
         router.push('/login');
-      }, 1500);
+      }, 2000);
 
     } catch (err) {
+      console.error('Unexpected error:', err);
       setError('Something went wrong. Please try again.');
       setLoading(false);
     }
@@ -230,4 +257,4 @@ export default function Register() {
       </div>
     </div>
   );
-    }
+}
