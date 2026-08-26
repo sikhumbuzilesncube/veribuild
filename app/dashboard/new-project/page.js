@@ -1,19 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 export default function NewProject() {
   const router = useRouter();
+  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [file, setFile] = useState(null);
   const [projectName, setProjectName] = useState('');
   const [planType, setPlanType] = useState('residential');
-  const [city, setCity] = useState('Harare');
+  const [cityId, setCityId] = useState(1);
+  const [uploadMethod, setUploadMethod] = useState('file'); // 'file' or 'camera'
 
-  const cities = ['Harare', 'Bulawayo', 'Mutare', 'Gweru', 'Kwekwe', 'Masvingo', 'Chinhoyi', 'Marondera'];
+  const cities = [
+    { id: 1, name: 'Harare' },
+    { id: 2, name: 'Bulawayo' },
+    { id: 3, name: 'Mutare' },
+    { id: 4, name: 'Gweru' },
+    { id: 5, name: 'Kwekwe' },
+    { id: 6, name: 'Masvingo' },
+    { id: 7, name: 'Chinhoyi' },
+    { id: 8, name: 'Marondera' },
+  ];
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -34,11 +47,24 @@ export default function NewProject() {
     setError('');
   };
 
+  const handleCameraCapture = (e) => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
+
+    if (selectedFile.size > 20 * 1024 * 1024) {
+      setError('File size exceeds 20MB limit');
+      return;
+    }
+
+    setFile(selectedFile);
+    setError('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!file) {
-      setError('Please upload a floor plan');
+      setError('Please upload a floor plan or take a photo');
       return;
     }
 
@@ -51,30 +77,31 @@ export default function NewProject() {
     setError('');
 
     try {
-      // Get current user session
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push('/login');
         return;
       }
 
-      console.log('User ID:', session.user.id);
+      // First, upload file to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('plans')
+        .upload(fileName, file);
 
-      // Get city ID from cities table
-      const { data: cityData, error: cityError } = await supabase
-        .from('cities')
-        .select('id')
-        .eq('name', city)
-        .single();
-
-      if (cityError) {
-        console.error('City error:', cityError);
-        setError('Failed to find city. Please try again.');
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        setError('Failed to upload file. Please try again.');
         setLoading(false);
         return;
       }
 
-      console.log('City ID:', cityData.id);
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('plans')
+        .getPublicUrl(fileName);
 
       // Create project in database
       const { data: projectData, error: projectError } = await supabase
@@ -83,9 +110,10 @@ export default function NewProject() {
           {
             user_id: session.user.id,
             project_name: projectName,
-            city_id: cityData.id,
+            city_id: cityId,
             plan_type: planType,
             status: 'processing',
+            file_url: urlData.publicUrl,
           },
         ])
         .select();
@@ -97,11 +125,8 @@ export default function NewProject() {
         return;
       }
 
-      console.log('Project created:', projectData);
-
-      // For now, just redirect to dashboard
-      // Later we'll redirect to verification page
-      router.push('/dashboard');
+      // Redirect to verification page
+      router.push(`/dashboard/verify/${projectData[0].id}`);
 
     } catch (err) {
       console.error('Unexpected error:', err);
@@ -118,6 +143,7 @@ export default function NewProject() {
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Project Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Project Name <span className="text-red-500">*</span>
@@ -132,6 +158,7 @@ export default function NewProject() {
               />
             </div>
 
+            {/* Plan Type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Plan Type <span className="text-red-500">*</span>
@@ -147,25 +174,55 @@ export default function NewProject() {
               </select>
             </div>
 
+            {/* City */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Project Location <span className="text-red-500">*</span>
               </label>
               <select
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
+                value={cityId}
+                onChange={(e) => setCityId(parseInt(e.target.value))}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
               >
                 {cities.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
             </div>
 
+            {/* File Upload with Camera Option */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Upload Floor Plan <span className="text-red-500">*</span>
               </label>
+
+              {/* Upload Method Toggle */}
+              <div className="flex gap-4 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setUploadMethod('file')}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    uploadMethod === 'file'
+                      ? 'bg-[#F47B20] text-white'
+                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                  }`}
+                >
+                  📤 Upload File
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUploadMethod('camera')}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    uploadMethod === 'camera'
+                      ? 'bg-[#F47B20] text-white'
+                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                  }`}
+                >
+                  📷 Take Photo
+                </button>
+              </div>
+
+              {/* File Upload Area */}
               <div 
                 className={`border-2 border-dashed rounded-xl p-8 text-center transition ${
                   file ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-[#F47B20]'
@@ -173,21 +230,47 @@ export default function NewProject() {
               >
                 {!file ? (
                   <>
-                    <div className="text-5xl mb-4">📤</div>
-                    <h3 className="text-lg font-semibold text-gray-700 mb-2">Click to upload your plan</h3>
-                    <p className="text-gray-500 text-sm">Supported: PDF, JPEG, PNG (Max 20MB)</p>
+                    <div className="text-5xl mb-4">
+                      {uploadMethod === 'camera' ? '📷' : '📤'}
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                      {uploadMethod === 'camera' 
+                        ? 'Take a photo of your floor plan' 
+                        : 'Click to upload your plan'}
+                    </h3>
+                    <p className="text-gray-500 text-sm">
+                      {uploadMethod === 'camera' 
+                        ? 'Use your phone camera to capture the plan' 
+                        : 'Supported: PDF, JPEG, PNG (Max 20MB)'}
+                    </p>
+                    
+                    {/* File Input (hidden) */}
                     <input
                       type="file"
+                      ref={fileInputRef}
                       onChange={handleFileChange}
                       accept=".pdf,.jpg,.jpeg,.png"
                       className="hidden"
                       id="file-upload"
                     />
+                    
+                    {/* Camera Input (hidden) */}
+                    <input
+                      type="file"
+                      ref={cameraInputRef}
+                      onChange={handleCameraCapture}
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      id="camera-upload"
+                    />
+
+                    {/* Button */}
                     <label
-                      htmlFor="file-upload"
+                      htmlFor={uploadMethod === 'camera' ? 'camera-upload' : 'file-upload'}
                       className="inline-block mt-4 px-6 py-2 bg-[#F47B20] text-white rounded-lg font-semibold cursor-pointer hover:bg-[#E06B10] transition"
                     >
-                      Choose File
+                      {uploadMethod === 'camera' ? '📷 Open Camera' : '📤 Choose File'}
                     </label>
                   </>
                 ) : (
@@ -211,12 +294,14 @@ export default function NewProject() {
               </div>
             </div>
 
+            {/* Error */}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
@@ -238,4 +323,4 @@ export default function NewProject() {
       </div>
     </div>
   );
-    }
+            }
