@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { readPlan } from '@/app/actions/readPlan';
 
 export default function NewProject() {
   const router = useRouter();
@@ -134,38 +135,30 @@ export default function NewProject() {
 
       const projectId = projectData[0].id;
 
-      // STEP 3: Call the read-plan API to extract data from PDF
-try {
-  console.log('📄 Calling read-plan API...');
-  const planResponse = await fetch('/api/read-plan', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      projectId: projectId,
-      fileUrl: urlData.publicUrl
-    })
-  });
-  
-  const planResult = await planResponse.json();
-  console.log('📄 Plan reading result:', planResult);
-  
-  if (planResult && planResult.success) {
-    setApiStatus(`✅ Found: ${planResult.windowsFound || 0} windows, ${planResult.doorsFound || 0} doors, ${(planResult.roomsFound || []).length} rooms`);
-    console.log('📊 Extracted:', planResult.data);
-  } else {
-    setApiStatus('⚠️ Could not read plan automatically');
-    console.warn('⚠️ Plan reading issue:', planResult?.error || 'Unknown');
-  }
-} catch (planError) {
-  console.error('❌ API call error:', planError);
-  setApiStatus('⚠️ Manual verification needed');
-          }
+      // STEP 3: Call the server action to read the plan
+      setApiStatus('📄 Reading plan with AI...');
+      try {
+        console.log('📄 Calling readPlan server action...');
+        const result = await readPlan(projectId, urlData.publicUrl);
+        console.log('📄 Server action result:', result);
+        
+        if (result.success) {
+          setApiStatus(`✅ Found: ${result.windowsFound || 0} windows, ${result.doorsFound || 0} doors, ${(result.roomsFound || []).length} rooms`);
+          console.log('📊 Extracted:', result.data);
+        } else {
+          setApiStatus('⚠️ Could not read plan automatically - you can enter data manually');
+          console.warn('⚠️ Plan reading issue:', result.error);
+        }
+      } catch (planError) {
+        console.error('❌ Server action error:', planError);
+        setApiStatus('⚠️ Manual verification needed');
+      }
 
       // STEP 4: Redirect to verification
       setApiStatus('🔄 Redirecting to verification...');
       setTimeout(() => {
         router.push(`/dashboard/verify/${projectId}`);
-      }, 1000);
+      }, 1500);
 
     } catch (err) {
       console.error('Unexpected error:', err);
@@ -325,7 +318,6 @@ try {
               </div>
             </div>
 
-            {/* Status Message */}
             {apiStatus && (
               <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-sm">
                 {apiStatus}
@@ -359,4 +351,4 @@ try {
       </div>
     </div>
   );
-     }
+      }
