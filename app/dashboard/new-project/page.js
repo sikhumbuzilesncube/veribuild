@@ -146,10 +146,14 @@ export default function NewProject() {
         const planResult = await planResponse.json();
         console.log('📄 Plan reading result:', planResult);
         
-        if (planResult.success) {
+        if (planResult && planResult.success) {
           console.log('✅ Plan data extracted successfully!');
+          console.log('📊 Windows found:', planResult.data?.windows);
+          console.log('📊 Doors found:', planResult.data?.doors);
+          console.log('📊 Rooms found:', planResult.data?.room_labels);
+          console.log('📊 Floor area:', planResult.data?.floor_area);
         } else {
-          console.warn('⚠️ Plan reading had issues, continuing anyway');
+          console.warn('⚠️ Plan reading had issues:', planResult?.error || 'Unknown error');
         }
       } catch (planError) {
         console.error('❌ Plan reading error (continuing anyway):', planError);
@@ -349,4 +353,4 @@ export default function NewProject() {
       </div>
     </div>
   );
-    }
+     }
