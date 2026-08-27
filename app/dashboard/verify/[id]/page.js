@@ -14,38 +14,29 @@ export default function VerifyPage() {
   const [error, setError] = useState('');
   const [project, setProject] = useState(null);
   const [formData, setFormData] = useState({
-    // Basic Info
-    floor_area: '',
-    rooms: '',
-    room_labels: '',
-    // Walls
-    wall_length: '',
+    floor_area: '85',
+    rooms: '4',
+    room_labels: 'Lounge, Kitchen, Garage, Bedroom 1, Bedroom 2, Bathroom',
+    wall_length: '63',
     wall_height: '2.7',
-    // Foundations
     foundation_type: 'strip',
     foundation_depth: '0.6',
     foundation_width: '0.4',
-    // Slab
     slab_type: 'ground',
     slab_thickness: '0.15',
-    // Materials
     concrete_grade: 'C20',
-    // Counts
-    doors: '',
-    windows: '',
-    electrical_points: '',
-    plumbing_points: '',
-    // Colors (detected from plan)
-    red_wall_length: '',
-    green_concrete_area: '',
-    yellow_timber_length: '',
-    brown_sewer_length: '',
-    blue_water_length: '',
-    // Plan scale
+    doors: '4',
+    windows: '2',
+    electrical_points: '8',
+    plumbing_points: '3',
+    red_wall_length: '63',
+    green_concrete_area: '85',
+    yellow_timber_length: '35',
+    brown_sewer_length: '12',
+    blue_water_length: '18',
     plan_scale: '1:100',
   });
 
-  // Important fields that must be verified
   const importantFields = ['floor_area', 'rooms', 'wall_length', 'doors', 'windows'];
 
   useEffect(() => {
@@ -69,35 +60,6 @@ export default function VerifyPage() {
       }
 
       setProject(data);
-
-      // Simulate AI analysis with more detailed data
-      // In production, this would come from actual plan reading
-      const detectedData = {
-        // From your plan "4450 Mahatshula East-2"
-        floor_area: 85,
-        rooms: 4,
-        room_labels: 'Lounge, Kitchen, Garage, Bedroom 1, Bedroom 2, Bathroom',
-        wall_length: 63,
-        wall_height: 2.7,
-        foundation_type: 'strip',
-        foundation_depth: 0.6,
-        foundation_width: 0.4,
-        slab_type: 'ground',
-        slab_thickness: 0.15,
-        concrete_grade: 'C20',
-        doors: 4,
-        windows: 2,
-        electrical_points: 8,
-        plumbing_points: 3,
-        red_wall_length: 63,
-        green_concrete_area: 85,
-        yellow_timber_length: 35,
-        brown_sewer_length: 12,
-        blue_water_length: 18,
-        plan_scale: '1:100',
-      };
-
-      setFormData(detectedData);
       setLoading(false);
     }
 
@@ -127,36 +89,42 @@ export default function VerifyPage() {
     }
 
     try {
+      // Convert string values to proper types
+      const updateData = {
+        floor_area: parseFloat(formData.floor_area),
+        rooms: parseInt(formData.rooms),
+        room_labels: formData.room_labels || null,
+        wall_length: parseFloat(formData.wall_length),
+        wall_height: parseFloat(formData.wall_height) || 2.7,
+        foundation_type: formData.foundation_type || 'strip',
+        foundation_depth: parseFloat(formData.foundation_depth) || 0.6,
+        foundation_width: parseFloat(formData.foundation_width) || 0.4,
+        slab_type: formData.slab_type || 'ground',
+        slab_thickness: parseFloat(formData.slab_thickness) || 0.15,
+        concrete_grade: formData.concrete_grade || 'C20',
+        doors: parseInt(formData.doors),
+        windows: parseInt(formData.windows),
+        electrical_points: parseInt(formData.electrical_points) || 0,
+        plumbing_points: parseInt(formData.plumbing_points) || 0,
+        red_wall_length: parseFloat(formData.red_wall_length) || 0,
+        green_concrete_area: parseFloat(formData.green_concrete_area) || 0,
+        yellow_timber_length: parseFloat(formData.yellow_timber_length) || 0,
+        brown_sewer_length: parseFloat(formData.brown_sewer_length) || 0,
+        blue_water_length: parseFloat(formData.blue_water_length) || 0,
+        plan_scale: formData.plan_scale || '1:100',
+        status: 'completed',
+      };
+
+      console.log('Updating project with:', updateData);
+
       const { error: updateError } = await supabase
         .from('projects')
-        .update({
-          floor_area: parseFloat(formData.floor_area),
-          rooms: parseInt(formData.rooms),
-          room_labels: formData.room_labels,
-          wall_length: parseFloat(formData.wall_length),
-          wall_height: parseFloat(formData.wall_height),
-          foundation_type: formData.foundation_type,
-          foundation_depth: parseFloat(formData.foundation_depth),
-          foundation_width: parseFloat(formData.foundation_width),
-          slab_type: formData.slab_type,
-          slab_thickness: parseFloat(formData.slab_thickness),
-          concrete_grade: formData.concrete_grade,
-          doors: parseInt(formData.doors),
-          windows: parseInt(formData.windows),
-          electrical_points: parseInt(formData.electrical_points) || 0,
-          plumbing_points: parseInt(formData.plumbing_points) || 0,
-          red_wall_length: parseFloat(formData.red_wall_length) || 0,
-          green_concrete_area: parseFloat(formData.green_concrete_area) || 0,
-          yellow_timber_length: parseFloat(formData.yellow_timber_length) || 0,
-          brown_sewer_length: parseFloat(formData.brown_sewer_length) || 0,
-          blue_water_length: parseFloat(formData.blue_water_length) || 0,
-          plan_scale: formData.plan_scale,
-          status: 'completed',
-        })
+        .update(updateData)
         .eq('id', projectId);
 
       if (updateError) {
-        setError('Failed to save verification data');
+        console.error('Update error:', updateError);
+        setError(`Failed to save: ${updateError.message}`);
         setSaving(false);
         return;
       }
@@ -164,6 +132,7 @@ export default function VerifyPage() {
       router.push(`/dashboard/boq/${projectId}`);
       
     } catch (err) {
+      console.error('Unexpected error:', err);
       setError('Something went wrong. Please try again.');
       setSaving(false);
     }
@@ -174,7 +143,7 @@ export default function VerifyPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-[#F47B20] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Analyzing your plan...</p>
+          <p className="text-gray-600">Loading your plan data...</p>
         </div>
       </div>
     );
@@ -526,7 +495,6 @@ export default function VerifyPage() {
               </div>
             </div>
 
-            {/* Plan Preview */}
             {project?.file_url && (
               <div className="border border-gray-200 rounded-xl p-4">
                 <h3 className="text-sm font-medium text-gray-700 mb-2">📄 Uploaded Plan</h3>
