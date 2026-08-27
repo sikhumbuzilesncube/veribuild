@@ -2,7 +2,6 @@
 // WINDOW CODE DATABASE - SA Standards (AAAMSA)
 // ============================================================
 
-// Standard SA Window Codes with dimensions in mm
 export const windowCodes = {
   // PT Series - Top Hung Windows
   'PT66': { height: 600, width: 600, type: 'top-hung', vents: 1, category: 'PT Series' },
@@ -29,7 +28,6 @@ export const windowCodes = {
   'HS306': { height: 3000, width: 600, type: 'sliding', vents: 1, category: 'HS Series' },
 };
 
-// Steel Window Types (N1-N230) - Standard schedule
 export const steelWindowTypes = {
   'N1': { height: 303, width: 303, type: 'steel', category: 'Steel Window' },
   'N2': { height: 303, width: 303, type: 'steel', category: 'Steel Window' },
@@ -41,21 +39,16 @@ export const steelWindowTypes = {
   'N8': { height: 303, width: 303, type: 'steel', category: 'Steel Window' },
   'N9': { height: 303, width: 303, type: 'steel', category: 'Steel Window' },
   'N10': { height: 303, width: 303, type: 'steel', category: 'Steel Window' },
-  // ... N1-N230 pattern continues
 };
 
 export function decodeWindowCode(code) {
-  // Check standard SA codes
   if (windowCodes[code]) {
     return windowCodes[code];
   }
-  
-  // Check steel window types
   if (steelWindowTypes[code]) {
     return steelWindowTypes[code];
   }
   
-  // Try to parse custom codes (e.g., PTT1515 variations)
   const match = code.match(/^([A-Z]+)(\d{2})(\d{2})$/);
   if (match) {
     const [, type, h, w] = match;
@@ -84,4 +77,4 @@ export function calculateWindowArea(code) {
   const decoded = decodeWindowCode(code);
   if (!decoded) return 0;
   return (decoded.width / 1000) * (decoded.height / 1000);
-  }
+             }
