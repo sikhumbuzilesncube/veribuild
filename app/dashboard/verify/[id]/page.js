@@ -14,20 +14,39 @@ export default function VerifyPage() {
   const [error, setError] = useState('');
   const [project, setProject] = useState(null);
   const [formData, setFormData] = useState({
+    // Basic Info
     floor_area: '',
     rooms: '',
+    room_labels: '',
+    // Walls
+    wall_length: '',
+    wall_height: '2.7',
+    // Foundations
+    foundation_type: 'strip',
+    foundation_depth: '0.6',
+    foundation_width: '0.4',
+    // Slab
+    slab_type: 'ground',
+    slab_thickness: '0.15',
+    // Materials
+    concrete_grade: 'C20',
+    // Counts
     doors: '',
     windows: '',
-    wall_length: '',
     electrical_points: '',
     plumbing_points: '',
-    plan_scale: '',
-    ceiling_height: '',
-    foundation_type: '',
+    // Colors (detected from plan)
+    red_wall_length: '',
+    green_concrete_area: '',
+    yellow_timber_length: '',
+    brown_sewer_length: '',
+    blue_water_length: '',
+    // Plan scale
+    plan_scale: '1:100',
   });
 
-  // Fields that are "important" (must be verified)
-  const importantFields = ['floor_area', 'rooms', 'doors', 'windows', 'wall_length'];
+  // Important fields that must be verified
+  const importantFields = ['floor_area', 'rooms', 'wall_length', 'doors', 'windows'];
 
   useEffect(() => {
     async function loadProject() {
@@ -37,7 +56,6 @@ export default function VerifyPage() {
         return;
       }
 
-      // Get project details
       const { data, error } = await supabase
         .from('projects')
         .select('*')
@@ -52,19 +70,31 @@ export default function VerifyPage() {
 
       setProject(data);
 
-      // Simulate AI analysis - in reality, this would call an API
-      // For now, let's populate with some sample detected data
+      // Simulate AI analysis with more detailed data
+      // In production, this would come from actual plan reading
       const detectedData = {
-        floor_area: Math.round((Math.random() * 100 + 20) * 10) / 10,
-        rooms: Math.floor(Math.random() * 4) + 2,
-        doors: Math.floor(Math.random() * 4) + 1,
-        windows: Math.floor(Math.random() * 5) + 2,
-        wall_length: Math.round((Math.random() * 60 + 20) * 10) / 10,
-        electrical_points: Math.floor(Math.random() * 8) + 3,
-        plumbing_points: Math.floor(Math.random() * 4) + 1,
+        // From your plan "4450 Mahatshula East-2"
+        floor_area: 85,
+        rooms: 4,
+        room_labels: 'Lounge, Kitchen, Garage, Bedroom 1, Bedroom 2, Bathroom',
+        wall_length: 63,
+        wall_height: 2.7,
+        foundation_type: 'strip',
+        foundation_depth: 0.6,
+        foundation_width: 0.4,
+        slab_type: 'ground',
+        slab_thickness: 0.15,
+        concrete_grade: 'C20',
+        doors: 4,
+        windows: 2,
+        electrical_points: 8,
+        plumbing_points: 3,
+        red_wall_length: 63,
+        green_concrete_area: 85,
+        yellow_timber_length: 35,
+        brown_sewer_length: 12,
+        blue_water_length: 18,
         plan_scale: '1:100',
-        ceiling_height: '',
-        foundation_type: '',
       };
 
       setFormData(detectedData);
@@ -97,18 +127,30 @@ export default function VerifyPage() {
     }
 
     try {
-      // Update project with verified data
       const { error: updateError } = await supabase
         .from('projects')
         .update({
           floor_area: parseFloat(formData.floor_area),
           rooms: parseInt(formData.rooms),
+          room_labels: formData.room_labels,
+          wall_length: parseFloat(formData.wall_length),
+          wall_height: parseFloat(formData.wall_height),
+          foundation_type: formData.foundation_type,
+          foundation_depth: parseFloat(formData.foundation_depth),
+          foundation_width: parseFloat(formData.foundation_width),
+          slab_type: formData.slab_type,
+          slab_thickness: parseFloat(formData.slab_thickness),
+          concrete_grade: formData.concrete_grade,
           doors: parseInt(formData.doors),
           windows: parseInt(formData.windows),
-          wall_length: parseFloat(formData.wall_length),
           electrical_points: parseInt(formData.electrical_points) || 0,
           plumbing_points: parseInt(formData.plumbing_points) || 0,
-          plan_scale: formData.plan_scale || '1:100',
+          red_wall_length: parseFloat(formData.red_wall_length) || 0,
+          green_concrete_area: parseFloat(formData.green_concrete_area) || 0,
+          yellow_timber_length: parseFloat(formData.yellow_timber_length) || 0,
+          brown_sewer_length: parseFloat(formData.brown_sewer_length) || 0,
+          blue_water_length: parseFloat(formData.blue_water_length) || 0,
+          plan_scale: formData.plan_scale,
           status: 'completed',
         })
         .eq('id', projectId);
@@ -119,7 +161,6 @@ export default function VerifyPage() {
         return;
       }
 
-      // Redirect to BOQ results
       router.push(`/dashboard/boq/${projectId}`);
       
     } catch (err) {
@@ -134,24 +175,6 @@ export default function VerifyPage() {
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-[#F47B20] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Analyzing your plan...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="text-center">
-          <div className="text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-[#2C3E50] mb-2">Something went wrong</h2>
-          <p className="text-gray-600">{error}</p>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="mt-4 bg-[#F47B20] text-white px-6 py-2 rounded-lg hover:bg-[#E06B10] transition"
-          >
-            Back to Dashboard
-          </button>
         </div>
       </div>
     );
@@ -174,195 +197,332 @@ export default function VerifyPage() {
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Floor Area */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  📐 Floor Area (m²) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  name="floor_area"
-                  value={formData.floor_area}
-                  onChange={handleChange}
-                  step="0.1"
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
-                    !formData.floor_area ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                  }`}
-                  placeholder="e.g., 45.0"
-                  required
-                />
-                {!formData.floor_area && (
-                  <p className="text-xs text-red-500 mt-1">⚠️ Required - Please enter floor area</p>
-                )}
+            {/* Section 1: Basic Building Info */}
+            <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-bold text-[#2C3E50] mb-4">🏗️ Building Information</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Floor Area (m²) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="floor_area"
+                    value={formData.floor_area}
+                    onChange={handleChange}
+                    step="0.1"
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
+                      !formData.floor_area ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                    }`}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Rooms <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="rooms"
+                    value={formData.rooms}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
+                      !formData.rooms ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                    }`}
+                    required
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Room Labels (e.g., Lounge, Kitchen, Garage)
+                  </label>
+                  <input
+                    type="text"
+                    name="room_labels"
+                    value={formData.room_labels}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                    placeholder="Lounge, Kitchen, Garage, Bedroom 1, Bedroom 2, Bathroom"
+                  />
+                </div>
               </div>
+            </div>
 
-              {/* Rooms */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  🏠 Rooms <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  name="rooms"
-                  value={formData.rooms}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
-                    !formData.rooms ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                  }`}
-                  placeholder="e.g., 3"
-                  required
-                />
-                {!formData.rooms && (
-                  <p className="text-xs text-red-500 mt-1">⚠️ Required - Please enter number of rooms</p>
-                )}
+            {/* Section 2: Walls */}
+            <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-bold text-[#2C3E50] mb-4">🧱 Walls <span className="text-sm font-normal text-gray-500">(Red in plan)</span></h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Wall Length (m) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="wall_length"
+                    value={formData.wall_length}
+                    onChange={handleChange}
+                    step="0.1"
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
+                      !formData.wall_length ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                    }`}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Wall Height (m)
+                  </label>
+                  <input
+                    type="number"
+                    name="wall_height"
+                    value={formData.wall_height}
+                    onChange={handleChange}
+                    step="0.1"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                  />
+                </div>
               </div>
+            </div>
 
-              {/* Doors */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  🚪 Doors <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  name="doors"
-                  value={formData.doors}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
-                    !formData.doors ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                  }`}
-                  placeholder="e.g., 2"
-                  required
-                />
-                {!formData.doors && (
-                  <p className="text-xs text-red-500 mt-1">⚠️ Required - Please enter number of doors</p>
-                )}
+            {/* Section 3: Foundation & Slab */}
+            <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-bold text-[#2C3E50] mb-4">🏠 Foundation & Slab <span className="text-sm font-normal text-gray-500">(Green in plan)</span></h3>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Foundation Type
+                  </label>
+                  <select
+                    name="foundation_type"
+                    value={formData.foundation_type}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                  >
+                    <option value="strip">Strip Foundation</option>
+                    <option value="raft">Raft Foundation</option>
+                    <option value="piled">Piled Foundation</option>
+                    <option value="pad">Pad Foundation</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Foundation Depth (m)
+                  </label>
+                  <input
+                    type="number"
+                    name="foundation_depth"
+                    value={formData.foundation_depth}
+                    onChange={handleChange}
+                    step="0.1"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Foundation Width (m)
+                  </label>
+                  <input
+                    type="number"
+                    name="foundation_width"
+                    value={formData.foundation_width}
+                    onChange={handleChange}
+                    step="0.1"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Slab Type
+                  </label>
+                  <select
+                    name="slab_type"
+                    value={formData.slab_type}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                  >
+                    <option value="ground">Ground Slab</option>
+                    <option value="suspended">Suspended Slab</option>
+                    <option value="raft">Raft Slab</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Slab Thickness (m)
+                  </label>
+                  <input
+                    type="number"
+                    name="slab_thickness"
+                    value={formData.slab_thickness}
+                    onChange={handleChange}
+                    step="0.01"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Concrete Grade
+                  </label>
+                  <select
+                    name="concrete_grade"
+                    value={formData.concrete_grade}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                  >
+                    <option value="C15">C15 (Foundation)</option>
+                    <option value="C20">C20 (General)</option>
+                    <option value="C25">C25 (Structural)</option>
+                    <option value="C30">C30 (High Strength)</option>
+                  </select>
+                </div>
               </div>
+            </div>
 
-              {/* Windows */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  🪟 Windows <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  name="windows"
-                  value={formData.windows}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
-                    !formData.windows ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                  }`}
-                  placeholder="e.g., 4"
-                  required
-                />
-                {!formData.windows && (
-                  <p className="text-xs text-red-500 mt-1">⚠️ Required - Please enter number of windows</p>
-                )}
+            {/* Section 4: Counts */}
+            <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-bold text-[#2C3E50] mb-4">📊 Counts</h3>
+              <div className="grid md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Doors <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="doors"
+                    value={formData.doors}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
+                      !formData.doors ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                    }`}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Windows <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="windows"
+                    value={formData.windows}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
+                      !formData.windows ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                    }`}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Electrical Points
+                  </label>
+                  <input
+                    type="number"
+                    name="electrical_points"
+                    value={formData.electrical_points}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Plumbing Points
+                  </label>
+                  <input
+                    type="number"
+                    name="plumbing_points"
+                    value={formData.plumbing_points}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                  />
+                </div>
               </div>
+            </div>
 
-              {/* Wall Length */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  🧱 Wall Length (m) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  name="wall_length"
-                  value={formData.wall_length}
-                  onChange={handleChange}
-                  step="0.1"
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
-                    !formData.wall_length ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                  }`}
-                  placeholder="e.g., 38.0"
-                  required
-                />
-                {!formData.wall_length && (
-                  <p className="text-xs text-red-500 mt-1">⚠️ Required - Please enter wall length</p>
-                )}
-              </div>
-
-              {/* Plan Scale */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  📏 Plan Scale
-                </label>
-                <select
-                  name="plan_scale"
-                  value={formData.plan_scale}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-                >
-                  <option value="1:50">1:50</option>
-                  <option value="1:100">1:100</option>
-                  <option value="1:200">1:200</option>
-                  <option value="1:500">1:500</option>
-                </select>
-              </div>
-
-              {/* Electrical Points */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ⚡ Electrical Points
-                </label>
-                <input
-                  type="number"
-                  name="electrical_points"
-                  value={formData.electrical_points}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-                  placeholder="e.g., 6"
-                />
-              </div>
-
-              {/* Plumbing Points */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  💧 Plumbing Points
-                </label>
-                <input
-                  type="number"
-                  name="plumbing_points"
-                  value={formData.plumbing_points}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-                  placeholder="e.g., 2"
-                />
-              </div>
-
-              {/* Ceiling Height */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  📐 Ceiling Height (m)
-                </label>
-                <input
-                  type="number"
-                  name="ceiling_height"
-                  value={formData.ceiling_height}
-                  onChange={handleChange}
-                  step="0.1"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-                  placeholder="e.g., 2.7"
-                />
-              </div>
-
-              {/* Foundation Type */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  🏗️ Foundation Type
-                </label>
-                <select
-                  name="foundation_type"
-                  value={formData.foundation_type}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-                >
-                  <option value="">Select type</option>
-                  <option value="strip">Strip Foundation</option>
-                  <option value="raft">Raft Foundation</option>
-                  <option value="piled">Piled Foundation</option>
-                  <option value="pad">Pad Foundation</option>
-                </select>
+            {/* Section 5: Color-Coded Elements */}
+            <div className="border-b border-gray-200 pb-6">
+              <h3 className="text-lg font-bold text-[#2C3E50] mb-4">🎨 Color-Coded Elements</h3>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                  <label className="block text-sm font-medium text-red-700 mb-1">
+                    🔴 Red - Walls (m)
+                  </label>
+                  <input
+                    type="number"
+                    name="red_wall_length"
+                    value={formData.red_wall_length}
+                    onChange={handleChange}
+                    step="0.1"
+                    className="w-full px-4 py-3 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition bg-white"
+                  />
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <label className="block text-sm font-medium text-green-700 mb-1">
+                    🟢 Green - Concrete (m²)
+                  </label>
+                  <input
+                    type="number"
+                    name="green_concrete_area"
+                    value={formData.green_concrete_area}
+                    onChange={handleChange}
+                    step="0.1"
+                    className="w-full px-4 py-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition bg-white"
+                  />
+                </div>
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                  <label className="block text-sm font-medium text-yellow-700 mb-1">
+                    🟡 Yellow - Timber (m)
+                  </label>
+                  <input
+                    type="number"
+                    name="yellow_timber_length"
+                    value={formData.yellow_timber_length}
+                    onChange={handleChange}
+                    step="0.1"
+                    className="w-full px-4 py-3 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none transition bg-white"
+                  />
+                </div>
+                <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                  <label className="block text-sm font-medium text-amber-700 mb-1">
+                    🟤 Brown - Sewer (m)
+                  </label>
+                  <input
+                    type="number"
+                    name="brown_sewer_length"
+                    value={formData.brown_sewer_length}
+                    onChange={handleChange}
+                    step="0.1"
+                    className="w-full px-4 py-3 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition bg-white"
+                  />
+                </div>
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <label className="block text-sm font-medium text-blue-700 mb-1">
+                    🔵 Blue - Water (m)
+                  </label>
+                  <input
+                    type="number"
+                    name="blue_water_length"
+                    value={formData.blue_water_length}
+                    onChange={handleChange}
+                    step="0.1"
+                    className="w-full px-4 py-3 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Plan Scale
+                  </label>
+                  <select
+                    name="plan_scale"
+                    value={formData.plan_scale}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                  >
+                    <option value="1:50">1:50</option>
+                    <option value="1:100">1:100</option>
+                    <option value="1:200">1:200</option>
+                    <option value="1:500">1:500</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -371,34 +531,24 @@ export default function VerifyPage() {
               <div className="border border-gray-200 rounded-xl p-4">
                 <h3 className="text-sm font-medium text-gray-700 mb-2">📄 Uploaded Plan</h3>
                 <div className="bg-gray-100 rounded-lg p-4 text-center">
-                  {project.file_url.includes('.pdf') ? (
-                    <a 
-                      href={project.file_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-[#F47B20] hover:underline font-medium"
-                    >
-                      📄 View PDF Plan
-                    </a>
-                  ) : (
-                    <img 
-                      src={project.file_url} 
-                      alt="Floor Plan" 
-                      className="max-h-48 mx-auto rounded-lg shadow"
-                    />
-                  )}
+                  <a 
+                    href={project.file_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-[#F47B20] hover:underline font-medium"
+                  >
+                    📄 View PDF Plan
+                  </a>
                 </div>
               </div>
             )}
 
-            {/* Error */}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
-            {/* Buttons */}
             <div className="flex gap-4">
               <button
                 type="button"
@@ -417,12 +567,7 @@ export default function VerifyPage() {
             </div>
           </form>
         </div>
-
-        <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-700">
-          <strong>⚠️ Important:</strong> Please verify all highlighted fields marked with <span className="text-red-500">*</span>.
-          Incorrect measurements will affect your BOQ accuracy.
-        </div>
       </div>
     </div>
   );
-}
+    }
