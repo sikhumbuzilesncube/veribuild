@@ -10,10 +10,11 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Missing projectId or fileUrl' }, { status: 400 });
     }
 
-    console.log('📄 Reading plan for project:', projectId);
+    console.log('📄 ===== READING PLAN =====');
+    console.log('📄 Project ID:', projectId);
     console.log('📄 File URL:', fileUrl);
 
-    // Fetch the PDF file from Supabase Storage
+    // Fetch the PDF file
     const response = await fetch(fileUrl);
     const arrayBuffer = await response.arrayBuffer();
     const pdfBuffer = Buffer.from(arrayBuffer);
@@ -23,10 +24,28 @@ export async function POST(request) {
     const text = data.text;
 
     console.log('📄 Extracted text length:', text.length);
-    console.log('📄 First 500 chars:', text.substring(0, 500));
+    console.log('📄 === FIRST 1000 CHARACTERS ===');
+    console.log(text.substring(0, 1000));
+    console.log('📄 === LAST 500 CHARACTERS ===');
+    console.log(text.substring(text.length - 500));
 
     // Parse the extracted text
     const parsedData = parsePlanText(text);
+    
+    console.log('📄 === PARSED DATA ===');
+    console.log('Floor Area:', parsedData.floor_area);
+    console.log('Rooms:', parsedData.rooms);
+    console.log('Room Labels:', parsedData.room_labels);
+    console.log('Doors:', parsedData.doors);
+    console.log('Windows:', parsedData.windows);
+    console.log('Window Details:', parsedData.window_details);
+    console.log('Door Details:', parsedData.door_details);
+    console.log('Notes:', parsedData.notes);
+    console.log('Red Walls:', parsedData.red_wall_length);
+    console.log('Green Concrete:', parsedData.green_concrete_area);
+    console.log('Yellow Timber:', parsedData.yellow_timber_length);
+    console.log('Brown Sewer:', parsedData.brown_sewer_length);
+    console.log('Blue Water:', parsedData.blue_water_length);
 
     // Update the project with parsed data
     const { error: updateError } = await supabase
@@ -107,7 +126,104 @@ function parsePlanText(text) {
   };
 
   // ============================================================
-  // 1. EXTRACT DIMENSIONS (e.g., "5.0m x 4.0m")
+  // 1. EXTRACT ALL NUMBERS (for window counts, etc.)
+  // ============================================================
+  const allNumbers = text.match(/\d+/g) || [];
+  console.log('📊 All numbers found:', allNumbers);
+
+  // ============================================================
+  // 2. FIND WINDOW-RELATED TEXT
+  // ============================================================
+  const windowRegex = /window[s]?\s*[:=]?\s*(\d+)/gi;
+  let windowMatches = [];
+  let match;
+  while ((match = windowRegex.exec(text)) !== null) {
+    windowMatches.push(match);
+  }
+  console.log('📊 Window regex matches:', windowMatches);
+
+  // Look for "14 windows" or similar
+  const windowCountPatterns = [
+    /(\d+)\s*window[s]?/gi,
+    /window[s]?\s*(\d+)/gi,
+    /(\d+)\s*no\.?\s*window/gi,
+  ];
+
+  for (const pattern of windowCountPatterns) {
+    const matches = text.matchAll(pattern);
+    for (const m of matches) {
+      if (m[1]) {
+        const count = parseInt(m[1]);
+        if (count > result.windows) {
+          result.windows = count;
+          console.log('📊 Found window count:', count);
+        }
+      }
+    }
+  }
+
+  // ============================================================
+  // 3. FIND CUSTOM WINDOW DETAILS
+  // ============================================================
+  const customWindowPatterns = [
+    /window\s*(?:frame|size|type)\s*[:=]\s*([^\n]+)/gi,
+    /(?:aluminium|timber|steel|custom)\s*window/gi,
+    /window\s*(\d+\.?\d*)\s*[xX]\s*(\d+\.?\d*)/gi,
+  ];
+
+  let customWindows = [];
+  for (const pattern of customWindowPatterns) {
+    const matches = text.matchAll(pattern);
+    for (const m of matches) {
+      customWindows.push(m[0]);
+    }
+  }
+  result.window_details = customWindows.join('; ');
+  console.log('📊 Custom window details:', result.window_details);
+
+  // ============================================================
+  // 4. FIND DOOR-RELATED TEXT
+  // ============================================================
+  const doorCountPatterns = [
+    /(\d+)\s*door[s]?/gi,
+    /door[s]?\s*(\d+)/gi,
+    /(\d+)\s*no\.?\s*door/gi,
+  ];
+
+  for (const pattern of doorCountPatterns) {
+    const matches = text.matchAll(pattern);
+    for (const m of matches) {
+      if (m[1]) {
+        const count = parseInt(m[1]);
+        if (count > result.doors) {
+          result.doors = count;
+          console.log('📊 Found door count:', count);
+        }
+      }
+    }
+  }
+
+  // ============================================================
+  // 5. FIND ROOM NAMES
+  // ============================================================
+  const roomKeywords = ['lounge', 'kitchen', 'garage', 'bedroom', 'bathroom', 'toilet', 'dining', 'study', 'office', 'store', 'pantry', 'laundry', 'porch', 'veranda', 'patio'];
+  const foundRooms = [];
+  for (const keyword of roomKeywords) {
+    const regex = new RegExp('\\b' + keyword + '\\b', 'gi');
+    const matches = text.match(regex);
+    if (matches && matches.length > 0) {
+      foundRooms.push(keyword.charAt(0).toUpperCase() + keyword.slice(1));
+    }
+  }
+  
+  if (foundRooms.length > 0) {
+    result.room_labels = foundRooms.join(', ');
+    result.rooms = Math.max(result.rooms, foundRooms.length);
+    console.log('📊 Found rooms:', foundRooms);
+  }
+
+  // ============================================================
+  // 6. FIND DIMENSIONS
   // ============================================================
   const dimPatterns = [
     /(\d+\.?\d*)\s*[mM]\s*[xX×]\s*(\d+\.?\d*)\s*[mM]/g,
@@ -118,128 +234,24 @@ function parsePlanText(text) {
   let allDimensions = [];
   for (const pattern of dimPatterns) {
     const matches = text.matchAll(pattern);
-    for (const match of matches) {
-      if (match.length >= 3) {
-        allDimensions.push({ width: parseFloat(match[1]), length: parseFloat(match[2]) });
+    for (const m of matches) {
+      if (m.length >= 3) {
+        allDimensions.push({ width: parseFloat(m[1]), length: parseFloat(m[2]) });
       }
     }
   }
 
-  // Calculate floor area from dimensions
   if (allDimensions.length > 0) {
     let totalArea = 0;
     for (const dim of allDimensions) {
       totalArea += dim.width * dim.length;
     }
     result.floor_area = Math.round(totalArea * 10) / 10;
-    result.rooms = allDimensions.length;
-
-    // Build room labels list
-    const labels = [];
-    for (const dim of allDimensions) {
-      labels.push(`${dim.width}m × ${dim.length}m`);
-    }
-    result.room_labels = labels.join(', ');
+    console.log('📊 Floor area from dimensions:', result.floor_area);
   }
 
   // ============================================================
-  // 2. EXTRACT ROOM NAMES
-  // ============================================================
-  const roomKeywords = ['lounge', 'kitchen', 'garage', 'bedroom', 'bathroom', 'toilet', 'dining', 'study', 'office', 'store', 'pantry', 'laundry'];
-  const foundRooms = [];
-  for (const keyword of roomKeywords) {
-    const regex = new RegExp('\\b' + keyword + '\\b', 'gi');
-    const matches = text.match(regex);
-    if (matches && matches.length > 0) {
-      foundRooms.push(keyword.charAt(0).toUpperCase() + keyword.slice(1));
-    }
-  }
-
-  if (foundRooms.length > 0) {
-    const existingLabels = result.room_labels ? result.room_labels.split(', ') : [];
-    const allLabels = [...existingLabels, ...foundRooms];
-    result.room_labels = allLabels.join(', ');
-    result.rooms = Math.max(result.rooms, foundRooms.length);
-  }
-
-  // ============================================================
-  // 3. EXTRACT DOORS
-  // ============================================================
-  const doorPatterns = [
-    /door[s]?\s*[:=]\s*(\d+)/gi,
-    /(\d+)\s*door[s]?/gi,
-    /door\s*(\d+)/gi,
-  ];
-
-  for (const pattern of doorPatterns) {
-    const matches = text.match(pattern);
-    if (matches && matches.length > 0) {
-      const numbers = matches[0].match(/\d+/g);
-      if (numbers && numbers.length > 0) {
-        result.doors = parseInt(numbers[0]);
-        break;
-      }
-    }
-  }
-
-  // ============================================================
-  // 4. EXTRACT WINDOWS
-  // ============================================================
-  const windowPatterns = [
-    /window[s]?\s*[:=]\s*(\d+)/gi,
-    /(\d+)\s*window[s]?/gi,
-    /window\s*(\d+)/gi,
-  ];
-
-  for (const pattern of windowPatterns) {
-    const matches = text.match(pattern);
-    if (matches && matches.length > 0) {
-      const numbers = matches[0].match(/\d+/g);
-      if (numbers && numbers.length > 0) {
-        result.windows = parseInt(numbers[0]);
-        break;
-      }
-    }
-  }
-
-  // ============================================================
-  // 5. EXTRACT WINDOW DETAILS (custom frames, sizes)
-  // ============================================================
-  const windowDetailPatterns = [
-    /window\s*(?:frame|size)\s*[:=]\s*([^\n]+)/gi,
-    /(?:aluminium|timber|steel)\s*window/gi,
-    /window\s*(\d+\.?\d*)\s*[xX]\s*(\d+\.?\d*)/gi,
-  ];
-
-  let windowDetails = [];
-  for (const pattern of windowDetailPatterns) {
-    const matches = text.matchAll(pattern);
-    for (const match of matches) {
-      windowDetails.push(match[0]);
-    }
-  }
-  result.window_details = windowDetails.join('; ');
-
-  // ============================================================
-  // 6. EXTRACT DOOR DETAILS
-  // ============================================================
-  const doorDetailPatterns = [
-    /door\s*(?:frame|size|type)\s*[:=]\s*([^\n]+)/gi,
-    /(?:sliding|swing|pocket|french)\s*door/gi,
-    /door\s*(\d+\.?\d*)\s*[xX]\s*(\d+\.?\d*)/gi,
-  ];
-
-  let doorDetails = [];
-  for (const pattern of doorDetailPatterns) {
-    const matches = text.matchAll(pattern);
-    for (const match of matches) {
-      doorDetails.push(match[0]);
-    }
-  }
-  result.door_details = doorDetails.join('; ');
-
-  // ============================================================
-  // 7. EXTRACT NOTES
+  // 7. FIND NOTES
   // ============================================================
   const notePatterns = [
     /note[s]?\s*[:=]\s*([^\n]+)/gi,
@@ -250,93 +262,25 @@ function parsePlanText(text) {
   let notes = [];
   for (const pattern of notePatterns) {
     const matches = text.matchAll(pattern);
-    for (const match of matches) {
-      if (match[1]) notes.push(match[1].trim());
+    for (const m of matches) {
+      if (m[1]) notes.push(m[1].trim());
     }
   }
   result.notes = notes.join('; ');
+  console.log('📊 Found notes:', result.notes);
 
   // ============================================================
-  // 8. DETECT FOUNDATION TYPE FROM NOTES
-  // ============================================================
-  if (text.match(/strip\s*foundation/i)) {
-    result.foundation_type = 'strip';
-  } else if (text.match(/raft\s*foundation/i)) {
-    result.foundation_type = 'raft';
-  } else if (text.match(/piled\s*foundation/i)) {
-    result.foundation_type = 'piled';
-  }
-
-  // ============================================================
-  // 9. DETECT CONCRETE GRADE
-  // ============================================================
-  const gradeMatch = text.match(/C(\d+)/i);
-  if (gradeMatch) {
-    result.concrete_grade = `C${gradeMatch[1]}`;
-  }
-
-  // ============================================================
-  // 10. EXTRACT PLAN SCALE
-  // ============================================================
-  const scalePatterns = [
-    /scale\s*[:=]\s*(\d+):(\d+)/gi,
-    /(\d+):(\d+)\s*scale/gi,
-  ];
-
-  for (const pattern of scalePatterns) {
-    const matches = text.match(pattern);
-    if (matches && matches.length > 0) {
-      const numbers = matches[0].match(/\d+/g);
-      if (numbers && numbers.length >= 2) {
-        result.plan_scale = `${numbers[0]}:${numbers[1]}`;
-        break;
-      }
-    }
-  }
-
-  // ============================================================
-  // 11. ESTIMATE WALL LENGTH FROM FLOOR AREA
-  // ============================================================
-  if (result.floor_area > 0) {
-    const perimeter = 4 * Math.sqrt(result.floor_area);
-    result.wall_length = Math.round(perimeter * 1.2 * 10) / 10;
-    result.red_wall_length = result.wall_length;
-    result.green_concrete_area = result.floor_area;
-    result.yellow_timber_length = Math.round(result.floor_area * 0.4 * 10) / 10;
-  }
-
-  // ============================================================
-  // 12. EXTRACT COLOR-CODED ELEMENTS FROM NOTES
-  // ============================================================
-  // Check for red walls
-  if (text.match(/red\s*(?:wall|brick|masonry)/i)) {
-    result.red_wall_length = result.wall_length || 50;
-  }
-
-  // Check for green concrete
-  if (text.match(/green\s*(?:concrete|slab|floor)/i)) {
-    result.green_concrete_area = result.floor_area || 80;
-  }
-
-  // Check for brown sewer
-  if (text.match(/brown\s*(?:sewer|drain|pipe)/i)) {
-    result.brown_sewer_length = Math.round(result.floor_area * 0.15 * 10) / 10;
-  }
-
-  // Check for blue water
-  if (text.match(/blue\s*(?:water|pipe|plumbing)/i)) {
-    result.blue_water_length = Math.round(result.floor_area * 0.2 * 10) / 10;
-  }
-
-  // ============================================================
-  // 13. DEFAULT VALUES IF NOTHING DETECTED
+  // 8. DEFAULT VALUES IF NOTHING DETECTED
   // ============================================================
   if (result.rooms === 0) result.rooms = 3;
   if (result.doors === 0) result.doors = 3;
   if (result.windows === 0) result.windows = 2;
   if (result.floor_area === 0) result.floor_area = 80;
   if (result.wall_length === 0) result.wall_length = 50;
+  if (result.red_wall_length === 0) result.red_wall_length = result.wall_length;
+  if (result.green_concrete_area === 0) result.green_concrete_area = result.floor_area;
+  if (result.yellow_timber_length === 0) result.yellow_timber_length = Math.round(result.floor_area * 0.4 * 10) / 10;
 
-  console.log('📊 Parsed plan data:', result);
+  console.log('📊 FINAL PARSED DATA:', result);
   return result;
-                                }
+      }
