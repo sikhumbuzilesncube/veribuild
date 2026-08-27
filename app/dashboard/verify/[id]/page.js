@@ -14,10 +14,10 @@ export default function VerifyPage() {
   const [error, setError] = useState('');
   const [project, setProject] = useState(null);
   const [formData, setFormData] = useState({
-    floor_area: '85',
-    rooms: '4',
-    room_labels: 'Lounge, Kitchen, Garage, Bedroom 1, Bedroom 2, Bathroom',
-    wall_length: '63',
+    floor_area: '',
+    rooms: '',
+    room_labels: '',
+    wall_length: '',
     wall_height: '2.7',
     foundation_type: 'strip',
     foundation_depth: '0.6',
@@ -25,17 +25,20 @@ export default function VerifyPage() {
     slab_type: 'ground',
     slab_thickness: '0.15',
     concrete_grade: 'C20',
-    doors: '4',
-    windows: '2',
-    electrical_points: '8',
-    plumbing_points: '3',
-    red_wall_length: '63',
-    green_concrete_area: '85',
-    yellow_timber_length: '35',
-    brown_sewer_length: '12',
-    blue_water_length: '18',
+    doors: '',
+    windows: '',
+    electrical_points: '',
+    plumbing_points: '',
+    red_wall_length: '',
+    green_concrete_area: '',
+    yellow_timber_length: '',
+    brown_sewer_length: '',
+    blue_water_length: '',
     plan_scale: '1:100',
   });
+
+  // Store original AI-detected values for tracking
+  const [originalData, setOriginalData] = useState({});
 
   const importantFields = ['floor_area', 'rooms', 'wall_length', 'doors', 'windows'];
 
@@ -60,6 +63,34 @@ export default function VerifyPage() {
       }
 
       setProject(data);
+
+      // AI detected data (from readPlan)
+      const detectedData = {
+        floor_area: data.floor_area || '85',
+        rooms: data.rooms || '4',
+        room_labels: data.room_labels || '',
+        wall_length: data.wall_length || '63',
+        wall_height: data.wall_height || '2.7',
+        foundation_type: data.foundation_type || 'strip',
+        foundation_depth: data.foundation_depth || '0.6',
+        foundation_width: data.foundation_width || '0.4',
+        slab_type: data.slab_type || 'ground',
+        slab_thickness: data.slab_thickness || '0.15',
+        concrete_grade: data.concrete_grade || 'C20',
+        doors: data.doors || '4',
+        windows: data.windows || '2',
+        electrical_points: data.electrical_points || '8',
+        plumbing_points: data.plumbing_points || '3',
+        red_wall_length: data.red_wall_length || '',
+        green_concrete_area: data.green_concrete_area || '',
+        yellow_timber_length: data.yellow_timber_length || '',
+        brown_sewer_length: data.brown_sewer_length || '',
+        blue_water_length: data.blue_water_length || '',
+        plan_scale: data.plan_scale || '1:100',
+      };
+
+      setFormData(detectedData);
+      setOriginalData(detectedData); // Save original for comparison
       setLoading(false);
     }
 
@@ -71,6 +102,36 @@ export default function VerifyPage() {
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+
+  // ============================================================
+  // TRACK CORRECTIONS - Compare what AI detected vs what user entered
+  // ============================================================
+  function trackCorrections(userData, aiData, projectId) {
+    const corrections = [];
+    const fieldsToTrack = [
+      'windows', 'doors', 'floor_area', 'rooms', 'room_labels', 
+      'wall_length', 'foundation_type', 'slab_type',
+      'red_wall_length', 'green_concrete_area', 'yellow_timber_length'
+    ];
+
+    for (const field of fieldsToTrack) {
+      const aiValue = aiData[field] || '';
+      const userValue = userData[field] || '';
+
+      // If user changed the value or added a value that was empty
+      if (String(userValue).trim() !== String(aiValue).trim()) {
+        corrections.push({
+          field: field,
+          ai_value: String(aiValue).trim(),
+          user_value: String(userValue).trim(),
+          is_correction: aiValue !== '' && userValue !== '',
+          is_addition: aiValue === '' && userValue !== '',
+        });
+      }
+    }
+
+    return corrections;
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -115,22 +176,54 @@ export default function VerifyPage() {
         status: 'completed',
       };
 
-      console.log('Updating project with:', updateData);
-
+      // Update project
       const { error: updateError } = await supabase
         .from('projects')
         .update(updateData)
         .eq('id', projectId);
 
       if (updateError) {
-        console.error('Update error:', updateError);
         setError(`Failed to save: ${updateError.message}`);
         setSaving(false);
         return;
       }
 
-      router.push(`/dashboard/boq/${projectId}`);
+      // ============================================================
+      // TRACK CORRECTIONS - Save to ai_learning table
+      // ============================================================
+      const corrections = trackCorrections(formData, originalData, projectId);
       
+      if (corrections.length > 0) {
+        console.log('📊 Corrections detected:', corrections);
+        
+        // Save each correction to the database
+        for (const correction of corrections) {
+          const { error: learnError } = await supabase
+            .from('ai_learning')
+            .insert({
+              plan_id: parseInt(projectId),
+              code_type: 'correction',
+              code_value: correction.field,
+              detected: correction.ai_value,
+              confirmed: correction.user_value,
+              corrected: correction.user_value,
+              confidence: 0.5,
+            });
+          
+          if (learnError) {
+            console.error('⚠️ Failed to save learning data:', learnError);
+            // Don't stop the process - just log the error
+          }
+        }
+        
+        console.log('✅ Corrections saved to AI learning database!');
+      } else {
+        console.log('✅ No corrections - AI was accurate!');
+      }
+
+      // Redirect to BOQ
+      router.push(`/dashboard/boq/${projectId}`);
+
     } catch (err) {
       console.error('Unexpected error:', err);
       setError('Something went wrong. Please try again.');
@@ -162,11 +255,13 @@ export default function VerifyPage() {
         <h1 className="text-3xl font-bold text-[#2C3E50] mb-2">Verify Your Plan Data</h1>
         <p className="text-gray-600 mb-8">
           Review the AI-detected information below. <span className="text-red-500 font-semibold">Highlighted fields</span> require your attention.
+          <br />
+          <span className="text-sm text-blue-600">📊 Any changes you make will help train the AI!</span>
         </p>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Section 1: Basic Building Info */}
+            {/* Building Information */}
             <div className="border-b border-gray-200 pb-6">
               <h3 className="text-lg font-bold text-[#2C3E50] mb-4">🏗️ Building Information</h3>
               <div className="grid md:grid-cols-2 gap-4">
@@ -181,10 +276,14 @@ export default function VerifyPage() {
                     onChange={handleChange}
                     step="0.1"
                     className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
-                      !formData.floor_area ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      !formData.floor_area ? 'border-red-500 bg-red-50' : 
+                      formData.floor_area !== originalData.floor_area ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
                     }`}
                     required
                   />
+                  {formData.floor_area !== originalData.floor_area && (
+                    <p className="text-xs text-yellow-600 mt-1">🔄 Corrected from {originalData.floor_area || 'empty'}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -196,10 +295,14 @@ export default function VerifyPage() {
                     value={formData.rooms}
                     onChange={handleChange}
                     className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
-                      !formData.rooms ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      !formData.rooms ? 'border-red-500 bg-red-50' : 
+                      formData.rooms !== originalData.rooms ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
                     }`}
                     required
                   />
+                  {formData.rooms !== originalData.rooms && (
+                    <p className="text-xs text-yellow-600 mt-1">🔄 Corrected from {originalData.rooms || 'empty'}</p>
+                  )}
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -210,16 +313,21 @@ export default function VerifyPage() {
                     name="room_labels"
                     value={formData.room_labels}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
+                      formData.room_labels !== originalData.room_labels ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
+                    }`}
                     placeholder="Lounge, Kitchen, Garage, Bedroom 1, Bedroom 2, Bathroom"
                   />
+                  {formData.room_labels !== originalData.room_labels && (
+                    <p className="text-xs text-yellow-600 mt-1">🔄 Corrected from "{originalData.room_labels || 'empty'}"</p>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Section 2: Walls */}
+            {/* Walls */}
             <div className="border-b border-gray-200 pb-6">
-              <h3 className="text-lg font-bold text-[#2C3E50] mb-4">🧱 Walls <span className="text-sm font-normal text-gray-500">(Red in plan)</span></h3>
+              <h3 className="text-lg font-bold text-[#2C3E50] mb-4">🧱 Walls</h3>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -232,10 +340,14 @@ export default function VerifyPage() {
                     onChange={handleChange}
                     step="0.1"
                     className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
-                      !formData.wall_length ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      !formData.wall_length ? 'border-red-500 bg-red-50' : 
+                      formData.wall_length !== originalData.wall_length ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
                     }`}
                     required
                   />
+                  {formData.wall_length !== originalData.wall_length && (
+                    <p className="text-xs text-yellow-600 mt-1">🔄 Corrected from {originalData.wall_length || 'empty'}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -253,9 +365,9 @@ export default function VerifyPage() {
               </div>
             </div>
 
-            {/* Section 3: Foundation & Slab */}
+            {/* Foundation & Slab */}
             <div className="border-b border-gray-200 pb-6">
-              <h3 className="text-lg font-bold text-[#2C3E50] mb-4">🏠 Foundation & Slab <span className="text-sm font-normal text-gray-500">(Green in plan)</span></h3>
+              <h3 className="text-lg font-bold text-[#2C3E50] mb-4">🏠 Foundation & Slab</h3>
               <div className="grid md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -265,7 +377,9 @@ export default function VerifyPage() {
                     name="foundation_type"
                     value={formData.foundation_type}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
+                      formData.foundation_type !== originalData.foundation_type ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
+                    }`}
                   >
                     <option value="strip">Strip Foundation</option>
                     <option value="raft">Raft Foundation</option>
@@ -307,7 +421,9 @@ export default function VerifyPage() {
                     name="slab_type"
                     value={formData.slab_type}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
+                      formData.slab_type !== originalData.slab_type ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
+                    }`}
                   >
                     <option value="ground">Ground Slab</option>
                     <option value="suspended">Suspended Slab</option>
@@ -346,7 +462,7 @@ export default function VerifyPage() {
               </div>
             </div>
 
-            {/* Section 4: Counts */}
+            {/* Counts */}
             <div className="border-b border-gray-200 pb-6">
               <h3 className="text-lg font-bold text-[#2C3E50] mb-4">📊 Counts</h3>
               <div className="grid md:grid-cols-4 gap-4">
@@ -360,10 +476,14 @@ export default function VerifyPage() {
                     value={formData.doors}
                     onChange={handleChange}
                     className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
-                      !formData.doors ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      !formData.doors ? 'border-red-500 bg-red-50' : 
+                      formData.doors !== originalData.doors ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
                     }`}
                     required
                   />
+                  {formData.doors !== originalData.doors && (
+                    <p className="text-xs text-yellow-600 mt-1">🔄 Corrected from {originalData.doors || 'empty'}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -375,10 +495,14 @@ export default function VerifyPage() {
                     value={formData.windows}
                     onChange={handleChange}
                     className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition ${
-                      !formData.windows ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      !formData.windows ? 'border-red-500 bg-red-50' : 
+                      formData.windows !== originalData.windows ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'
                     }`}
                     required
                   />
+                  {formData.windows !== originalData.windows && (
+                    <p className="text-xs text-yellow-600 mt-1">🔄 Corrected from {originalData.windows || 'empty'}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -407,7 +531,7 @@ export default function VerifyPage() {
               </div>
             </div>
 
-            {/* Section 5: Color-Coded Elements */}
+            {/* Color-Coded Elements */}
             <div className="border-b border-gray-200 pb-6">
               <h3 className="text-lg font-bold text-[#2C3E50] mb-4">🎨 Color-Coded Elements</h3>
               <div className="grid md:grid-cols-3 gap-4">
@@ -495,22 +619,6 @@ export default function VerifyPage() {
               </div>
             </div>
 
-            {project?.file_url && (
-              <div className="border border-gray-200 rounded-xl p-4">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">📄 Uploaded Plan</h3>
-                <div className="bg-gray-100 rounded-lg p-4 text-center">
-                  <a 
-                    href={project.file_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-[#F47B20] hover:underline font-medium"
-                  >
-                    📄 View PDF Plan
-                  </a>
-                </div>
-              </div>
-            )}
-
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
@@ -534,6 +642,14 @@ export default function VerifyPage() {
               </button>
             </div>
           </form>
+        </div>
+
+        {/* Learning Info */}
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-700">
+            🧠 <strong>AI Learning:</strong> Any changes you make will be saved to the AI learning database. 
+            This helps VeriBuild become smarter for future plans!
+          </p>
         </div>
       </div>
     </div>
