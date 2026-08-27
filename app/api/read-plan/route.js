@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import pdfParse from 'pdf-parse';
 
 export async function POST(request) {
   try {
@@ -11,25 +10,71 @@ export async function POST(request) {
     console.log('📄 File URL:', fileUrl);
 
     if (!projectId || !fileUrl) {
-      console.log('❌ Missing projectId or fileUrl');
       return NextResponse.json({ error: 'Missing projectId or fileUrl' }, { status: 400 });
     }
 
-    // Fetch the PDF
+    // Fetch the PDF with timeout
     console.log('📄 Fetching PDF...');
-    const response = await fetch(fileUrl);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+    let response;
+    try {
+      response = await fetch(fileUrl, { signal: controller.signal });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      console.error('❌ Fetch error:', fetchError.message);
+      // Continue without PDF reading - user can manually enter data
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Could not fetch PDF',
+        fallback: true 
+      });
+    }
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      console.error('❌ Fetch failed with status:', response.status);
+      return NextResponse.json({ 
+        success: false, 
+        error: `Failed to fetch PDF: ${response.status}`,
+        fallback: true 
+      });
+    }
+
     const arrayBuffer = await response.arrayBuffer();
     const pdfBuffer = Buffer.from(arrayBuffer);
     console.log('📄 PDF fetched, size:', pdfBuffer.length);
 
-    // Extract text using pdf-parse
-    console.log('📄 Extracting text with pdf-parse...');
-    const data = await pdfParse(pdfBuffer);
-    const text = data.text;
-    console.log('📄 Extracted text length:', text.length);
-    console.log('📄 First 500 chars:', text.substring(0, 500));
+    // Try to extract text from PDF
+    console.log('📄 Extracting text from PDF...');
+    let text = '';
+    try {
+      const pdfParse = (await import('pdf-parse')).default;
+      const data = await pdfParse(pdfBuffer);
+      text = data.text;
+      console.log('📄 Extracted text length:', text.length);
+    } catch (parseError) {
+      console.error('❌ PDF parse error:', parseError.message);
+      // Continue without PDF reading
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Could not parse PDF',
+        fallback: true 
+      });
+    }
 
-    // Count windows in the text
+    // If text is empty, return fallback
+    if (!text || text.length < 10) {
+      console.log('📄 No text extracted from PDF');
+      return NextResponse.json({ 
+        success: false, 
+        error: 'No text found in PDF',
+        fallback: true 
+      });
+    }
+
+    // Count windows
     let windowCount = 0;
     const windowMatches = text.match(/window/gi);
     if (windowMatches) {
@@ -37,7 +82,7 @@ export async function POST(request) {
     }
     console.log('📄 Window count from text:', windowCount);
 
-    // Count doors in the text
+    // Count doors
     let doorCount = 0;
     const doorMatches = text.match(/door/gi);
     if (doorMatches) {
@@ -75,15 +120,15 @@ export async function POST(request) {
     }
     console.log('📄 Calculated area:', area);
 
-    // Prepare data to update
+    // Prepare update data
     const updateData = {
-      windows: windowCount > 0 ? windowCount : 2,
-      doors: doorCount > 0 ? doorCount : 3,
+      windows: windowCount > 0 ? Math.min(windowCount, 20) : 2,
+      doors: doorCount > 0 ? Math.min(doorCount, 20) : 3,
       room_labels: foundRooms.length > 0 ? foundRooms.join(', ') : 'Lounge, Kitchen, Garage, Bedroom, Bathroom',
       floor_area: area > 0 ? area : 85,
       wall_length: area > 0 ? Math.round(4 * Math.sqrt(area) * 1.2 * 10) / 10 : 63,
-      window_details: text.substring(0, 1000),
-      notes: text.substring(0, 2000),
+      window_details: text.substring(0, 500),
+      notes: text.substring(0, 1000),
       status: 'processing',
     };
 
@@ -97,7 +142,11 @@ export async function POST(request) {
 
     if (updateError) {
       console.error('❌ Update error:', updateError);
-      return NextResponse.json({ error: 'Failed to update project' }, { status: 500 });
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Failed to update project',
+        fallback: true 
+      });
     }
 
     console.log('✅ Project updated successfully!');
@@ -109,9 +158,10 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('❌ Error in read-plan API:', error);
-    return NextResponse.json({
-      error: error.message,
-      stack: error.stack
-    }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message || 'Unknown error',
+      fallback: true 
+    });
   }
-}
+  }
