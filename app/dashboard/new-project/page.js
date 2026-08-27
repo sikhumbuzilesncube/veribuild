@@ -16,6 +16,7 @@ export default function NewProject() {
   const [planType, setPlanType] = useState('residential');
   const [cityId, setCityId] = useState(1);
   const [uploadMethod, setUploadMethod] = useState('file');
+  const [apiStatus, setApiStatus] = useState('');
 
   const cities = [
     { id: 1, name: 'Harare' },
@@ -75,6 +76,7 @@ export default function NewProject() {
 
     setLoading(true);
     setError('');
+    setApiStatus('📤 Uploading...');
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -84,9 +86,9 @@ export default function NewProject() {
       }
 
       const userId = session.user.id;
-      console.log('Creating project for user ID:', userId);
 
       // STEP 1: Upload file to Supabase Storage
+      setApiStatus('📤 Uploading file...');
       const fileExt = file.name.split('.').pop();
       const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
       
@@ -98,15 +100,16 @@ export default function NewProject() {
         console.error('Upload error:', uploadError);
         setError('Failed to upload file. Please try again.');
         setLoading(false);
+        setApiStatus('');
         return;
       }
 
-      // Get public URL
       const { data: urlData } = supabase.storage
         .from('plans')
         .getPublicUrl(fileName);
 
       // STEP 2: Create project in database
+      setApiStatus('📝 Creating project...');
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .insert([
@@ -125,15 +128,17 @@ export default function NewProject() {
         console.error('Project error:', projectError);
         setError(`Failed to create project: ${projectError.message}`);
         setLoading(false);
+        setApiStatus('');
         return;
       }
 
       const projectId = projectData[0].id;
-      console.log('Project created with ID:', projectId);
 
-      // STEP 3: Call the read-plan API to extract data from PDF
+      // STEP 3: Call the read-plan API
+      setApiStatus('📄 Reading plan with AI...');
       try {
-        console.log('📄 Calling read-plan API...');
+        console.log('📄 Calling read-plan API for project:', projectId);
+        
         const planResponse = await fetch('/api/read-plan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -144,29 +149,32 @@ export default function NewProject() {
         });
         
         const planResult = await planResponse.json();
-        console.log('📄 Plan reading result:', planResult);
+        console.log('📄 API Response:', planResult);
         
         if (planResult && planResult.success) {
-          console.log('✅ Plan data extracted successfully!');
-          console.log('📊 Windows found:', planResult.data?.windows);
-          console.log('📊 Doors found:', planResult.data?.doors);
-          console.log('📊 Rooms found:', planResult.data?.room_labels);
-          console.log('📊 Floor area:', planResult.data?.floor_area);
+          setApiStatus('✅ Plan data extracted!');
+          console.log('📊 Extracted data:', planResult.data);
         } else {
-          console.warn('⚠️ Plan reading had issues:', planResult?.error || 'Unknown error');
+          setApiStatus('⚠️ Could not read plan automatically');
+          console.warn('⚠️ Plan reading issue:', planResult?.error || 'Unknown');
         }
       } catch (planError) {
-        console.error('❌ Plan reading error (continuing anyway):', planError);
-        // Continue anyway - user can manually enter data
+        console.error('❌ API call error:', planError);
+        setApiStatus('⚠️ Manual verification needed');
+        // Continue anyway
       }
 
-      // STEP 4: Redirect to verification page
-      router.push(`/dashboard/verify/${projectId}`);
+      // STEP 4: Redirect to verification
+      setApiStatus('🔄 Redirecting to verification...');
+      setTimeout(() => {
+        router.push(`/dashboard/verify/${projectId}`);
+      }, 1000);
 
     } catch (err) {
       console.error('Unexpected error:', err);
       setError('Something went wrong. Please try again.');
       setLoading(false);
+      setApiStatus('');
     }
   };
 
@@ -178,7 +186,6 @@ export default function NewProject() {
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Project Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Project Name <span className="text-red-500">*</span>
@@ -193,7 +200,6 @@ export default function NewProject() {
               />
             </div>
 
-            {/* Plan Type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Plan Type <span className="text-red-500">*</span>
@@ -209,7 +215,6 @@ export default function NewProject() {
               </select>
             </div>
 
-            {/* City */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Project Location <span className="text-red-500">*</span>
@@ -225,7 +230,6 @@ export default function NewProject() {
               </select>
             </div>
 
-            {/* File Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Upload Floor Plan <span className="text-red-500">*</span>
@@ -324,14 +328,19 @@ export default function NewProject() {
               </div>
             </div>
 
-            {/* Error */}
+            {/* Status Message */}
+            {apiStatus && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-sm">
+                {apiStatus}
+              </div>
+            )}
+
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
