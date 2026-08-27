@@ -134,35 +134,32 @@ export default function NewProject() {
 
       const projectId = projectData[0].id;
 
-      // STEP 3: Call the read-plan API
-      setApiStatus('📄 Reading plan with AI...');
-      try {
-        console.log('📄 Calling read-plan API for project:', projectId);
-        
-        const planResponse = await fetch('/api/read-plan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            projectId: projectId,
-            fileUrl: urlData.publicUrl
-          })
-        });
-        
-        const planResult = await planResponse.json();
-        console.log('📄 API Response:', planResult);
-        
-        if (planResult && planResult.success) {
-          setApiStatus('✅ Plan data extracted!');
-          console.log('📊 Extracted data:', planResult.data);
-        } else {
-          setApiStatus('⚠️ Could not read plan automatically');
-          console.warn('⚠️ Plan reading issue:', planResult?.error || 'Unknown');
-        }
-      } catch (planError) {
-        console.error('❌ API call error:', planError);
-        setApiStatus('⚠️ Manual verification needed');
-        // Continue anyway
-      }
+      // STEP 3: Call the read-plan API to extract data from PDF
+try {
+  console.log('📄 Calling read-plan API...');
+  const planResponse = await fetch('/api/read-plan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      projectId: projectId,
+      fileUrl: urlData.publicUrl
+    })
+  });
+  
+  const planResult = await planResponse.json();
+  console.log('📄 Plan reading result:', planResult);
+  
+  if (planResult && planResult.success) {
+    setApiStatus(`✅ Found: ${planResult.windowsFound || 0} windows, ${planResult.doorsFound || 0} doors, ${(planResult.roomsFound || []).length} rooms`);
+    console.log('📊 Extracted:', planResult.data);
+  } else {
+    setApiStatus('⚠️ Could not read plan automatically');
+    console.warn('⚠️ Plan reading issue:', planResult?.error || 'Unknown');
+  }
+} catch (planError) {
+  console.error('❌ API call error:', planError);
+  setApiStatus('⚠️ Manual verification needed');
+          }
 
       // STEP 4: Redirect to verification
       setApiStatus('🔄 Redirecting to verification...');
