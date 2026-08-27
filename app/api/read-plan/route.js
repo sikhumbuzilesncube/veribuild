@@ -10,31 +10,19 @@ export async function POST(request) {
     console.log('📄 File URL:', fileUrl);
 
     if (!projectId || !fileUrl) {
-      return NextResponse.json({ error: 'Missing projectId or fileUrl' }, { status: 400 });
-    }
-
-    // Fetch the PDF with timeout
-    console.log('📄 Fetching PDF...');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
-    let response;
-    try {
-      response = await fetch(fileUrl, { signal: controller.signal });
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      console.error('❌ Fetch error:', fetchError.message);
-      // Continue without PDF reading - user can manually enter data
       return NextResponse.json({ 
         success: false, 
-        error: 'Could not fetch PDF',
+        error: 'Missing projectId or fileUrl',
         fallback: true 
       });
     }
-    clearTimeout(timeoutId);
 
+    // Fetch the PDF
+    console.log('📄 Fetching PDF...');
+    const response = await fetch(fileUrl);
+    
     if (!response.ok) {
-      console.error('❌ Fetch failed with status:', response.status);
+      console.error('❌ Fetch failed:', response.status);
       return NextResponse.json({ 
         success: false, 
         error: `Failed to fetch PDF: ${response.status}`,
@@ -46,17 +34,17 @@ export async function POST(request) {
     const pdfBuffer = Buffer.from(arrayBuffer);
     console.log('📄 PDF fetched, size:', pdfBuffer.length);
 
-    // Try to extract text from PDF
-    console.log('📄 Extracting text from PDF...');
+    // Extract text from PDF
+    console.log('📄 Extracting text...');
     let text = '';
     try {
       const pdfParse = (await import('pdf-parse')).default;
       const data = await pdfParse(pdfBuffer);
       text = data.text;
       console.log('📄 Extracted text length:', text.length);
+      console.log('📄 First 300 chars:', text.substring(0, 300));
     } catch (parseError) {
       console.error('❌ PDF parse error:', parseError.message);
-      // Continue without PDF reading
       return NextResponse.json({ 
         success: false, 
         error: 'Could not parse PDF',
@@ -64,9 +52,8 @@ export async function POST(request) {
       });
     }
 
-    // If text is empty, return fallback
     if (!text || text.length < 10) {
-      console.log('📄 No text extracted from PDF');
+      console.log('📄 No text extracted');
       return NextResponse.json({ 
         success: false, 
         error: 'No text found in PDF',
@@ -74,24 +61,81 @@ export async function POST(request) {
       });
     }
 
-    // Count windows
-    let windowCount = 0;
-    const windowMatches = text.match(/window/gi);
-    if (windowMatches) {
-      windowCount = windowMatches.length;
+    // ============================================================
+    // COUNT WINDOWS
+    // ============================================================
+    // Look for patterns like "W1", "W2", "W3", "window", "WIN", etc.
+    const windowPatterns = [
+      /\bW\d+\b/gi,           // W1, W2, W3, etc.
+      /window/gi,              // window, Windows
+      /\bWIN\d+\b/gi,          // WIN1, WIN2, etc.
+    ];
+    
+    let windowMatches = [];
+    for (const pattern of windowPatterns) {
+      const matches = text.match(pattern) || [];
+      windowMatches = windowMatches.concat(matches);
     }
-    console.log('📄 Window count from text:', windowCount);
-
-    // Count doors
-    let doorCount = 0;
-    const doorMatches = text.match(/door/gi);
-    if (doorMatches) {
-      doorCount = doorMatches.length;
+    
+    // Count unique window numbers
+    const uniqueWindows = new Set();
+    for (const match of windowMatches) {
+      const num = match.match(/\d+/);
+      if (num) {
+        uniqueWindows.add(parseInt(num[0]));
+      } else {
+        // If no number, count as 1
+        uniqueWindows.add('_count');
+      }
     }
-    console.log('📄 Door count from text:', doorCount);
+    // Remove the '_count' placeholder if it exists
+    const windowCount = uniqueWindows.has('_count') ? 
+      windowMatches.length : 
+      uniqueWindows.size;
 
-    // Find room names
-    const roomKeywords = ['lounge', 'kitchen', 'garage', 'bedroom', 'bathroom', 'toilet', 'dining', 'study', 'office'];
+    console.log('📄 Window patterns found:', windowMatches);
+    console.log('📄 Unique windows count:', windowCount);
+
+    // ============================================================
+    // COUNT DOORS
+    // ============================================================
+    const doorPatterns = [
+      /\bD\d+\b/gi,           // D1, D2, D3, etc.
+      /door/gi,                // door, Doors
+      /\bDOOR\d+\b/gi,         // DOOR1, DOOR2, etc.
+    ];
+    
+    let doorMatches = [];
+    for (const pattern of doorPatterns) {
+      const matches = text.match(pattern) || [];
+      doorMatches = doorMatches.concat(matches);
+    }
+    
+    const uniqueDoors = new Set();
+    for (const match of doorMatches) {
+      const num = match.match(/\d+/);
+      if (num) {
+        uniqueDoors.add(parseInt(num[0]));
+      } else {
+        uniqueDoors.add('_count');
+      }
+    }
+    const doorCount = uniqueDoors.has('_count') ? 
+      doorMatches.length : 
+      uniqueDoors.size;
+
+    console.log('📄 Door patterns found:', doorMatches);
+    console.log('📄 Unique doors count:', doorCount);
+
+    // ============================================================
+    // FIND ROOM NAMES
+    // ============================================================
+    const roomKeywords = [
+      'lounge', 'kitchen', 'garage', 'bedroom', 'bathroom', 
+      'toilet', 'dining', 'study', 'office', 'store', 'pantry',
+      'laundry', 'porch', 'veranda', 'patio', 'living', 'family'
+    ];
+    
     const foundRooms = [];
     for (const keyword of roomKeywords) {
       const regex = new RegExp('\\b' + keyword + '\\b', 'gi');
@@ -101,7 +145,9 @@ export async function POST(request) {
     }
     console.log('📄 Found rooms:', foundRooms);
 
-    // Find dimensions
+    // ============================================================
+    // FIND DIMENSIONS
+    // ============================================================
     const dimPattern = /(\d+\.?\d*)\s*[mM]\s*[xX×]\s*(\d+\.?\d*)\s*[mM]/g;
     let dims = [];
     let match;
@@ -110,7 +156,6 @@ export async function POST(request) {
     }
     console.log('📄 Found dimensions:', dims);
 
-    // Calculate area from dimensions
     let area = 0;
     if (dims.length > 0) {
       for (const d of dims) {
@@ -120,19 +165,31 @@ export async function POST(request) {
     }
     console.log('📄 Calculated area:', area);
 
-    // Prepare update data
+    // ============================================================
+    // FIND FOUNDATION NOTES
+    // ============================================================
+    let foundationType = 'strip';
+    if (text.match(/raft/i)) foundationType = 'raft';
+    else if (text.match(/piled/i)) foundationType = 'piled';
+    else if (text.match(/pad/i)) foundationType = 'pad';
+    console.log('📄 Foundation type:', foundationType);
+
+    // ============================================================
+    // PREPARE UPDATE DATA
+    // ============================================================
     const updateData = {
-      windows: windowCount > 0 ? Math.min(windowCount, 20) : 2,
-      doors: doorCount > 0 ? Math.min(doorCount, 20) : 3,
-      room_labels: foundRooms.length > 0 ? foundRooms.join(', ') : 'Lounge, Kitchen, Garage, Bedroom, Bathroom',
-      floor_area: area > 0 ? area : 85,
-      wall_length: area > 0 ? Math.round(4 * Math.sqrt(area) * 1.2 * 10) / 10 : 63,
+      windows: windowCount > 0 ? windowCount : 2,
+      doors: doorCount > 0 ? doorCount : 3,
+      room_labels: foundRooms.length > 0 ? foundRooms.join(', ') : '',
+      floor_area: area > 0 ? area : 0,
+      wall_length: area > 0 ? Math.round(4 * Math.sqrt(area) * 1.2 * 10) / 10 : 0,
       window_details: text.substring(0, 500),
       notes: text.substring(0, 1000),
+      foundation_type: foundationType,
       status: 'processing',
     };
 
-    console.log('📄 Update data:', updateData);
+    console.log('📄 UPDATE DATA:', updateData);
 
     // Update the project
     const { error: updateError } = await supabase
@@ -153,7 +210,10 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       data: updateData,
-      message: 'Plan read successfully'
+      message: 'Plan read successfully',
+      windowsFound: windowCount,
+      doorsFound: doorCount,
+      roomsFound: foundRooms
     });
 
   } catch (error) {
@@ -164,4 +224,4 @@ export async function POST(request) {
       fallback: true 
     });
   }
-  }
+        }
