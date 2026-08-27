@@ -86,7 +86,27 @@ export default function NewProject() {
       const userId = session.user.id;
       console.log('Creating project for user ID:', userId);
 
-      // DIRECTLY create project (user already exists in database)
+      // STEP 1: Upload file to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('plans')
+        .upload(fileName, file);
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        setError('Failed to upload file. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('plans')
+        .getPublicUrl(fileName);
+
+      // STEP 2: Create project in database
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .insert([
@@ -96,7 +116,7 @@ export default function NewProject() {
             city_id: cityId,
             plan_type: planType,
             status: 'processing',
-            file_url: file.name,
+            file_url: urlData.publicUrl,
           },
         ])
         .select();
@@ -108,8 +128,36 @@ export default function NewProject() {
         return;
       }
 
-      console.log('Project created:', projectData);
-      router.push(`/dashboard/verify/${projectData[0].id}`);
+      const projectId = projectData[0].id;
+      console.log('Project created with ID:', projectId);
+
+      // STEP 3: Call the read-plan API to extract data from PDF
+      try {
+        console.log('📄 Calling read-plan API...');
+        const planResponse = await fetch('/api/read-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId: projectId,
+            fileUrl: urlData.publicUrl
+          })
+        });
+        
+        const planResult = await planResponse.json();
+        console.log('📄 Plan reading result:', planResult);
+        
+        if (planResult.success) {
+          console.log('✅ Plan data extracted successfully!');
+        } else {
+          console.warn('⚠️ Plan reading had issues, continuing anyway');
+        }
+      } catch (planError) {
+        console.error('❌ Plan reading error (continuing anyway):', planError);
+        // Continue anyway - user can manually enter data
+      }
+
+      // STEP 4: Redirect to verification page
+      router.push(`/dashboard/verify/${projectId}`);
 
     } catch (err) {
       console.error('Unexpected error:', err);
@@ -126,6 +174,7 @@ export default function NewProject() {
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Project Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Project Name <span className="text-red-500">*</span>
@@ -140,6 +189,7 @@ export default function NewProject() {
               />
             </div>
 
+            {/* Plan Type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Plan Type <span className="text-red-500">*</span>
@@ -155,6 +205,7 @@ export default function NewProject() {
               </select>
             </div>
 
+            {/* City */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Project Location <span className="text-red-500">*</span>
@@ -170,6 +221,7 @@ export default function NewProject() {
               </select>
             </div>
 
+            {/* File Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Upload Floor Plan <span className="text-red-500">*</span>
@@ -268,12 +320,14 @@ export default function NewProject() {
               </div>
             </div>
 
+            {/* Error */}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
@@ -295,4 +349,4 @@ export default function NewProject() {
       </div>
     </div>
   );
-     }
+    }
