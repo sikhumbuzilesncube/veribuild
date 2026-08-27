@@ -3,11 +3,73 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { decodeWindowCode, calculateWindowArea } from '@/utils/windowCodes';
-import { decodeDoorCode } from '@/utils/doorCodes';
-import { getBrickType } from '@/utils/brickTypes';
-import { getColorMeaning } from '@/utils/colorMapping';
-import { getRegulations } from '@/utils/regulations';
+
+// ============================================================
+// UTILITY FUNCTIONS (Built directly into the file to avoid import issues)
+// ============================================================
+
+// Window Code Decoder
+function decodeWindowCode(code) {
+  const windowCodes = {
+    'PT66': { height: 600, width: 600, type: 'top-hung', vents: 1, category: 'PT Series' },
+    'PT99': { height: 900, width: 900, type: 'top-hung', vents: 1, category: 'PT Series' },
+    'PT129': { height: 1200, width: 900, type: 'top-hung', vents: 1, category: 'PT Series' },
+    'PT1212': { height: 1200, width: 1200, type: 'top-hung', vents: 1, category: 'PT Series' },
+    'PT1515': { height: 1500, width: 1500, type: 'top-hung', vents: 1, category: 'PT Series' },
+    'PTT1212': { height: 1200, width: 1200, type: 'top-hung', vents: 2, category: 'PT Series' },
+    'PTT1515': { height: 1500, width: 1500, type: 'top-hung', vents: 2, category: 'PT Series' },
+    'PTT915': { height: 900, width: 1500, type: 'top-hung', vents: 2, category: 'PT Series' },
+    'P4T1815': { height: 1800, width: 1500, type: 'top-hung', vents: 4, category: 'PT Series' },
+    'PS69': { height: 600, width: 900, type: 'side-hung', vents: 1, category: 'PS Series' },
+    'PS1212': { height: 1200, width: 1200, type: 'side-hung', vents: 1, category: 'PS Series' },
+    'PSS1212': { height: 1200, width: 1200, type: 'side-hung', vents: 2, category: 'PS Series' },
+    'PSS1512': { height: 1500, width: 1200, type: 'side-hung', vents: 2, category: 'PS Series' },
+    'HS1212': { height: 1200, width: 1200, type: 'sliding', vents: 1, category: 'HS Series' },
+    'HS1512': { height: 1500, width: 1200, type: 'sliding', vents: 1, category: 'HS Series' },
+    'HS1812': { height: 1800, width: 1200, type: 'sliding', vents: 1, category: 'HS Series' },
+    'HS2415': { height: 2400, width: 1500, type: 'sliding', vents: 1, category: 'HS Series' },
+  };
+  
+  if (windowCodes[code]) return windowCodes[code];
+  
+  const match = code.match(/^([A-Z]+)(\d{2})(\d{2})$/);
+  if (match) {
+    const [, type, h, w] = match;
+    const height = parseInt(h) * 100;
+    const width = parseInt(w) * 100;
+    let vents = 1;
+    if (type.includes('TT')) vents = 2;
+    if (type.includes('4T')) vents = 4;
+    if (type.includes('SS')) vents = 2;
+    return {
+      height,
+      width,
+      type: type.includes('HS') ? 'sliding' : type.includes('PS') ? 'side-hung' : 'top-hung',
+      vents,
+      category: 'Custom',
+      isCustom: true
+    };
+  }
+  return null;
+}
+
+// Door Code Decoder
+function decodeDoorCode(code) {
+  const doorCodes = {
+    'D1': { leafWidth: 813, leafHeight: 2032, frameWidth: 880, frameHeight: 2100, brickOpening: '900×2110', type: 'single', category: 'Standard' },
+    'D2': { leafWidth: 762, leafHeight: 2032, frameWidth: 830, frameHeight: 2100, brickOpening: '850×2110', type: 'single', category: 'Standard' },
+    'DD': { leafWidth: 1626, leafHeight: 2032, frameWidth: 1690, frameHeight: 2100, brickOpening: '1710×2110', type: 'double', category: 'Standard' },
+    'FD1': { leafWidth: 900, leafHeight: 2100, frameWidth: 970, frameHeight: 2170, brickOpening: '990×2180', type: 'fire', category: 'Specialty' },
+    'PD1': { leafWidth: 1200, leafHeight: 2100, frameWidth: 1270, frameHeight: 2170, brickOpening: '1290×2180', type: 'pivot', category: 'Specialty' },
+  };
+  
+  if (doorCodes[code]) return doorCodes[code];
+  return null;
+}
+
+// ============================================================
+// MAIN BOQ PAGE
+// ============================================================
 
 export default function BOQPage() {
   const router = useRouter();
@@ -62,12 +124,9 @@ export default function BOQPage() {
   }, [projectId, router]);
 
   // ============================================================
-  // COMPLETE BOQ GENERATION WITH FULL INTELLIGENCE
+  // BOQ GENERATION
   // ============================================================
   function generateFullBOQ(project) {
-    // ============================================================
-    // 1. EXTRACT PROJECT DATA
-    // ============================================================
     const area = project.floor_area || 85;
     const rooms = project.rooms || 4;
     const doors = project.doors || 4;
@@ -78,7 +137,6 @@ export default function BOQPage() {
     const foundationWidth = project.foundation_width || 0.4;
     const slabThickness = project.slab_thickness || 0.15;
     
-    // Color-coded lengths
     const redWalls = project.red_wall_length || wallLength;
     const greenConcrete = project.green_concrete_area || area;
     const yellowTimber = project.yellow_timber_length || 35;
@@ -87,34 +145,22 @@ export default function BOQPage() {
 
     const items = [];
 
-    // ============================================================
-    // 2. EXTRACT WINDOW CODES FROM PROJECT
-    // ============================================================
+    // Extract window codes from project
     const windowDetails = project.window_details || '';
     const windowCodes = windowDetails.match(/[A-Z]{2,4}\d{4,6}/g) || [];
     const uniqueWindowCodes = [...new Set(windowCodes)];
     let totalWindowArea = 0;
-    let totalWindowCount = 0;
 
-    // ============================================================
-    // 3. EXTRACT DOOR CODES FROM PROJECT
-    // ============================================================
+    // Extract door codes from project
     const doorDetails = project.door_details || '';
     const doorCodes = doorDetails.match(/D\d+|DD|FD\d+|PD\d+|SD\d{4}/g) || [];
     const uniqueDoorCodes = [...new Set(doorCodes)];
-
-    // ============================================================
-    // 4. DETECT BRICK TYPE
-    // ============================================================
-    const brickType = getBrickType('standard');
-    const blockType = getBrickType('cement_block');
 
     // ============================================================
     // SECTION A: FOUNDATION
     // ============================================================
     const foundationVolume = wallLength * foundationWidth * foundationDepth;
     
-    // A1: Excavation
     items.push({
       id: 'A1',
       name: 'Foundation Excavation',
@@ -125,7 +171,6 @@ export default function BOQPage() {
       category: 'Foundation'
     });
 
-    // A2: Concrete for Foundation
     items.push({
       id: 'A2',
       name: 'Concrete Mix (Foundation)',
@@ -136,7 +181,6 @@ export default function BOQPage() {
       category: 'Foundation'
     });
 
-    // A3: Cement for Foundation
     const cementForFoundation = foundationVolume * 1.05 * 6;
     items.push({
       id: 'A3',
@@ -148,7 +192,6 @@ export default function BOQPage() {
       category: 'Foundation'
     });
 
-    // A4: Sand for Foundation
     const sandForFoundation = foundationVolume * 1.05 * 0.5;
     items.push({
       id: 'A4',
@@ -160,7 +203,6 @@ export default function BOQPage() {
       category: 'Foundation'
     });
 
-    // A5: Quarry/Stone for Foundation
     const stoneForFoundation = foundationVolume * 1.05 * 0.8;
     items.push({
       id: 'A5',
@@ -172,7 +214,6 @@ export default function BOQPage() {
       category: 'Foundation'
     });
 
-    // A6: Steel Rebar for Foundation
     const rebarForFoundation = wallLength * 0.8;
     items.push({
       id: 'A6',
@@ -184,24 +225,22 @@ export default function BOQPage() {
       category: 'Foundation'
     });
 
-    // A7: Foundation Bricks/Blocks
     const foundationBricks = wallLength * 8;
     items.push({
       id: 'A7',
-      name: `${blockType.name} (Foundation)`,
+      name: 'Foundation Bricks',
       qty: Math.round(foundationBricks),
       unit: 'pieces',
-      unitPrice: blockType.priceUSD,
-      total: Math.round(foundationBricks * blockType.priceUSD * 100) / 100,
+      unitPrice: 0.35,
+      total: Math.round(foundationBricks * 0.35 * 100) / 100,
       category: 'Foundation'
     });
 
     // ============================================================
-    // SECTION B: SLAB / GROUND FLOOR
+    // SECTION B: SLAB
     // ============================================================
     const slabVolume = area * slabThickness;
     
-    // B1: Concrete for Slab
     items.push({
       id: 'B1',
       name: 'Concrete Mix (Slab)',
@@ -212,7 +251,6 @@ export default function BOQPage() {
       category: 'Slab'
     });
 
-    // B2: Cement for Slab
     const cementForSlab = slabVolume * 1.05 * 6;
     items.push({
       id: 'B2',
@@ -224,7 +262,6 @@ export default function BOQPage() {
       category: 'Slab'
     });
 
-    // B3: Sand for Slab
     const sandForSlab = slabVolume * 1.05 * 0.5;
     items.push({
       id: 'B3',
@@ -236,7 +273,6 @@ export default function BOQPage() {
       category: 'Slab'
     });
 
-    // B4: Stone for Slab
     const stoneForSlab = slabVolume * 1.05 * 0.8;
     items.push({
       id: 'B4',
@@ -248,7 +284,6 @@ export default function BOQPage() {
       category: 'Slab'
     });
 
-    // B5: Steel Mesh for Slab
     const meshForSlab = area * 1.1;
     items.push({
       id: 'B5',
@@ -261,24 +296,22 @@ export default function BOQPage() {
     });
 
     // ============================================================
-    // SECTION C: WALLS (Red in plan)
+    // SECTION C: WALLS
     // ============================================================
     const wallArea = wallLength * wallHeight;
-    const wallVolume = wallArea * 0.2; // 200mm thick walls
+    const wallVolume = wallArea * 0.2;
 
-    // C1: Wall Bricks/Blocks
-    const wallBricks = wallArea * brickType.unitsPerM2;
+    const wallBricks = wallArea * 65;
     items.push({
       id: 'C1',
-      name: `${brickType.name} (Walls)`,
+      name: 'Standard Bricks (Walls)',
       qty: Math.round(wallBricks),
       unit: 'pieces',
-      unitPrice: brickType.priceUSD,
-      total: Math.round(wallBricks * brickType.priceUSD * 100) / 100,
+      unitPrice: 0.35,
+      total: Math.round(wallBricks * 0.35 * 100) / 100,
       category: 'Walls'
     });
 
-    // C2: Cement for Walls
     const cementForWalls = wallVolume * 4;
     items.push({
       id: 'C2',
@@ -290,7 +323,6 @@ export default function BOQPage() {
       category: 'Walls'
     });
 
-    // C3: Sand for Walls
     const sandForWalls = wallVolume * 0.3;
     items.push({
       id: 'C3',
@@ -303,9 +335,8 @@ export default function BOQPage() {
     });
 
     // ============================================================
-    // SECTION D: TIMBER (Yellow in plan)
+    // SECTION D: TIMBER
     // ============================================================
-    // D1: Timber for Roof/Structure
     items.push({
       id: 'D1',
       name: 'Timber 50x50mm (Structure)',
@@ -351,32 +382,28 @@ export default function BOQPage() {
     });
 
     // ============================================================
-    // SECTION F: WINDOWS (Intelligence from codes)
+    // SECTION F: WINDOWS (Using Codes)
     // ============================================================
     for (const code of uniqueWindowCodes) {
       const decoded = decodeWindowCode(code);
       if (decoded) {
         const area = (decoded.width / 1000) * (decoded.height / 1000);
         totalWindowArea += area;
-        totalWindowCount++;
-        
-        const pricePerWindow = decoded.type === 'sliding' ? 120 : 
-                               decoded.type === 'steel' ? 85 : 95;
+        const price = decoded.type === 'sliding' ? 120 : 95;
         
         items.push({
           id: `WIN-${code}`,
-          name: `Window ${code} (${decoded.category || 'Custom'}) - ${decoded.height}×${decoded.width}mm`,
+          name: `Window ${code} (${decoded.height}×${decoded.width}mm)`,
           qty: 1,
           unit: 'window',
-          unitPrice: pricePerWindow,
-          total: pricePerWindow,
+          unitPrice: price,
+          total: price,
           category: 'Windows'
         });
       }
     }
 
-    // If no window codes found, use the count from verification
-    if (totalWindowCount === 0 && windows > 0) {
+    if (uniqueWindowCodes.length === 0 && windows > 0) {
       items.push({
         id: 'WIN-DEFAULT',
         name: `Windows (${windows} windows)`,
@@ -386,46 +413,30 @@ export default function BOQPage() {
         total: windows * 95.00,
         category: 'Windows'
       });
-      totalWindowCount = windows;
-    }
-
-    // Add total window area
-    if (totalWindowArea > 0) {
-      items.push({
-        id: 'WIN-TOTAL',
-        name: `Windows (Total ${totalWindowCount} windows)`,
-        qty: Math.round(totalWindowArea * 10) / 10,
-        unit: 'm²',
-        unitPrice: 15.00,
-        total: Math.round(totalWindowArea * 15.00 * 100) / 100,
-        category: 'Windows'
-      });
     }
 
     // ============================================================
-    // SECTION G: DOORS (Intelligence from codes)
+    // SECTION G: DOORS (Using Codes)
     // ============================================================
     for (const code of uniqueDoorCodes) {
       const decoded = decodeDoorCode(code);
       if (decoded) {
-        const pricePerDoor = decoded.type === 'fire' ? 250 : 
-                             decoded.type === 'pivot' ? 300 : 
-                             decoded.type === 'sliding' ? 180 : 
-                             decoded.type === 'double' ? 220 : 120;
+        const price = decoded.type === 'fire' ? 250 : 
+                      decoded.type === 'pivot' ? 300 : 
+                      decoded.type === 'double' ? 220 : 120;
         
         items.push({
           id: `DOOR-${code}`,
-          name: `Door ${code} (${decoded.category || 'Custom'}) - ${decoded.leafWidth}×${decoded.leafHeight}mm`,
+          name: `Door ${code} (${decoded.leafWidth}×${decoded.leafHeight}mm)`,
           qty: 1,
           unit: 'door',
-          unitPrice: pricePerDoor,
-          total: pricePerDoor,
+          unitPrice: price,
+          total: price,
           category: 'Doors'
         });
       }
     }
 
-    // If no door codes found, use the count from verification
     if (uniqueDoorCodes.length === 0 && doors > 0) {
       items.push({
         id: 'DOOR-DEFAULT',
@@ -441,7 +452,6 @@ export default function BOQPage() {
     // ============================================================
     // SECTION H: FINISHES
     // ============================================================
-    // H1: Floor Tiles
     items.push({
       id: 'H1',
       name: 'Floor Tiles',
@@ -452,7 +462,6 @@ export default function BOQPage() {
       category: 'Finishes'
     });
 
-    // H2: Paint (Walls + Ceiling)
     const paintArea = wallArea * 2 + area;
     items.push({
       id: 'H2',
@@ -464,7 +473,6 @@ export default function BOQPage() {
       category: 'Finishes'
     });
 
-    // H3: Ceiling
     items.push({
       id: 'H3',
       name: 'Ceiling Boards',
@@ -476,7 +484,7 @@ export default function BOQPage() {
     });
 
     // ============================================================
-    // SECTION I: SEWER (Brown in plan)
+    // SECTION I: SEWER
     // ============================================================
     if (brownSewer > 0) {
       items.push({
@@ -501,7 +509,7 @@ export default function BOQPage() {
     }
 
     // ============================================================
-    // SECTION J: WATER (Blue in plan)
+    // SECTION J: WATER
     // ============================================================
     if (blueWater > 0) {
       items.push({
@@ -625,13 +633,12 @@ export default function BOQPage() {
   // SUPPLIER COMPARISON
   // ============================================================
   function generateSupplierComparison(total) {
-    const suppliers = [
+    return [
       { name: 'Builders Warehouse', price: Math.round(total * 0.92 * 100) / 100 },
       { name: 'PPC Zimbabwe', price: Math.round(total * 0.96 * 100) / 100 },
       { name: 'ZimSteel', price: Math.round(total * 0.98 * 100) / 100 },
       { name: 'Local Hardware', price: Math.round(total * 1.0 * 100) / 100 },
-    ];
-    return suppliers.sort((a, b) => a.price - b.price);
+    ].sort((a, b) => a.price - b.price);
   }
 
   // ============================================================
@@ -639,8 +646,6 @@ export default function BOQPage() {
   // ============================================================
   function generateWorkerSuggestions(project) {
     const rooms = project.rooms || 4;
-    const area = project.floor_area || 85;
-
     return [
       { role: 'Skilled Masons', count: 2, days: Math.round(rooms * 3 + 4), rate: 15.00 },
       { role: 'Carpenters', count: 1, days: Math.round(rooms * 2 + 3), rate: 15.00 },
@@ -725,7 +730,7 @@ export default function BOQPage() {
           </div>
         </div>
 
-        {/* BOQ Table by Category */}
+        {/* BOQ Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -740,12 +745,10 @@ export default function BOQPage() {
                 </tr>
               </thead>
               <tbody>
-                {Object.keys(categories).map((cat, catIndex) => (
+                {Object.keys(categories).map((cat) => (
                   <>
                     <tr className="bg-gray-100 font-bold">
-                      <td colSpan="6" className="px-4 py-2 text-[#2C3E50]">
-                        {cat.toUpperCase()}
-                      </td>
+                      <td colSpan="6" className="px-4 py-2 text-[#2C3E50]">{cat.toUpperCase()}</td>
                     </tr>
                     {categories[cat].map((item, idx) => (
                       <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50 transition">
@@ -758,12 +761,8 @@ export default function BOQPage() {
                       </tr>
                     ))}
                     <tr className="bg-gray-50 font-bold">
-                      <td colSpan="5" className="px-4 py-2 text-right text-[#2C3E50]">
-                        {cat} Total
-                      </td>
-                      <td className="px-4 py-2 text-right text-[#F47B20]">
-                        ${categoryTotals[cat].toFixed(2)}
-                      </td>
+                      <td colSpan="5" className="px-4 py-2 text-right text-[#2C3E50]">{cat} Total</td>
+                      <td className="px-4 py-2 text-right text-[#F47B20]">${categoryTotals[cat].toFixed(2)}</td>
                     </tr>
                   </>
                 ))}
@@ -778,50 +777,32 @@ export default function BOQPage() {
           </div>
         </div>
 
-        {/* Supplier Comparison & Worker Suggestions */}
+        {/* Supplier Comparison & Workers */}
         <div className="grid md:grid-cols-2 gap-6 mb-6">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h3 className="text-lg font-bold text-[#2C3E50] mb-4">🏪 Supplier Price Comparison</h3>
-            <div className="space-y-3">
-              {supplierComparison.map((supplier, index) => (
-                <div key={index} className="flex justify-between items-center border-b border-gray-100 pb-2">
-                  <span className="font-medium text-gray-700">{supplier.name}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-[#2C3E50]">${supplier.price.toFixed(2)}</span>
-                    {index === 0 && (
-                      <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-semibold">
-                        Best Price ✓
-                      </span>
-                    )}
-                    {index > 0 && supplier.price > supplierComparison[0].price && (
-                      <span className="text-xs text-red-500">
-                        +${(supplier.price - supplierComparison[0].price).toFixed(2)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+            {supplierComparison.map((supplier, index) => (
+              <div key={index} className="flex justify-between items-center border-b border-gray-100 pb-2">
+                <span className="font-medium text-gray-700">{supplier.name}</span>
+                <span className="font-bold text-[#2C3E50]">${supplier.price.toFixed(2)}</span>
+              </div>
+            ))}
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h3 className="text-lg font-bold text-[#2C3E50] mb-4">👷 Suggested Workers</h3>
-            <div className="space-y-3">
-              {workerSuggestions.map((worker, index) => {
-                const totalCost = Math.round(worker.count * worker.days * worker.rate * 100) / 100;
-                return (
-                  <div key={index} className="flex justify-between items-center border-b border-gray-100 pb-2">
-                    <div>
-                      <span className="font-medium text-gray-700">{worker.role}</span>
-                      <span className="text-sm text-gray-500 ml-2">
-                        {worker.count} × {worker.days} days
-                      </span>
-                    </div>
-                    <span className="font-bold text-[#2C3E50]">${totalCost.toFixed(2)}</span>
+            {workerSuggestions.map((worker, index) => {
+              const totalCost = Math.round(worker.count * worker.days * worker.rate * 100) / 100;
+              return (
+                <div key={index} className="flex justify-between items-center border-b border-gray-100 pb-2">
+                  <div>
+                    <span className="font-medium text-gray-700">{worker.role}</span>
+                    <span className="text-sm text-gray-500 ml-2">{worker.count} × {worker.days} days</span>
                   </div>
-                );
-              })}
-            </div>
+                  <span className="font-bold text-[#2C3E50]">${totalCost.toFixed(2)}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -831,12 +812,8 @@ export default function BOQPage() {
             onClick={() => {
               const headers = ['Material', 'Category', 'Qty', 'Unit', 'Unit Price', 'Total'];
               const rows = boqItems.map(item => [
-                item.name,
-                item.category,
-                item.qty,
-                item.unit,
-                item.unitPrice.toFixed(2),
-                item.total.toFixed(2)
+                item.name, item.category, item.qty, item.unit,
+                item.unitPrice.toFixed(2), item.total.toFixed(2)
               ]);
               const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
               const blob = new Blob([csv], { type: 'text/csv' });
@@ -860,4 +837,4 @@ export default function BOQPage() {
       </div>
     </div>
   );
-      }
+                }
