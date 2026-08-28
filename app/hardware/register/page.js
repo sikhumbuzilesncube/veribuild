@@ -94,7 +94,7 @@ export default function HardwareRegister() {
           phone: formData.phone || '',
           location: formData.location || '',
           city_id: cityId,
-          is_verified: false,
+          is_verified: true,  // Auto-verify for now
           subscription_status: 'inactive',
         })
         .select();
