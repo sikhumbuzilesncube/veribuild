@@ -124,12 +124,9 @@ export default function Dashboard() {
           <Link href="/dashboard/projects" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
             📋 My Projects
           </Link>
-          
-          {/* Hardware Dashboard Link */}
           <Link href="/dashboard/hardware" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
             🏪 Hardware Dashboard
           </Link>
-          
           <Link href="/dashboard/settings" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
             ⚙️ Settings
           </Link>
@@ -147,6 +144,7 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="md:ml-64 p-6">
+        {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-2xl font-bold text-[#2C3E50]">Dashboard</h1>
@@ -238,4 +236,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-        }
+          }
