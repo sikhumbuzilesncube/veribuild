@@ -124,7 +124,6 @@ export default function MaterialsPage() {
     }
   };
 
-  // Toggle form function
   const toggleForm = () => {
     setShowForm(!showForm);
     setMessage('');
@@ -151,7 +150,6 @@ export default function MaterialsPage() {
             <p className="text-gray-600">Manage your store inventory</p>
           </div>
           
-          {/* ADD MATERIAL BUTTON - Simplified with direct onClick */}
           <button
             type="button"
             onClick={toggleForm}
@@ -281,6 +279,7 @@ export default function MaterialsPage() {
             <div className="text-center py-12">
               <div className="text-6xl mb-4">📦</div>
               <p className="text-gray-500">No materials added yet</p>
+              {/* THIS IS A BUTTON - NOT A LINK - NO 404 */}
               <button
                 type="button"
                 onClick={toggleForm}
@@ -301,4 +300,4 @@ export default function MaterialsPage() {
       </div>
     </div>
   );
-    }
+}
