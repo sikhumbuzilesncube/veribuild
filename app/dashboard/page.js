@@ -8,7 +8,6 @@ import { supabase } from '@/lib/supabase';
 export default function Dashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
   const [userName, setUserName] = useState('User');
   const [userEmail, setUserEmail] = useState('');
   const [userType, setUserType] = useState('client');
@@ -18,7 +17,6 @@ export default function Dashboard() {
     completed: 0,
     active: 0,
     averageCost: 0,
-    totalCost: 0
   });
 
   useEffect(() => {
@@ -37,24 +35,19 @@ export default function Dashboard() {
       setUserEmail(user.email || '');
       setUserType(metadata.user_type || 'client');
 
-      // ============================================================
-      // FETCH REAL PROJECTS FROM DATABASE
-      // ============================================================
-      const { data: projectsData, error: projectsError } = await supabase
+      // Fetch projects
+      const { data: projectsData, error } = await supabase
         .from('projects')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (projectsError) {
-        console.error('Error loading projects:', projectsError);
+      if (error) {
+        console.error('Error loading projects:', error);
         setLoading(false);
         return;
       }
 
-      console.log('📊 Projects loaded:', projectsData);
-
-      // Format projects for display
       const formattedProjects = (projectsData || []).map(p => ({
         id: p.id,
         name: p.project_name || 'Unnamed Project',
@@ -62,22 +55,14 @@ export default function Dashboard() {
         date: p.created_at ? new Date(p.created_at).toLocaleDateString() : 'N/A',
         cost: p.total_cost || 0,
         plan_type: p.plan_type || 'residential',
-        floor_area: p.floor_area || 0,
-        rooms: p.rooms || 0,
-        doors: p.doors || 0,
-        windows: p.windows || 0,
       }));
 
       setProjects(formattedProjects);
 
-      // ============================================================
-      // CALCULATE STATS
-      // ============================================================
       const totalProjects = formattedProjects.length;
       const completedProjects = formattedProjects.filter(p => p.status === 'completed' || p.status === 'Completed').length;
       const activeProjects = formattedProjects.filter(p => p.status !== 'completed' && p.status !== 'Completed' && p.status !== 'draft').length;
       
-      // Calculate total cost from completed projects
       const completedCosts = formattedProjects
         .filter(p => p.status === 'completed' || p.status === 'Completed')
         .map(p => p.cost || 0);
@@ -90,8 +75,6 @@ export default function Dashboard() {
         completed: completedProjects,
         active: activeProjects,
         averageCost: averageCost,
-        totalCost: totalCost,
-        totalProjects: totalProjects,
       });
 
       setLoading(false);
@@ -100,9 +83,6 @@ export default function Dashboard() {
     loadDashboardData();
   }, [router]);
 
-  // ============================================================
-  // STATUS COLOR HELPER
-  // ============================================================
   function getStatusColor(status) {
     const s = status?.toLowerCase() || '';
     if (s === 'completed') return 'bg-green-100 text-green-700';
@@ -117,7 +97,7 @@ export default function Dashboard() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-[#F47B20] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your dashboard...</p>
+          <p className="text-gray-600">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -144,9 +124,12 @@ export default function Dashboard() {
           <Link href="/dashboard/projects" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
             📋 My Projects
           </Link>
+          
+          {/* Hardware Dashboard Link */}
           <Link href="/dashboard/hardware" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
-            🏪 Hardware Stores
+            🏪 Hardware Dashboard
           </Link>
+          
           <Link href="/dashboard/settings" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
             ⚙️ Settings
           </Link>
@@ -164,7 +147,6 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="md:ml-64 p-6">
-        {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-2xl font-bold text-[#2C3E50]">Dashboard</h1>
