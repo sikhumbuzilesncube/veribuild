@@ -15,7 +15,6 @@ export default function HardwareDashboard() {
   const [message, setMessage] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Form data for editing
   const [formData, setFormData] = useState({
     store_name: '',
     contact_person: '',
@@ -31,7 +30,6 @@ export default function HardwareDashboard() {
         return;
       }
 
-      // Get hardware store
       const { data: storeData, error: storeError } = await supabase
         .from('hardware_stores')
         .select('*')
@@ -52,7 +50,6 @@ export default function HardwareDashboard() {
         location: storeData.location || '',
       });
 
-      // Get materials
       const { data: materialsData } = await supabase
         .from('materials')
         .select('*')
@@ -141,7 +138,7 @@ export default function HardwareDashboard() {
         </div>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="text-white text-2xl focus:outline-none"
+          className="text-white text-3xl focus:outline-none"
         >
           ☰
         </button>
@@ -150,17 +147,17 @@ export default function HardwareDashboard() {
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#2C3E50] text-white p-4 border-t border-[#F47B20]/30">
-          <nav className="space-y-2">
-            <Link href="/dashboard/hardware" className="block py-2 px-4 bg-[#F47B20] rounded-lg font-medium" onClick={() => setMobileMenuOpen(false)}>
+          <nav className="space-y-3">
+            <Link href="/dashboard/hardware" className="block py-3 px-4 bg-[#F47B20] rounded-lg font-medium" onClick={() => setMobileMenuOpen(false)}>
               🏪 Dashboard
             </Link>
-            <Link href="/dashboard/hardware/materials" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/dashboard/hardware/materials" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
               📦 Materials
             </Link>
-            <Link href="/dashboard/hardware/subscription" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/dashboard/hardware/subscription" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
               💳 Subscription
             </Link>
-            <Link href="/dashboard" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/dashboard" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
               ⬅️ Back to Main
             </Link>
             <button 
@@ -168,7 +165,7 @@ export default function HardwareDashboard() {
                 await supabase.auth.signOut();
                 router.push('/login');
               }}
-              className="block w-full text-left py-2 px-4 hover:bg-red-500/20 rounded-lg transition font-medium mt-4 text-red-300"
+              className="block w-full text-left py-3 px-4 hover:bg-red-500/20 rounded-lg transition font-medium mt-4 text-red-300"
             >
               🚪 Logout
             </button>
@@ -425,8 +422,9 @@ export default function HardwareDashboard() {
           )}
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions - ALL LINKS WORKING */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mt-6">
+          {/* Add Materials - Working Link */}
           <Link
             href="/dashboard/hardware/materials"
             className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center hover:shadow-lg transition"
@@ -435,6 +433,8 @@ export default function HardwareDashboard() {
             <h3 className="font-bold text-[#2C3E50] text-sm md:text-base">Add Materials</h3>
             <p className="text-xs text-gray-500">Upload your price list</p>
           </Link>
+
+          {/* Subscription - Working Link */}
           <Link
             href="/dashboard/hardware/subscription"
             className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center hover:shadow-lg transition"
@@ -443,13 +443,15 @@ export default function HardwareDashboard() {
             <h3 className="font-bold text-[#2C3E50] text-sm md:text-base">Subscription</h3>
             <p className="text-xs text-gray-500">Manage your plan</p>
           </Link>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center hover:shadow-lg transition cursor-pointer col-span-2 md:col-span-1">
+
+          {/* Analytics - Coming Soon */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center hover:shadow-lg transition cursor-pointer col-span-2 md:col-span-1 opacity-50">
             <div className="text-2xl md:text-3xl mb-2">📊</div>
             <h3 className="font-bold text-[#2C3E50] text-sm md:text-base">Analytics</h3>
-            <p className="text-xs text-gray-500">View store performance</p>
+            <p className="text-xs text-gray-500">Coming soon</p>
           </div>
         </div>
       </div>
     </div>
   );
-}
+         }
