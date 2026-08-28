@@ -53,7 +53,9 @@ export default function HardwareRegister() {
     }
 
     try {
-      // Create user account
+      console.log('🏪 Registering hardware store...');
+
+      // STEP 1: Create Auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -67,6 +69,7 @@ export default function HardwareRegister() {
       });
 
       if (authError) {
+        console.error('❌ Auth error:', authError);
         if (authError.message.includes('already registered')) {
           setError('This email is already registered. Please log in.');
         } else {
@@ -76,8 +79,10 @@ export default function HardwareRegister() {
         return;
       }
 
-      // Create hardware store record
-      const { error: storeError } = await supabase
+      console.log('✅ Auth user created:', authData.user.id);
+
+      // STEP 2: Create hardware store record
+      const { data: storeData, error: storeError } = await supabase
         .from('hardware_stores')
         .insert([
           {
@@ -90,23 +95,31 @@ export default function HardwareRegister() {
             is_verified: false,
             subscription_status: 'inactive',
           },
-        ]);
+        ])
+        .select();
 
       if (storeError) {
-        console.error('Store creation error:', storeError);
-        setError('Account created but store registration failed. Please contact support.');
+        console.error('❌ Store error:', storeError);
+        
+        // Check if it's a duplicate error
+        if (storeError.code === '23505') {
+          setError('This store is already registered. Please contact support.');
+        } else {
+          setError(`Database error saving new user: ${storeError.message}`);
+        }
         setLoading(false);
         return;
       }
 
-      setSuccess('✅ Hardware store registered successfully! Please check your email to confirm your account.');
+      console.log('✅ Store created:', storeData);
 
+      setSuccess('✅ Hardware store registered successfully! You can now log in.');
       setTimeout(() => {
         router.push('/login');
-      }, 3000);
+      }, 2000);
 
     } catch (err) {
-      console.error('Unexpected error:', err);
+      console.error('❌ Unexpected error:', err);
       setError('Something went wrong. Please try again.');
       setLoading(false);
     }
