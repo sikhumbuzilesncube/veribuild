@@ -54,6 +54,7 @@ export default function HardwareRegister() {
 
     try {
       console.log('🏪 Registering hardware store...');
+      console.log('📧 Email:', formData.email);
 
       // STEP 1: Create Auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -81,31 +82,33 @@ export default function HardwareRegister() {
 
       console.log('✅ Auth user created:', authData.user.id);
 
-      // STEP 2: Create hardware store record
+      // STEP 2: Insert into hardware_stores table
+      const cityId = cities.indexOf(formData.city) + 1;
+      
       const { data: storeData, error: storeError } = await supabase
         .from('hardware_stores')
-        .insert([
-          {
-            store_name: formData.storeName,
-            contact_person: formData.contactPerson || formData.storeName,
-            email: formData.email,
-            phone: formData.phone || '',
-            location: formData.location || '',
-            city_id: cities.indexOf(formData.city) + 1,
-            is_verified: false,
-            subscription_status: 'inactive',
-          },
-        ])
+        .insert({
+          store_name: formData.storeName,
+          contact_person: formData.contactPerson || formData.storeName,
+          email: formData.email,
+          phone: formData.phone || '',
+          location: formData.location || '',
+          city_id: cityId,
+          is_verified: false,
+          subscription_status: 'inactive',
+        })
         .select();
 
       if (storeError) {
         console.error('❌ Store error:', storeError);
+        console.error('❌ Error details:', storeError.message, storeError.code);
         
-        // Check if it's a duplicate error
         if (storeError.code === '23505') {
-          setError('This store is already registered. Please contact support.');
+          setError('This store email is already registered.');
+        } else if (storeError.code === '23503') {
+          setError('Invalid city selected. Please try again.');
         } else {
-          setError(`Database error saving new user: ${storeError.message}`);
+          setError(`Database error: ${storeError.message}`);
         }
         setLoading(false);
         return;
