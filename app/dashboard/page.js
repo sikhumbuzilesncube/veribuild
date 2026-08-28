@@ -105,7 +105,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* ===== MOBILE HEADER ===== */}
+      {/* Mobile Header */}
       <div className="md:hidden bg-[#2C3E50] text-white p-4 flex justify-between items-center sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-sm">
@@ -115,29 +115,29 @@ export default function Dashboard() {
         </div>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="text-white text-2xl focus:outline-none"
+          className="text-white text-3xl focus:outline-none"
         >
           ☰
         </button>
       </div>
 
-      {/* ===== MOBILE MENU ===== */}
+      {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#2C3E50] text-white p-4 border-t border-[#F47B20]/30">
-          <nav className="space-y-2">
-            <Link href="/dashboard" className="block py-2 px-4 bg-[#F47B20] rounded-lg font-medium" onClick={() => setMobileMenuOpen(false)}>
+          <nav className="space-y-3">
+            <Link href="/dashboard" className="block py-3 px-4 bg-[#F47B20] rounded-lg font-medium" onClick={() => setMobileMenuOpen(false)}>
               🏠 Dashboard
             </Link>
-            <Link href="/dashboard/new-project" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/dashboard/new-project" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
               📤 New BOQ
             </Link>
-            <Link href="/dashboard/projects" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/dashboard/projects" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
               📋 My Projects
             </Link>
-            <Link href="/dashboard/hardware" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/dashboard/hardware" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
               🏪 Hardware Dashboard
             </Link>
-            <Link href="/dashboard/settings" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/dashboard/settings" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
               ⚙️ Settings
             </Link>
             <button 
@@ -145,7 +145,7 @@ export default function Dashboard() {
                 await supabase.auth.signOut();
                 router.push('/login');
               }}
-              className="block w-full text-left py-2 px-4 hover:bg-red-500/20 rounded-lg transition font-medium mt-4 text-red-300"
+              className="block w-full text-left py-3 px-4 hover:bg-red-500/20 rounded-lg transition font-medium mt-4 text-red-300"
             >
               🚪 Logout
             </button>
@@ -153,7 +153,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ===== DESKTOP SIDEBAR ===== */}
+      {/* Desktop Sidebar */}
       <div className="fixed left-0 top-0 h-full w-64 bg-[#2C3E50] text-white p-6 hidden md:block">
         <div className="flex items-center gap-2 mb-8">
           <div className="w-8 h-8 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-sm">
@@ -190,9 +190,8 @@ export default function Dashboard() {
         </nav>
       </div>
 
-      {/* ===== MAIN CONTENT ===== */}
+      {/* Main Content */}
       <div className="md:ml-64 p-4 md:p-6">
-        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-[#2C3E50]">Dashboard</h1>
@@ -210,7 +209,6 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
           <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
             <p className="text-gray-500 text-xs md:text-sm">Total Projects</p>
@@ -230,7 +228,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Recent Projects */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
           <h2 className="text-base md:text-lg font-bold text-[#2C3E50] mb-4">Recent Projects</h2>
           {projects.length > 0 ? (
@@ -284,4 +281,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-    }
+            }
