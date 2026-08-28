@@ -124,6 +124,12 @@ export default function MaterialsPage() {
     }
   };
 
+  // Toggle form function
+  const toggleForm = () => {
+    setShowForm(!showForm);
+    setMessage('');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -138,15 +144,18 @@ export default function MaterialsPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
-        {/* Header with Add Button */}
+        {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-[#2C3E50]">📦 Materials</h1>
             <p className="text-gray-600">Manage your store inventory</p>
           </div>
+          
+          {/* ADD MATERIAL BUTTON - Simplified with direct onClick */}
           <button
-            onClick={() => setShowForm(!showForm)}
-            className="bg-[#F47B20] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition w-full sm:w-auto"
+            type="button"
+            onClick={toggleForm}
+            className="bg-[#F47B20] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition w-full sm:w-auto cursor-pointer"
           >
             {showForm ? '✕ Cancel' : '+ Add Material'}
           </button>
@@ -273,8 +282,9 @@ export default function MaterialsPage() {
               <div className="text-6xl mb-4">📦</div>
               <p className="text-gray-500">No materials added yet</p>
               <button
-                onClick={() => setShowForm(true)}
-                className="mt-4 text-[#F47B20] hover:underline font-medium"
+                type="button"
+                onClick={toggleForm}
+                className="mt-4 text-[#F47B20] hover:underline font-medium cursor-pointer"
               >
                 + Add your first material
               </button>
@@ -291,4 +301,4 @@ export default function MaterialsPage() {
       </div>
     </div>
   );
-         }
+    }
