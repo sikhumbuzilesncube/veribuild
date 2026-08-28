@@ -36,7 +36,6 @@ export default function Dashboard() {
       setUserEmail(user.email || '');
       setUserType(metadata.user_type || 'client');
 
-      // Fetch projects
       const { data: projectsData, error } = await supabase
         .from('projects')
         .select('*')
@@ -106,7 +105,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Mobile Header */}
+      {/* ===== MOBILE HEADER ===== */}
       <div className="md:hidden bg-[#2C3E50] text-white p-4 flex justify-between items-center sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-sm">
@@ -122,7 +121,7 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Mobile Menu */}
+      {/* ===== MOBILE MENU ===== */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#2C3E50] text-white p-4 border-t border-[#F47B20]/30">
           <nav className="space-y-2">
@@ -154,7 +153,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Desktop Sidebar */}
+      {/* ===== DESKTOP SIDEBAR ===== */}
       <div className="fixed left-0 top-0 h-full w-64 bg-[#2C3E50] text-white p-6 hidden md:block">
         <div className="flex items-center gap-2 mb-8">
           <div className="w-8 h-8 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-sm">
@@ -191,7 +190,7 @@ export default function Dashboard() {
         </nav>
       </div>
 
-      {/* Main Content */}
+      {/* ===== MAIN CONTENT ===== */}
       <div className="md:ml-64 p-4 md:p-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
@@ -285,4 +284,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-  }
+    }
