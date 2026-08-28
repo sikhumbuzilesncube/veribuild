@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 // ============================================================
-// UTILITY FUNCTIONS (Built directly into the file to avoid import issues)
+// UTILITY FUNCTIONS (Built directly into the file)
 // ============================================================
 
 // Window Code Decoder
@@ -83,6 +83,7 @@ export default function BOQPage() {
   const [supplierComparison, setSupplierComparison] = useState([]);
   const [workerSuggestions, setWorkerSuggestions] = useState([]);
   const [bestPrice, setBestPrice] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     async function loadBOQ() {
@@ -104,12 +105,16 @@ export default function BOQPage() {
       }
 
       setProject(projectData);
+
+      // Generate BOQ items
       const items = generateFullBOQ(projectData);
       setBoqItems(items);
       
+      // Calculate total
       const total = items.reduce((sum, item) => sum + item.total, 0);
       setTotalCost(total);
 
+      // Generate supplier comparison and workers
       const suppliers = generateSupplierComparison(total);
       setSupplierComparison(suppliers);
       setBestPrice(suppliers[0]);
@@ -117,10 +122,43 @@ export default function BOQPage() {
       const workers = generateWorkerSuggestions(projectData);
       setWorkerSuggestions(workers);
 
+      // ============================================================
+      // SAVE TOTAL COST TO DATABASE
+      // ============================================================
+      setSaving(true);
+      try {
+        console.log('💰 Saving total cost:', total);
+        
+        const { error: updateError } = await supabase
+          .from('projects')
+          .update({
+            total_cost: total,
+            status: 'completed',
+          })
+          .eq('id', projectId);
+
+        if (updateError) {
+          console.error('❌ Failed to save total cost:', updateError);
+        } else {
+          console.log('✅ Total cost saved successfully!');
+          
+          // Update the project object with new values
+          setProject(prev => ({
+            ...prev,
+            total_cost: total,
+            status: 'completed'
+          }));
+        }
+      } catch (err) {
+        console.error('❌ Error saving total cost:', err);
+      }
+      setSaving(false);
       setLoading(false);
     }
 
-    loadBOQ();
+    if (projectId) {
+      loadBOQ();
+    }
   }, [projectId, router]);
 
   // ============================================================
@@ -708,13 +746,16 @@ export default function BOQPage() {
           <div>
             <h1 className="text-3xl font-bold text-[#2C3E50]">📋 Bill of Quantities</h1>
             <p className="text-gray-600">
-              {project.project_name} • {new Date(project.created_at).toLocaleDateString()}
+              {project.project_name} • {project.created_at ? new Date(project.created_at).toLocaleDateString() : 'N/A'}
             </p>
             <p className="text-sm text-gray-500">
               {project.plan_type?.charAt(0).toUpperCase() + project.plan_type?.slice(1)} Plan
             </p>
             {project.room_labels && (
               <p className="text-sm text-gray-500">Rooms: {project.room_labels}</p>
+            )}
+            {saving && (
+              <p className="text-sm text-blue-600">💾 Saving your BOQ...</p>
             )}
           </div>
           <div className="text-right">
@@ -837,4 +878,4 @@ export default function BOQPage() {
       </div>
     </div>
   );
-    }
+      }
