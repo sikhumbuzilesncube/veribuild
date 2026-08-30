@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 // ============================================================
-// WINDOW CODE DECODER - WITH SYMBOLS & STEEL WINDOWS
+// WINDOW CODE DECODER
 // ============================================================
 function decodeWindowCode(code) {
   const windowCodes = {
@@ -118,9 +118,6 @@ export default function BOQPage() {
       const items = generateFullBOQ(projectData);
       setBoqItems(items);
       
-      const total = items.reduce((sum, item) => sum + item.total, 0);
-      setTotalCost(total);
-
       // Fetch hardware stores with their prices
       await fetchHardwareStores(items);
 
@@ -132,7 +129,7 @@ export default function BOQPage() {
         const { error: updateError } = await supabase
           .from('projects')
           .update({
-            total_cost: total,
+            total_cost: totalCost,
             status: 'completed',
           })
           .eq('id', projectId);
@@ -154,60 +151,96 @@ export default function BOQPage() {
   // ============================================================
   async function fetchHardwareStores(items) {
     try {
-      // Get all active hardware stores
-      const { data: stores, error } = await supabase
+      // First, check if there are any active hardware stores
+      const { data: activeStores, error: storeCheck } = await supabase
         .from('hardware_stores')
-        .select(`
-          id,
-          store_name,
-          contact_person,
-          phone,
-          location,
-          email,
-          materials (
-            name,
-            price_usd,
-            unit
-          )
-        `)
+        .select('id, store_name, contact_person, phone, location, email, subscription_status')
         .eq('subscription_status', 'active');
 
-      if (error) {
-        console.error('Error fetching hardware stores:', error);
+      if (storeCheck) {
+        console.error('Error checking stores:', storeCheck);
+      }
+
+      console.log('Active stores found:', activeStores?.length || 0);
+
+      if (!activeStores || activeStores.length === 0) {
+        console.log('No active hardware stores found');
+        setHardwareStores([]);
         return;
       }
 
-      // For each store, find matching materials
-      const storesWithPrices = stores.map(store => {
+      // Get materials for active stores
+      const storeIds = activeStores.map(s => s.id);
+      
+      const { data: materialsData, error: materialsError } = await supabase
+        .from('materials')
+        .select(`
+          name,
+          price_usd,
+          unit,
+          hardware_store_id
+        `)
+        .in('hardware_store_id', storeIds);
+
+      if (materialsError) {
+        console.error('Error fetching materials:', materialsError);
+        setHardwareStores([]);
+        return;
+      }
+
+      console.log('Materials found:', materialsData?.length || 0);
+
+      // Build store data with matching materials
+      const storesWithPrices = activeStores.map(store => {
+        const storeMaterials = materialsData?.filter(m => m.hardware_store_id === store.id) || [];
+        
+        // For each BOQ item, find matching material (flexible matching)
         const matchedMaterials = [];
+        let storeTotal = 0;
+
         for (const item of items) {
-          // More flexible matching
-const material = store.materials?.find(m => {
-  const matName = m.name.toLowerCase();
-  const itemName = item.name.toLowerCase();
-  // Check if one contains the other
-  return matName.includes(itemName) || itemName.includes(matName);
-});
+          // Try exact match first
+          let material = storeMaterials.find(m => 
+            m.name.toLowerCase() === item.name.toLowerCase()
+          );
+          
+          // If no exact match, try partial match
+          if (!material) {
+            material = storeMaterials.find(m => 
+              item.name.toLowerCase().includes(m.name.toLowerCase()) ||
+              m.name.toLowerCase().includes(item.name.toLowerCase())
+            );
+          }
+
           if (material) {
+            const total = Math.round(item.qty * material.price_usd * 100) / 100;
+            storeTotal += total;
             matchedMaterials.push({
               name: item.name,
               qty: item.qty,
               unit: material.unit || item.unit,
               price: material.price_usd,
-              total: Math.round(item.qty * material.price_usd * 100) / 100
+              total: total
             });
           }
         }
+
         return {
           ...store,
           materials: matchedMaterials,
-          total: matchedMaterials.reduce((sum, m) => sum + m.total, 0)
+          total: storeTotal
         };
       });
 
+      // Sort by total price (cheapest first)
+      storesWithPrices.sort((a, b) => a.total - b.total);
+      
+      console.log('Stores with prices:', storesWithPrices.length);
       setHardwareStores(storesWithPrices);
+      
     } catch (err) {
       console.error('Error fetching hardware stores:', err);
+      setHardwareStores([]);
     }
   }
 
@@ -241,119 +274,28 @@ const material = store.materials?.find(m => {
     const uniqueDoorCodes = [...new Set(doorCodes)];
 
     // ============================================================
-    // SECTION A: FOUNDATION (Quantities only)
+    // SECTION A: FOUNDATION
     // ============================================================
     const foundationVolume = wallLength * foundationWidth * foundationDepth;
     
-    items.push({
-      id: 'A1',
-      name: 'Foundation Excavation',
-      qty: Math.round(foundationVolume * 1.1 * 10) / 10,
-      unit: 'm³',
-      category: 'Foundation'
-    });
-
-    items.push({
-      id: 'A2',
-      name: 'Concrete Mix',
-      qty: Math.round(foundationVolume * 1.05 * 10) / 10,
-      unit: 'm³',
-      category: 'Foundation'
-    });
-
-    const cementForFoundation = foundationVolume * 1.05 * 6;
-    items.push({
-      id: 'A3',
-      name: 'Cement 50kg',
-      qty: Math.round(cementForFoundation * 10) / 10,
-      unit: 'bags',
-      category: 'Foundation'
-    });
-
-    const sandForFoundation = foundationVolume * 1.05 * 0.5;
-    items.push({
-      id: 'A4',
-      name: 'River Sand',
-      qty: Math.round(sandForFoundation * 10) / 10,
-      unit: 'tonnes',
-      category: 'Foundation'
-    });
-
-    const stoneForFoundation = foundationVolume * 1.05 * 0.8;
-    items.push({
-      id: 'A5',
-      name: 'Crushed Stone',
-      qty: Math.round(stoneForFoundation * 10) / 10,
-      unit: 'tonnes',
-      category: 'Foundation'
-    });
-
-    const rebarForFoundation = wallLength * 0.8;
-    items.push({
-      id: 'A6',
-      name: 'Steel Rebar 12mm',
-      qty: Math.round(rebarForFoundation * 10) / 10,
-      unit: 'pieces',
-      category: 'Foundation'
-    });
-
-    const foundationBricks = wallLength * 8;
-    items.push({
-      id: 'A7',
-      name: 'Foundation Bricks',
-      qty: Math.round(foundationBricks),
-      unit: 'pieces',
-      category: 'Foundation'
-    });
+    items.push({ id: 'A1', name: 'Foundation Excavation', qty: Math.round(foundationVolume * 1.1 * 10) / 10, unit: 'm³', category: 'Foundation' });
+    items.push({ id: 'A2', name: 'Concrete Mix', qty: Math.round(foundationVolume * 1.05 * 10) / 10, unit: 'm³', category: 'Foundation' });
+    items.push({ id: 'A3', name: 'Cement 50kg', qty: Math.round(foundationVolume * 1.05 * 6 * 10) / 10, unit: 'bags', category: 'Foundation' });
+    items.push({ id: 'A4', name: 'River Sand', qty: Math.round(foundationVolume * 1.05 * 0.5 * 10) / 10, unit: 'tonnes', category: 'Foundation' });
+    items.push({ id: 'A5', name: 'Crushed Stone', qty: Math.round(foundationVolume * 1.05 * 0.8 * 10) / 10, unit: 'tonnes', category: 'Foundation' });
+    items.push({ id: 'A6', name: 'Steel Rebar 12mm', qty: Math.round(wallLength * 0.8 * 10) / 10, unit: 'pieces', category: 'Foundation' });
+    items.push({ id: 'A7', name: 'Foundation Bricks', qty: Math.round(wallLength * 8), unit: 'pieces', category: 'Foundation' });
 
     // ============================================================
     // SECTION B: SLAB
     // ============================================================
     const slabVolume = area * slabThickness;
     
-    items.push({
-      id: 'B1',
-      name: 'Concrete Mix',
-      qty: Math.round(slabVolume * 1.05 * 10) / 10,
-      unit: 'm³',
-      category: 'Slab'
-    });
-
-    const cementForSlab = slabVolume * 1.05 * 6;
-    items.push({
-      id: 'B2',
-      name: 'Cement 50kg',
-      qty: Math.round(cementForSlab * 10) / 10,
-      unit: 'bags',
-      category: 'Slab'
-    });
-
-    const sandForSlab = slabVolume * 1.05 * 0.5;
-    items.push({
-      id: 'B3',
-      name: 'River Sand',
-      qty: Math.round(sandForSlab * 10) / 10,
-      unit: 'tonnes',
-      category: 'Slab'
-    });
-
-    const stoneForSlab = slabVolume * 1.05 * 0.8;
-    items.push({
-      id: 'B4',
-      name: 'Crushed Stone',
-      qty: Math.round(stoneForSlab * 10) / 10,
-      unit: 'tonnes',
-      category: 'Slab'
-    });
-
-    const meshForSlab = area * 1.1;
-    items.push({
-      id: 'B5',
-      name: 'Steel Mesh',
-      qty: Math.round(meshForSlab * 10) / 10,
-      unit: 'sheets',
-      category: 'Slab'
-    });
+    items.push({ id: 'B1', name: 'Concrete Mix', qty: Math.round(slabVolume * 1.05 * 10) / 10, unit: 'm³', category: 'Slab' });
+    items.push({ id: 'B2', name: 'Cement 50kg', qty: Math.round(slabVolume * 1.05 * 6 * 10) / 10, unit: 'bags', category: 'Slab' });
+    items.push({ id: 'B3', name: 'River Sand', qty: Math.round(slabVolume * 1.05 * 0.5 * 10) / 10, unit: 'tonnes', category: 'Slab' });
+    items.push({ id: 'B4', name: 'Crushed Stone', qty: Math.round(slabVolume * 1.05 * 0.8 * 10) / 10, unit: 'tonnes', category: 'Slab' });
+    items.push({ id: 'B5', name: 'Steel Mesh', qty: Math.round(area * 1.1 * 10) / 10, unit: 'sheets', category: 'Slab' });
 
     // ============================================================
     // SECTION C: WALLS
@@ -361,72 +303,22 @@ const material = store.materials?.find(m => {
     const wallArea = wallLength * wallHeight;
     const wallVolume = wallArea * 0.2;
 
-    const wallBricks = wallArea * 65;
-    items.push({
-      id: 'C1',
-      name: 'Standard Bricks',
-      qty: Math.round(wallBricks),
-      unit: 'pieces',
-      category: 'Walls'
-    });
-
-    const cementForWalls = wallVolume * 4;
-    items.push({
-      id: 'C2',
-      name: 'Cement 50kg',
-      qty: Math.round(cementForWalls * 10) / 10,
-      unit: 'bags',
-      category: 'Walls'
-    });
-
-    const sandForWalls = wallVolume * 0.3;
-    items.push({
-      id: 'C3',
-      name: 'River Sand',
-      qty: Math.round(sandForWalls * 10) / 10,
-      unit: 'tonnes',
-      category: 'Walls'
-    });
+    items.push({ id: 'C1', name: 'Standard Bricks', qty: Math.round(wallArea * 65), unit: 'pieces', category: 'Walls' });
+    items.push({ id: 'C2', name: 'Cement 50kg', qty: Math.round(wallVolume * 4 * 10) / 10, unit: 'bags', category: 'Walls' });
+    items.push({ id: 'C3', name: 'River Sand', qty: Math.round(wallVolume * 0.3 * 10) / 10, unit: 'tonnes', category: 'Walls' });
 
     // ============================================================
     // SECTION D: TIMBER
     // ============================================================
-    items.push({
-      id: 'D1',
-      name: 'Timber 50x50mm',
-      qty: Math.round(yellowTimber * 0.8 * 10) / 10,
-      unit: 'pieces',
-      category: 'Timber'
-    });
-
-    items.push({
-      id: 'D2',
-      name: 'Timber 100x50mm',
-      qty: Math.round(yellowTimber * 0.6 * 10) / 10,
-      unit: 'pieces',
-      category: 'Timber'
-    });
+    items.push({ id: 'D1', name: 'Timber 50x50mm', qty: Math.round(yellowTimber * 0.8 * 10) / 10, unit: 'pieces', category: 'Timber' });
+    items.push({ id: 'D2', name: 'Timber 100x50mm', qty: Math.round(yellowTimber * 0.6 * 10) / 10, unit: 'pieces', category: 'Timber' });
 
     // ============================================================
     // SECTION E: ROOFING
     // ============================================================
     const roofArea = area * 1.15;
-    
-    items.push({
-      id: 'E1',
-      name: 'Roofing Sheets',
-      qty: Math.round(roofArea / 3 * 10) / 10,
-      unit: 'sheets',
-      category: 'Roofing'
-    });
-
-    items.push({
-      id: 'E2',
-      name: 'Roofing Nails',
-      qty: Math.round((roofArea / 3) * 0.2 * 10) / 10,
-      unit: 'kg',
-      category: 'Roofing'
-    });
+    items.push({ id: 'E1', name: 'Roofing Sheets', qty: Math.round(roofArea / 3 * 10) / 10, unit: 'sheets', category: 'Roofing' });
+    items.push({ id: 'E2', name: 'Roofing Nails', qty: Math.round((roofArea / 3) * 0.2 * 10) / 10, unit: 'kg', category: 'Roofing' });
 
     // ============================================================
     // SECTION F: WINDOWS
@@ -434,11 +326,9 @@ const material = store.materials?.find(m => {
     for (const code of uniqueWindowCodes) {
       const decoded = decodeWindowCode(code);
       if (decoded) {
-        const sizeInfo = `${decoded.height}×${decoded.width}mm`;
-        const typeInfo = decoded.category || decoded.type;
         items.push({
           id: `WIN-${code}`,
-          name: `Window ${code} (${typeInfo}) - ${sizeInfo}`,
+          name: `Window ${code} (${decoded.category || decoded.type}) - ${decoded.height}×${decoded.width}mm`,
           qty: 1,
           unit: 'window',
           category: 'Windows'
@@ -447,13 +337,7 @@ const material = store.materials?.find(m => {
     }
 
     if (uniqueWindowCodes.length === 0 && windows > 0) {
-      items.push({
-        id: 'WIN-DEFAULT',
-        name: `Windows (${windows} windows)`,
-        qty: windows,
-        unit: 'windows',
-        category: 'Windows'
-      });
+      items.push({ id: 'WIN-DEFAULT', name: `Windows (${windows} windows)`, qty: windows, unit: 'windows', category: 'Windows' });
     }
 
     // ============================================================
@@ -473,83 +357,30 @@ const material = store.materials?.find(m => {
     }
 
     if (uniqueDoorCodes.length === 0 && doors > 0) {
-      items.push({
-        id: 'DOOR-DEFAULT',
-        name: `Doors (${doors} doors)`,
-        qty: doors,
-        unit: 'doors',
-        category: 'Doors'
-      });
+      items.push({ id: 'DOOR-DEFAULT', name: `Doors (${doors} doors)`, qty: doors, unit: 'doors', category: 'Doors' });
     }
 
     // ============================================================
     // SECTION H: FINISHES
     // ============================================================
-    items.push({
-      id: 'H1',
-      name: 'Floor Tiles',
-      qty: Math.round(area * 1.05 * 10) / 10,
-      unit: 'm²',
-      category: 'Finishes'
-    });
-
-    const paintArea = wallArea * 2 + area;
-    items.push({
-      id: 'H2',
-      name: 'Wall Paint 20L',
-      qty: Math.round(paintArea / 8 * 10) / 10,
-      unit: 'litres',
-      category: 'Finishes'
-    });
-
-    items.push({
-      id: 'H3',
-      name: 'Ceiling Boards',
-      qty: Math.round(area / 3 * 10) / 10,
-      unit: 'sheets',
-      category: 'Finishes'
-    });
+    items.push({ id: 'H1', name: 'Floor Tiles', qty: Math.round(area * 1.05 * 10) / 10, unit: 'm²', category: 'Finishes' });
+    items.push({ id: 'H2', name: 'Wall Paint 20L', qty: Math.round((wallArea * 2 + area) / 8 * 10) / 10, unit: 'litres', category: 'Finishes' });
+    items.push({ id: 'H3', name: 'Ceiling Boards', qty: Math.round(area / 3 * 10) / 10, unit: 'sheets', category: 'Finishes' });
 
     // ============================================================
     // SECTION I: SEWER
     // ============================================================
     if (brownSewer > 0) {
-      items.push({
-        id: 'I1',
-        name: 'Sewer Pipe 100mm',
-        qty: Math.round(brownSewer / 6 * 10) / 10,
-        unit: 'pieces',
-        category: 'Sewer'
-      });
-      
-      items.push({
-        id: 'I2',
-        name: 'Sewer Fittings',
-        qty: 1,
-        unit: 'lot',
-        category: 'Sewer'
-      });
+      items.push({ id: 'I1', name: 'Sewer Pipe 100mm', qty: Math.round(brownSewer / 6 * 10) / 10, unit: 'pieces', category: 'Sewer' });
+      items.push({ id: 'I2', name: 'Sewer Fittings', qty: 1, unit: 'lot', category: 'Sewer' });
     }
 
     // ============================================================
     // SECTION J: WATER
     // ============================================================
     if (blueWater > 0) {
-      items.push({
-        id: 'J1',
-        name: 'Water Pipe 50mm',
-        qty: Math.round(blueWater / 6 * 10) / 10,
-        unit: 'pieces',
-        category: 'Water'
-      });
-      
-      items.push({
-        id: 'J2',
-        name: 'Water Fittings',
-        qty: 1,
-        unit: 'lot',
-        category: 'Water'
-      });
+      items.push({ id: 'J1', name: 'Water Pipe 50mm', qty: Math.round(blueWater / 6 * 10) / 10, unit: 'pieces', category: 'Water' });
+      items.push({ id: 'J2', name: 'Water Fittings', qty: 1, unit: 'lot', category: 'Water' });
     }
 
     // ============================================================
@@ -557,84 +388,25 @@ const material = store.materials?.find(m => {
     // ============================================================
     const electricalPoints = project.electrical_points || 8;
     if (electricalPoints > 0) {
-      items.push({
-        id: 'K1',
-        name: 'Cable 2.5mm²',
-        qty: Math.round(electricalPoints * 2 / 100 * 10) / 10,
-        unit: 'rolls',
-        category: 'Electrical'
-      });
-      
-      items.push({
-        id: 'K2',
-        name: 'Electrical Boxes & Switches',
-        qty: electricalPoints,
-        unit: 'sets',
-        category: 'Electrical'
-      });
+      items.push({ id: 'K1', name: 'Cable 2.5mm²', qty: Math.round(electricalPoints * 2 / 100 * 10) / 10, unit: 'rolls', category: 'Electrical' });
+      items.push({ id: 'K2', name: 'Electrical Boxes & Switches', qty: electricalPoints, unit: 'sets', category: 'Electrical' });
     }
 
     // ============================================================
-    // SECTION L: LABOUR (Quantities only)
+    // SECTION L: LABOUR
     // ============================================================
     const labourDays = Math.round((rooms * 3 + doors + windows + 2) * 10) / 10;
     const masonDays = Math.round((rooms * 2 + doors + windows) * 10) / 10;
     const supervisorDays = Math.round((rooms * 0.8 + 2) * 10) / 10;
 
-    items.push({
-      id: 'L1',
-      name: 'General Labourers',
-      qty: labourDays,
-      unit: 'days',
-      category: 'Labour'
-    });
+    items.push({ id: 'L1', name: 'General Labourers', qty: labourDays, unit: 'days', category: 'Labour' });
+    items.push({ id: 'L2', name: 'Skilled Masons', qty: masonDays, unit: 'days', category: 'Labour' });
+    items.push({ id: 'L3', name: 'Carpenters', qty: Math.round(masonDays * 0.6 * 10) / 10, unit: 'days', category: 'Labour' });
+    items.push({ id: 'L4', name: 'Plumbers', qty: Math.round((doors + windows) * 0.5 * 10) / 10, unit: 'days', category: 'Labour' });
+    items.push({ id: 'L5', name: 'Electricians', qty: Math.round(electricalPoints * 0.5 * 10) / 10, unit: 'days', category: 'Labour' });
+    items.push({ id: 'L6', name: 'Supervisors', qty: supervisorDays, unit: 'days', category: 'Labour' });
 
-    items.push({
-      id: 'L2',
-      name: 'Skilled Masons',
-      qty: masonDays,
-      unit: 'days',
-      category: 'Labour'
-    });
-
-    items.push({
-      id: 'L3',
-      name: 'Carpenters',
-      qty: Math.round(masonDays * 0.6 * 10) / 10,
-      unit: 'days',
-      category: 'Labour'
-    });
-
-    items.push({
-      id: 'L4',
-      name: 'Plumbers',
-      qty: Math.round((doors + windows) * 0.5 * 10) / 10,
-      unit: 'days',
-      category: 'Labour'
-    });
-
-    items.push({
-      id: 'L5',
-      name: 'Electricians',
-      qty: Math.round(electricalPoints * 0.5 * 10) / 10,
-      unit: 'days',
-      category: 'Labour'
-    });
-
-    items.push({
-      id: 'L6',
-      name: 'Supervisors',
-      qty: supervisorDays,
-      unit: 'days',
-      category: 'Labour'
-    });
-
-    // Calculate total (using default prices for now)
-    return items.map(item => ({
-      ...item,
-      unitPrice: 0, // No price in BOQ
-      total: 0 // No price in BOQ
-    }));
+    return items;
   }
 
   // ============================================================
@@ -642,13 +414,20 @@ const material = store.materials?.find(m => {
   // ============================================================
   function generateWorkerSuggestions(project) {
     const rooms = project.rooms || 4;
+    const labourPrice = 8.00;
+    const masonPrice = 15.00;
+    const carpenterPrice = 15.00;
+    const plumberPrice = 18.00;
+    const electricianPrice = 18.00;
+    const supervisorPrice = 25.00;
+
     return [
-      { role: 'Skilled Masons', count: 2, days: Math.round(rooms * 3 + 4), rate: 15.00 },
-      { role: 'Carpenters', count: 1, days: Math.round(rooms * 2 + 3), rate: 15.00 },
-      { role: 'Electricians', count: 1, days: Math.round(rooms * 1 + 2), rate: 18.00 },
-      { role: 'Plumbers', count: 1, days: Math.round(rooms * 0.5 + 3), rate: 18.00 },
-      { role: 'General Labourers', count: 3, days: Math.round(rooms * 2 + 6), rate: 8.00 },
-      { role: 'Supervisors', count: 1, days: Math.round(rooms * 0.8 + 3), rate: 25.00 },
+      { role: 'Skilled Masons', count: 2, days: Math.round(rooms * 3 + 4), rate: masonPrice },
+      { role: 'Carpenters', count: 1, days: Math.round(rooms * 2 + 3), rate: carpenterPrice },
+      { role: 'Electricians', count: 1, days: Math.round(rooms * 1 + 2), rate: electricianPrice },
+      { role: 'Plumbers', count: 1, days: Math.round(rooms * 0.5 + 3), rate: plumberPrice },
+      { role: 'General Labourers', count: 3, days: Math.round(rooms * 2 + 6), rate: labourPrice },
+      { role: 'Supervisors', count: 1, days: Math.round(rooms * 0.8 + 3), rate: supervisorPrice },
     ];
   }
 
@@ -689,6 +468,45 @@ const material = store.materials?.find(m => {
     categories[item.category].push(item);
   });
 
+  // Calculate total using default prices
+  const defaultPrices = {
+    'Foundation Excavation': 15.00,
+    'Concrete Mix': 85.00,
+    'Cement 50kg': 12.50,
+    'River Sand': 15.00,
+    'Crushed Stone': 18.00,
+    'Steel Rebar 12mm': 8.50,
+    'Foundation Bricks': 0.35,
+    'Standard Bricks': 0.35,
+    'Steel Mesh': 25.00,
+    'Timber 50x50mm': 4.50,
+    'Timber 100x50mm': 8.00,
+    'Roofing Sheets': 14.00,
+    'Roofing Nails': 3.50,
+    'Floor Tiles': 15.00,
+    'Wall Paint 20L': 18.00,
+    'Ceiling Boards': 12.00,
+    'Sewer Pipe 100mm': 18.00,
+    'Sewer Fittings': 50.00,
+    'Water Pipe 50mm': 12.00,
+    'Water Fittings': 40.00,
+    'Cable 2.5mm²': 45.00,
+    'Electrical Boxes & Switches': 5.00,
+    'General Labourers': 8.00,
+    'Skilled Masons': 15.00,
+    'Carpenters': 15.00,
+    'Plumbers': 18.00,
+    'Electricians': 18.00,
+    'Supervisors': 25.00,
+  };
+
+  let totalCost = 0;
+  boqItems.forEach(item => {
+    const price = defaultPrices[item.name] || 10.00;
+    totalCost += item.qty * price;
+  });
+  totalCost = Math.round(totalCost * 100) / 100;
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
@@ -711,7 +529,7 @@ const material = store.materials?.find(m => {
               <p className="text-sm font-medium">Total Estimated Cost</p>
               <p className="text-2xl font-bold">${totalCost.toFixed(2)}</p>
             </div>
-            {hardwareStores.length > 0 && hardwareStores[0]?.total < totalCost && (
+            {hardwareStores.length > 0 && hardwareStores[0]?.total > 0 && hardwareStores[0].total < totalCost && (
               <p className="text-sm text-green-600 font-semibold mt-2">
                 💰 Save ${(totalCost - hardwareStores[0].total).toFixed(2)} with {hardwareStores[0].store_name}
               </p>
@@ -757,7 +575,7 @@ const material = store.materials?.find(m => {
           <h2 className="text-xl font-bold text-[#2C3E50] mb-4">🏪 Hardware Store Prices</h2>
           <p className="text-sm text-gray-500 mb-4">Compare prices from subscribed hardware stores</p>
           
-          {hardwareStores.length > 0 ? (
+          {hardwareStores && hardwareStores.length > 0 ? (
             <div className="space-y-6">
               {hardwareStores.map((store) => (
                 <div key={store.id} className="border border-gray-200 rounded-xl p-4">
@@ -771,13 +589,13 @@ const material = store.materials?.find(m => {
                     <div className="text-right">
                       <p className="text-sm text-gray-500">Total</p>
                       <p className="text-xl font-bold text-[#2C3E50]">${store.total.toFixed(2)}</p>
-                      {store.total < totalCost && (
+                      {store.total > 0 && store.total < totalCost && (
                         <span className="text-xs text-green-600 font-semibold">Save ${(totalCost - store.total).toFixed(2)}</span>
                       )}
                     </div>
                   </div>
                   
-                  {store.materials.length > 0 ? (
+                  {store.materials && store.materials.length > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
@@ -785,7 +603,7 @@ const material = store.materials?.find(m => {
                             <th className="pb-2">Product</th>
                             <th className="pb-2">Qty</th>
                             <th className="pb-2">Unit</th>
-                            <th className="pb-2">Price</th>
+                            <th className="pb-2">Unit Price</th>
                             <th className="pb-2">Total</th>
                           </tr>
                         </thead>
@@ -868,4 +686,4 @@ const material = store.materials?.find(m => {
       </div>
     </div>
   );
-               }
+      }
