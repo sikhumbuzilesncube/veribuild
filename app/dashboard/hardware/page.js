@@ -86,7 +86,7 @@ export default function HardwareDashboard() {
       if (error) {
         setMessage({ type: 'error', text: error.message });
       } else {
-        setMessage({ type: 'success', text: '✅ Profile updated successfully!' });
+        setMessage({ type: 'success', text: 'Profile updated successfully!' });
         setStore({ ...store, ...formData });
         setEditMode(false);
       }
@@ -101,7 +101,7 @@ export default function HardwareDashboard() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-[#F47B20] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading hardware dashboard...</p>
+          <p className="text-gray-600">Loading...</p>
         </div>
       </div>
     );
@@ -149,16 +149,16 @@ export default function HardwareDashboard() {
         <div className="md:hidden bg-[#2C3E50] text-white p-4 border-t border-[#F47B20]/30">
           <nav className="space-y-3">
             <Link href="/dashboard/hardware" className="block py-3 px-4 bg-[#F47B20] rounded-lg font-medium" onClick={() => setMobileMenuOpen(false)}>
-              🏪 Dashboard
+              Dashboard
             </Link>
             <Link href="/dashboard/hardware/materials" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
-              📦 Materials
+              Materials
             </Link>
             <Link href="/dashboard/hardware/subscription" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
-              💳 Subscription
+              Subscription
             </Link>
             <Link href="/dashboard" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
-              ⬅️ Back to Main
+              Back to Main
             </Link>
             <button 
               onClick={async () => {
@@ -167,7 +167,7 @@ export default function HardwareDashboard() {
               }}
               className="block w-full text-left py-3 px-4 hover:bg-red-500/20 rounded-lg transition font-medium mt-4 text-red-300"
             >
-              🚪 Logout
+              Logout
             </button>
           </nav>
         </div>
@@ -185,16 +185,16 @@ export default function HardwareDashboard() {
 
         <nav className="space-y-2">
           <Link href="/dashboard/hardware" className="block py-2 px-4 bg-[#F47B20] rounded-lg font-medium">
-            🏪 Dashboard
+            Dashboard
           </Link>
           <Link href="/dashboard/hardware/materials" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
-            📦 Materials
+            Materials
           </Link>
           <Link href="/dashboard/hardware/subscription" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
-            💳 Subscription
+            Subscription
           </Link>
           <Link href="/dashboard" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
-            ⬅️ Back to Main
+            Back to Main
           </Link>
           <button 
             onClick={async () => {
@@ -203,7 +203,7 @@ export default function HardwareDashboard() {
             }}
             className="block w-full text-left py-2 px-4 hover:bg-red-500/20 rounded-lg transition font-medium mt-8 text-red-300"
           >
-            🚪 Logout
+            Logout
           </button>
         </nav>
       </div>
@@ -213,7 +213,7 @@ export default function HardwareDashboard() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
-            <h1 className="text-xl md:text-3xl font-bold text-[#2C3E50]">🏪 Hardware Dashboard</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-[#2C3E50]">Store Dashboard</h1>
             <p className="text-gray-600 font-semibold text-sm md:text-base">{store.store_name}</p>
             <p className="text-xs md:text-sm text-gray-500">
               {store.location || 'No location set'} • {store.phone || 'No phone'}
@@ -228,14 +228,14 @@ export default function HardwareDashboard() {
                 ? 'bg-green-100 text-green-700' 
                 : 'bg-yellow-100 text-yellow-700'
             }`}>
-              {store.subscription_status === 'active' ? '✅ Active' : '⚠️ Inactive'}
+              {store.subscription_status === 'active' ? 'Active' : 'Inactive'}
             </span>
             {store.subscription_status !== 'active' && (
               <Link
                 href="/dashboard/hardware/subscription"
                 className="block mt-2 bg-[#F47B20] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#E06B10] transition text-center"
               >
-                Subscribe $15/month →
+                Subscribe Now →
               </Link>
             )}
           </div>
@@ -256,7 +256,7 @@ export default function HardwareDashboard() {
             <p className={`text-lg md:text-xl font-bold ${
               store.subscription_status === 'active' ? 'text-green-600' : 'text-yellow-600'
             }`}>
-              {store.subscription_status === 'active' ? '✅ Active' : '⚠️ Inactive'}
+              {store.subscription_status === 'active' ? 'Active' : 'Inactive'}
             </p>
           </div>
         </div>
@@ -264,12 +264,12 @@ export default function HardwareDashboard() {
         {/* Store Profile */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-base md:text-lg font-bold text-[#2C3E50]">🏪 Store Profile</h2>
+            <h2 className="text-base md:text-lg font-bold text-[#2C3E50]">Store Profile</h2>
             <button
               onClick={() => setEditMode(!editMode)}
               className="text-[#F47B20] hover:underline text-sm font-medium"
             >
-              {editMode ? 'Cancel' : '✏️ Edit'}
+              {editMode ? 'Cancel' : 'Edit'}
             </button>
           </div>
 
@@ -364,7 +364,7 @@ export default function HardwareDashboard() {
                 <p className={`font-medium ${
                   store.subscription_status === 'active' ? 'text-green-600' : 'text-yellow-600'
                 }`}>
-                  {store.subscription_status === 'active' ? '✅ Active' : '⚠️ Inactive'}
+                  {store.subscription_status === 'active' ? 'Active' : 'Inactive'}
                 </p>
               </div>
             </div>
@@ -374,12 +374,12 @@ export default function HardwareDashboard() {
         {/* Materials */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
-            <h2 className="text-base md:text-lg font-bold text-[#2C3E50]">📦 Your Materials</h2>
+            <h2 className="text-base md:text-lg font-bold text-[#2C3E50]">Inventory</h2>
             <Link
               href="/dashboard/hardware/materials"
               className="bg-[#F47B20] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#E06B10] transition w-full sm:w-auto text-center"
             >
-              + Manage Materials
+              Manage Inventory
             </Link>
           </div>
           {materials.length > 0 ? (
@@ -414,44 +414,48 @@ export default function HardwareDashboard() {
               <p className="text-gray-500">No materials added yet</p>
               <Link
                 href="/dashboard/hardware/materials"
-                className="inline-block mt-2 text-[#F47B20] hover:underline"
+                className="inline-block mt-2 text-[#F47B20] hover:underline font-medium"
               >
-                Add your first material →
+                Add your first material
               </Link>
             </div>
           )}
         </div>
 
-        {/* Quick Actions - ALL LINKS WORKING */}
+        {/* Quick Actions - Professional */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mt-6">
-          {/* Add Materials - Working Link */}
           <Link
             href="/dashboard/hardware/materials"
-            className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center hover:shadow-lg transition"
+            className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center hover:shadow-md transition"
           >
-            <div className="text-2xl md:text-3xl mb-2">📤</div>
-            <h3 className="font-bold text-[#2C3E50] text-sm md:text-base">Add Materials</h3>
-            <p className="text-xs text-gray-500">Upload your price list</p>
+            <div className="text-3xl mb-2">📦</div>
+            <h3 className="font-bold text-[#2C3E50] text-sm md:text-base">Inventory</h3>
+            <p className="text-xs text-gray-500">Manage materials</p>
           </Link>
 
-          {/* Subscription - Working Link */}
           <Link
             href="/dashboard/hardware/subscription"
-            className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center hover:shadow-lg transition"
+            className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center hover:shadow-md transition"
           >
-            <div className="text-2xl md:text-3xl mb-2">💳</div>
+            <div className="text-3xl mb-2">💳</div>
             <h3 className="font-bold text-[#2C3E50] text-sm md:text-base">Subscription</h3>
             <p className="text-xs text-gray-500">Manage your plan</p>
           </Link>
 
-          {/* Analytics - Coming Soon */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center hover:shadow-lg transition cursor-pointer col-span-2 md:col-span-1 opacity-50">
-            <div className="text-2xl md:text-3xl mb-2">📊</div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center opacity-50">
+            <div className="text-3xl mb-2">📊</div>
             <h3 className="font-bold text-[#2C3E50] text-sm md:text-base">Analytics</h3>
             <p className="text-xs text-gray-500">Coming soon</p>
           </div>
         </div>
+
+        {/* Back to Main */}
+        <div className="mt-6">
+          <Link href="/dashboard" className="text-gray-500 hover:text-[#2C3E50] transition text-sm">
+            ← Back to Main Dashboard
+          </Link>
+        </div>
       </div>
     </div>
   );
-         }
+      }
