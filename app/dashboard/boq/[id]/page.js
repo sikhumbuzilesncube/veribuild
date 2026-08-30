@@ -181,9 +181,13 @@ export default function BOQPage() {
       const storesWithPrices = stores.map(store => {
         const matchedMaterials = [];
         for (const item of items) {
-          const material = store.materials?.find(m => 
-            m.name.toLowerCase() === item.name.toLowerCase()
-          );
+          // More flexible matching
+const material = store.materials?.find(m => {
+  const matName = m.name.toLowerCase();
+  const itemName = item.name.toLowerCase();
+  // Check if one contains the other
+  return matName.includes(itemName) || itemName.includes(matName);
+});
           if (material) {
             matchedMaterials.push({
               name: item.name,
