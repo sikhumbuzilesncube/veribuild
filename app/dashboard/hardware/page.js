@@ -261,6 +261,26 @@ export default function HardwareDashboard() {
           </div>
         </div>
 
+{/* Subscription Status with Info */}
+<div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+  <p className="text-gray-500 text-xs md:text-sm">Store Status</p>
+  <p className={`text-lg md:text-xl font-bold ${
+    store.subscription_status === 'active' ? 'text-green-600' : 'text-yellow-600'
+  }`}>
+    {store.subscription_status === 'active' ? '✅ Active' : '⚠️ Inactive'}
+  </p>
+  {store.subscription_status !== 'active' && (
+    <p className="text-xs text-gray-500 mt-1">
+      Subscribe to appear on BOQs
+    </p>
+  )}
+  {store.subscription_expiry && (
+    <p className="text-xs text-gray-500 mt-1">
+      Expires: {new Date(store.subscription_expiry).toLocaleDateString()}
+    </p>
+  )}
+</div>
+
         {/* Store Profile */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
