@@ -54,7 +54,6 @@ export default function HardwareRegister() {
 
     try {
       console.log('🏪 Registering hardware store...');
-      console.log('📧 Email:', formData.email);
 
       // STEP 1: Create Auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -82,7 +81,7 @@ export default function HardwareRegister() {
 
       console.log('✅ Auth user created:', authData.user.id);
 
-      // STEP 2: Insert into hardware_stores table
+      // STEP 2: Create hardware store record with user_id
       const cityId = cities.indexOf(formData.city) + 1;
       
       const { data: storeData, error: storeError } = await supabase
@@ -94,7 +93,8 @@ export default function HardwareRegister() {
           phone: formData.phone || '',
           location: formData.location || '',
           city_id: cityId,
-          is_verified: true,  // Auto-verify for now
+          user_id: authData.user.id,  // ← THIS LINKS TO AUTH USER
+          is_verified: true,           // Auto-verify for now
           subscription_status: 'inactive',
         })
         .select();
@@ -105,8 +105,6 @@ export default function HardwareRegister() {
         
         if (storeError.code === '23505') {
           setError('This store email is already registered.');
-        } else if (storeError.code === '23503') {
-          setError('Invalid city selected. Please try again.');
         } else {
           setError(`Database error: ${storeError.message}`);
         }
@@ -131,6 +129,7 @@ export default function HardwareRegister() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center px-4 py-8">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
+        {/* Logo */}
         <div className="text-center mb-6">
           <div className="flex justify-center items-center gap-2 mb-2">
             <div className="w-10 h-10 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-xl">
@@ -142,18 +141,21 @@ export default function HardwareRegister() {
           <p className="text-sm text-gray-400">List your prices and get customers for only <strong>$15/month</strong></p>
         </div>
 
+        {/* Success Message */}
         {success && (
           <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
             {success}
           </div>
         )}
 
+        {/* Error Message */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
             {error}
           </div>
         )}
 
+        {/* Registration Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
