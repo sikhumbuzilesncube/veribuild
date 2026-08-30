@@ -124,12 +124,53 @@ export default function BOQPage() {
       const workers = generateWorkerSuggestions(projectData);
       setWorkerSuggestions(workers);
 
+      // Calculate total using default prices (using let, not const)
+      const defaultPrices = {
+        'Foundation Excavation': 15.00,
+        'Concrete Mix': 85.00,
+        'Cement 50kg': 12.50,
+        'River Sand': 15.00,
+        'Crushed Stone': 18.00,
+        'Steel Rebar 12mm': 8.50,
+        'Foundation Bricks': 0.35,
+        'Standard Bricks': 0.35,
+        'Steel Mesh': 25.00,
+        'Timber 50x50mm': 4.50,
+        'Timber 100x50mm': 8.00,
+        'Roofing Sheets': 14.00,
+        'Roofing Nails': 3.50,
+        'Floor Tiles': 15.00,
+        'Wall Paint 20L': 18.00,
+        'Ceiling Boards': 12.00,
+        'Sewer Pipe 100mm': 18.00,
+        'Sewer Fittings': 50.00,
+        'Water Pipe 50mm': 12.00,
+        'Water Fittings': 40.00,
+        'Cable 2.5mm²': 45.00,
+        'Electrical Boxes & Switches': 5.00,
+        'General Labourers': 8.00,
+        'Skilled Masons': 15.00,
+        'Carpenters': 15.00,
+        'Plumbers': 18.00,
+        'Electricians': 18.00,
+        'Supervisors': 25.00,
+      };
+
+      // ✅ FIX: Use let for calculatedTotal
+      let calculatedTotal = 0;
+      items.forEach(item => {
+        const price = defaultPrices[item.name] || 10.00;
+        calculatedTotal += item.qty * price;
+      });
+      calculatedTotal = Math.round(calculatedTotal * 100) / 100;
+      setTotalCost(calculatedTotal);
+
       setSaving(true);
       try {
         const { error: updateError } = await supabase
           .from('projects')
           .update({
-            total_cost: totalCost,
+            total_cost: calculatedTotal,
             status: 'completed',
           })
           .eq('id', projectId);
@@ -468,44 +509,8 @@ export default function BOQPage() {
     categories[item.category].push(item);
   });
 
-  // Calculate total using default prices
-  const defaultPrices = {
-    'Foundation Excavation': 15.00,
-    'Concrete Mix': 85.00,
-    'Cement 50kg': 12.50,
-    'River Sand': 15.00,
-    'Crushed Stone': 18.00,
-    'Steel Rebar 12mm': 8.50,
-    'Foundation Bricks': 0.35,
-    'Standard Bricks': 0.35,
-    'Steel Mesh': 25.00,
-    'Timber 50x50mm': 4.50,
-    'Timber 100x50mm': 8.00,
-    'Roofing Sheets': 14.00,
-    'Roofing Nails': 3.50,
-    'Floor Tiles': 15.00,
-    'Wall Paint 20L': 18.00,
-    'Ceiling Boards': 12.00,
-    'Sewer Pipe 100mm': 18.00,
-    'Sewer Fittings': 50.00,
-    'Water Pipe 50mm': 12.00,
-    'Water Fittings': 40.00,
-    'Cable 2.5mm²': 45.00,
-    'Electrical Boxes & Switches': 5.00,
-    'General Labourers': 8.00,
-    'Skilled Masons': 15.00,
-    'Carpenters': 15.00,
-    'Plumbers': 18.00,
-    'Electricians': 18.00,
-    'Supervisors': 25.00,
-  };
-
-  let totalCost = 0;
-  boqItems.forEach(item => {
-    const price = defaultPrices[item.name] || 10.00;
-    totalCost += item.qty * price;
-  });
-  totalCost = Math.round(totalCost * 100) / 100;
+  // Use the totalCost from state
+  const displayTotal = totalCost;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -527,11 +532,11 @@ export default function BOQPage() {
           <div className="text-right">
             <div className="bg-[#F47B20] text-white px-6 py-3 rounded-xl">
               <p className="text-sm font-medium">Total Estimated Cost</p>
-              <p className="text-2xl font-bold">${totalCost.toFixed(2)}</p>
+              <p className="text-2xl font-bold">${displayTotal.toFixed(2)}</p>
             </div>
-            {hardwareStores.length > 0 && hardwareStores[0]?.total > 0 && hardwareStores[0].total < totalCost && (
+            {hardwareStores.length > 0 && hardwareStores[0]?.total > 0 && hardwareStores[0].total < displayTotal && (
               <p className="text-sm text-green-600 font-semibold mt-2">
-                💰 Save ${(totalCost - hardwareStores[0].total).toFixed(2)} with {hardwareStores[0].store_name}
+                💰 Save ${(displayTotal - hardwareStores[0].total).toFixed(2)} with {hardwareStores[0].store_name}
               </p>
             )}
           </div>
@@ -589,8 +594,8 @@ export default function BOQPage() {
                     <div className="text-right">
                       <p className="text-sm text-gray-500">Total</p>
                       <p className="text-xl font-bold text-[#2C3E50]">${store.total.toFixed(2)}</p>
-                      {store.total > 0 && store.total < totalCost && (
-                        <span className="text-xs text-green-600 font-semibold">Save ${(totalCost - store.total).toFixed(2)}</span>
+                      {store.total > 0 && store.total < displayTotal && (
+                        <span className="text-xs text-green-600 font-semibold">Save ${(displayTotal - store.total).toFixed(2)}</span>
                       )}
                     </div>
                   </div>
@@ -658,8 +663,7 @@ export default function BOQPage() {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-4">
-          <button
-            onClick={() => {
+          <button            onClick={() => {
               const headers = ['Material', 'Category', 'Qty', 'Unit'];
               const rows = boqItems.map(item => [
                 item.name, item.category, item.qty, item.unit
