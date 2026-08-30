@@ -143,23 +143,20 @@ export default function MaterialsPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-[#2C3E50]">📦 Materials</h1>
+            <h1 className="text-3xl font-bold text-[#2C3E50]">Materials</h1>
             <p className="text-gray-600">Manage your store inventory</p>
           </div>
-          
           <button
             type="button"
             onClick={toggleForm}
             className="bg-[#F47B20] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition w-full sm:w-auto cursor-pointer"
           >
-            {showForm ? '✕ Cancel' : '+ Add Material'}
+            {showForm ? 'Cancel' : '+ Add Material'}
           </button>
         </div>
 
-        {/* Message */}
         {message && (
           <div className={`px-4 py-3 rounded-lg mb-4 text-sm ${
             message.type === 'success' 
@@ -170,7 +167,6 @@ export default function MaterialsPage() {
           </div>
         )}
 
-        {/* Add Material Form */}
         {showForm && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
             <h2 className="text-lg font-bold text-[#2C3E50] mb-4">Add New Material</h2>
@@ -241,7 +237,6 @@ export default function MaterialsPage() {
           </div>
         )}
 
-        {/* Materials List */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           {materials.length > 0 ? (
             <div className="overflow-x-auto">
@@ -277,27 +272,25 @@ export default function MaterialsPage() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <div className="text-6xl mb-4">📦</div>
+              <div className="text-5xl mb-4">📦</div>
               <p className="text-gray-500">No materials added yet</p>
-              {/* THIS IS A BUTTON - NOT A LINK - NO 404 */}
               <button
                 type="button"
                 onClick={toggleForm}
                 className="mt-4 text-[#F47B20] hover:underline font-medium cursor-pointer"
               >
-                + Add your first material
+                Add your first material
               </button>
             </div>
           )}
         </div>
 
-        {/* Back Button */}
         <div className="mt-6">
           <Link href="/dashboard/hardware" className="text-gray-600 hover:text-[#2C3E50] transition">
-            ← Back to Hardware Dashboard
+            ← Back to Store Dashboard
           </Link>
         </div>
       </div>
     </div>
   );
-}
+    }
