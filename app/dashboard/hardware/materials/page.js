@@ -300,4 +300,4 @@ export default function MaterialsPage() {
       </div>
     </div>
   );
-    }
+}
