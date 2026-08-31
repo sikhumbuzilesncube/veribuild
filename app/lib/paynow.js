@@ -15,6 +15,7 @@ export async function initiatePayNowPayment(orderData) {
     description
   } = orderData;
 
+  // Build the data for PayNow
   const data = {
     id: PAYNOW_INTEGRATION_ID,
     key: PAYNOW_INTEGRATION_KEY,
@@ -27,7 +28,8 @@ export async function initiatePayNowPayment(orderData) {
     statusurl: 'https://veribuild.vercel.app/api/paynow/status'
   };
 
-  const formData = new FormData();
+  // Build form data
+  const formData = new URLSearchParams();
   for (const [key, value] of Object.entries(data)) {
     formData.append(key, value);
   }
@@ -35,7 +37,10 @@ export async function initiatePayNowPayment(orderData) {
   try {
     const response = await fetch(PAYNOW_API_URL, {
       method: 'POST',
-      body: formData,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData.toString(),
     });
 
     const result = await response.json();
@@ -72,4 +77,4 @@ export async function checkPaymentStatus(pollUrl) {
     console.error('Status check error:', error);
     return { status: 'error' };
   }
-    }
+                  }
