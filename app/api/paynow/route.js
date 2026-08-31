@@ -51,20 +51,35 @@ export async function POST(request) {
       body: formData.toString(),
     });
 
-    const result = await response.json();
-    console.log('📥 PayNow response:', result);
+    const responseText = await response.text();
+    console.log('📥 PayNow raw response:', responseText);
 
-    if (result.status === 'Ok') {
+    // PayNow returns response as URL-encoded string
+    // e.g., "status=Ok&browserurl=https://..."
+    // or "status=Err&error=Invalid+reference"
+    const params = new URLSearchParams(responseText);
+    const status = params.get('status');
+    
+    if (status === 'Ok') {
+      const browserurl = params.get('browserurl');
+      const pollurl = params.get('pollurl');
+      const reference = params.get('reference');
+      
+      console.log('✅ Payment initiated:', { browserurl, pollurl, reference });
+      
       return NextResponse.json({
         success: true,
-        redirectUrl: result.browserurl,
-        pollUrl: result.pollurl,
-        reference: result.reference,
+        redirectUrl: browserurl,
+        pollUrl: pollurl,
+        reference: reference,
       });
     } else {
+      const error = params.get('error') || 'Payment initiation failed';
+      console.log('❌ Payment error:', error);
+      
       return NextResponse.json({
         success: false,
-        error: result.error || 'Payment initiation failed',
+        error: error,
       });
     }
 
@@ -75,4 +90,4 @@ export async function POST(request) {
       error: error.message || 'Payment initiation failed',
     }, { status: 500 });
   }
-      }
+}
