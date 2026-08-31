@@ -1,192 +1,51 @@
-'use client';
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError('');
+  setSuccess('');
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-
-export default function PaymentPage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [paymentData, setPaymentData] = useState({
-    amount: '',
-    email: '',
-    phone: '',
-    description: '',
-  });
-
-  const handleChange = (e) => {
-    setPaymentData({ ...paymentData, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    setSuccess('');
-
-    if (!paymentData.amount || !paymentData.email) {
-      setError('Please fill in amount and email');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      // Generate reference
-      const reference = `VERI-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-
-      // PayNow credentials
-      const PAYNOW_ID = '25439';
-      const PAYNOW_KEY = '6d2661a1-2d18-4b83-8ae5-37dd0860b461';
-      const PAYNOW_URL = 'https://www.paynow.co.zw/interface/initiatetransaction';
-
-      // Build form data
-      const formData = new URLSearchParams();
-      formData.append('id', PAYNOW_ID);
-      formData.append('key', PAYNOW_KEY);
-      formData.append('reference', reference);
-      formData.append('amount', paymentData.amount);
-      formData.append('email', paymentData.email);
-      formData.append('phone', paymentData.phone || '');
-      formData.append('additionalinfo', paymentData.description || 'VeriBuild Payment');
-      formData.append('returnurl', 'https://veribuild.vercel.app/dashboard');
-      formData.append('statusurl', 'https://veribuild.vercel.app/api/paynow/status');
-
-      const response = await fetch(PAYNOW_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: formData.toString(),
-      });
-
-      const result = await response.json();
-      console.log('PayNow result:', result);
-
-      if (result.status === 'Ok') {
-        setSuccess('Payment initiated! Redirecting to PayNow...');
-        // Open PayNow in new window
-        window.open(result.browserurl, '_blank');
-        // Redirect to dashboard after 3 seconds
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 3000);
-      } else {
-        setError(result.error || 'Payment initiation failed');
-      }
-    } catch (err) {
-      setError('Something went wrong. Please try again.');
-    }
-
+  if (!paymentData.amount || !paymentData.email) {
+    setError('Please fill in amount and email');
     setLoading(false);
-  };
+    return;
+  }
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center px-4 py-8">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
-        <div className="text-center mb-8">
-          <div className="flex justify-center items-center gap-2 mb-2">
-            <div className="w-10 h-10 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-xl">
-              V
-            </div>
-            <h1 className="text-2xl font-bold text-[#2C3E50]">VeriBuild</h1>
-          </div>
-          <p className="text-gray-500 text-sm">💳 Pay with PayNow</p>
-        </div>
+  try {
+    console.log('📊 Sending payment request:', paymentData);
 
-        {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
-            {success}
-          </div>
-        )}
+    const response = await fetch('/api/paynow', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        amount: paymentData.amount,
+        email: paymentData.email,
+        phone: paymentData.phone,
+        description: paymentData.description,
+      }),
+    });
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
-            {error}
-          </div>
-        )}
+    const result = await response.json();
+    console.log('📥 Payment response:', result);
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Amount (USD) <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              name="amount"
-              value={paymentData.amount}
-              onChange={handleChange}
-              step="0.01"
-              min="0.01"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="0.00"
-              required
-            />
-          </div>
+    if (result.success) {
+      setSuccess('Payment initiated! Redirecting to PayNow...');
+      // Open PayNow in new window
+      if (result.redirectUrl) {
+        window.open(result.redirectUrl, '_blank');
+      }
+      // Redirect to dashboard after 3 seconds
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 3000);
+    } else {
+      setError(result.error || 'Payment initiation failed');
+    }
+  } catch (err) {
+    console.error('❌ Error:', err);
+    setError('Something went wrong. Please try again.');
+  }
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={paymentData.email}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="your@email.com"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone Number (Optional)
-            </label>
-            <input
-              type="tel"
-              name="phone"
-              value={paymentData.phone}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="+263 78 123 4567"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description (Optional)
-            </label>
-            <input
-              type="text"
-              name="description"
-              value={paymentData.description}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="What is this payment for?"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Processing...' : 'Pay with PayNow →'}
-          </button>
-        </form>
-
-        <div className="text-center mt-6">
-          <p className="text-sm text-gray-500">
-            <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-            Secured by PayNow
-          </p>
-          <Link href="/dashboard" className="text-sm text-[#F47B20] hover:underline mt-2 inline-block">
-            ← Back to Dashboard
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-             }
+  setLoading(false);
+};
