@@ -33,7 +33,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Navigation */}
           <nav className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-gray-600 hover:text-[#F47B20] transition text-sm font-medium">Features</a>
             <a href="#how-it-works" className="text-gray-600 hover:text-[#F47B20] transition text-sm font-medium">How It Works</a>
@@ -83,11 +82,19 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Trust badges */}
           <div className="flex flex-wrap justify-center gap-8 mt-12 text-sm text-gray-500">
-            <span className="flex items-center gap-2">✓ 500+ Projects Generated</span>
-            <span className="flex items-center gap-2">✓ 50+ Hardware Stores</span>
-            <span className="flex items-center gap-2">✓ 100+ Skilled Workers</span>
+            <span className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-[#F47B20] rounded-full"></span>
+              500+ Projects Generated
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-[#F47B20] rounded-full"></span>
+              50+ Hardware Stores
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-[#F47B20] rounded-full"></span>
+              100+ Skilled Workers
+            </span>
           </div>
         </div>
       </section>
@@ -103,7 +110,9 @@ export default function Home() {
               href="/register"
               className="group bg-gray-50 hover:bg-[#F47B20]/10 rounded-xl p-6 text-center border border-gray-200 hover:border-[#F47B20] transition-all duration-300"
             >
-              <div className="text-3xl mb-3 text-[#2C3E50]">🏠</div>
+              <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-gray-200 group-hover:bg-[#F47B20]/20 flex items-center justify-center text-[#2C3E50] group-hover:text-[#F47B20] transition font-bold text-xl">
+                H
+              </div>
               <h3 className="font-bold text-[#2C3E50] group-hover:text-[#F47B20] transition">Client</h3>
               <p className="text-xs text-gray-500 mt-1">Generate BOQs</p>
             </Link>
@@ -112,7 +121,9 @@ export default function Home() {
               href="/hardware/register"
               className="group bg-gray-50 hover:bg-[#F47B20]/10 rounded-xl p-6 text-center border border-gray-200 hover:border-[#F47B20] transition-all duration-300"
             >
-              <div className="text-3xl mb-3 text-[#2C3E50]">🏗️</div>
+              <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-gray-200 group-hover:bg-[#F47B20]/20 flex items-center justify-center text-[#2C3E50] group-hover:text-[#F47B20] transition font-bold text-xl">
+                S
+              </div>
               <h3 className="font-bold text-[#2C3E50] group-hover:text-[#F47B20] transition">Hardware Store</h3>
               <p className="text-xs text-gray-500 mt-1">List your prices</p>
             </Link>
@@ -121,7 +132,9 @@ export default function Home() {
               href="/construction/register"
               className="group bg-gray-50 hover:bg-[#F47B20]/10 rounded-xl p-6 text-center border border-gray-200 hover:border-[#F47B20] transition-all duration-300"
             >
-              <div className="text-3xl mb-3 text-[#2C3E50]">🏢</div>
+              <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-gray-200 group-hover:bg-[#F47B20]/20 flex items-center justify-center text-[#2C3E50] group-hover:text-[#F47B20] transition font-bold text-xl">
+                C
+              </div>
               <h3 className="font-bold text-[#2C3E50] group-hover:text-[#F47B20] transition">Construction Co.</h3>
               <p className="text-xs text-gray-500 mt-1">Advertise on BOQs</p>
             </Link>
@@ -130,7 +143,9 @@ export default function Home() {
               href="/workers/register"
               className="group bg-gray-50 hover:bg-[#F47B20]/10 rounded-xl p-6 text-center border border-gray-200 hover:border-[#F47B20] transition-all duration-300"
             >
-              <div className="text-3xl mb-3 text-[#2C3E50]">🔧</div>
+              <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-gray-200 group-hover:bg-[#F47B20]/20 flex items-center justify-center text-[#2C3E50] group-hover:text-[#F47B20] transition font-bold text-xl">
+                W
+              </div>
               <h3 className="font-bold text-[#2C3E50] group-hover:text-[#F47B20] transition">Skilled Worker</h3>
               <p className="text-xs text-gray-500 mt-1">Get hired</p>
             </Link>
@@ -151,28 +166,28 @@ export default function Home() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-gray-50 p-8 rounded-2xl border border-gray-100 hover:shadow-xl transition">
-              <div className="w-14 h-14 bg-[#F47B20]/10 rounded-xl flex items-center justify-center mb-5 text-2xl text-[#F47B20] font-bold">
-                📄
+            <div className="bg-gray-50 p-8 rounded-2xl border border-gray-100 hover:shadow-xl transition text-center">
+              <div className="w-16 h-16 mx-auto bg-[#F47B20]/10 rounded-2xl flex items-center justify-center mb-5 text-2xl text-[#F47B20] font-bold">
+                ↑
               </div>
               <h3 className="text-xl font-bold text-[#2C3E50] mb-3">Upload Your Plan</h3>
-              <p className="text-gray-600">PDF, JPEG, or PNG — just upload your floor plan and let AI do the rest.</p>
+              <p className="text-gray-600 text-sm">PDF, JPEG, or PNG — just upload your floor plan and let AI do the rest.</p>
             </div>
 
-            <div className="bg-gray-50 p-8 rounded-2xl border border-gray-100 hover:shadow-xl transition">
-              <div className="w-14 h-14 bg-[#F47B20]/10 rounded-xl flex items-center justify-center mb-5 text-2xl text-[#F47B20] font-bold">
+            <div className="bg-gray-50 p-8 rounded-2xl border border-gray-100 hover:shadow-xl transition text-center">
+              <div className="w-16 h-16 mx-auto bg-[#F47B20]/10 rounded-2xl flex items-center justify-center mb-5 text-2xl text-[#F47B20] font-bold">
                 ⚡
               </div>
               <h3 className="text-xl font-bold text-[#2C3E50] mb-3">AI-Powered Analysis</h3>
-              <p className="text-gray-600">Extracts rooms, dimensions, doors, windows, and electrical points automatically.</p>
+              <p className="text-gray-600 text-sm">Extracts rooms, dimensions, doors, windows, and electrical points automatically.</p>
             </div>
 
-            <div className="bg-gray-50 p-8 rounded-2xl border border-gray-100 hover:shadow-xl transition">
-              <div className="w-14 h-14 bg-[#F47B20]/10 rounded-xl flex items-center justify-center mb-5 text-2xl text-[#F47B20] font-bold">
-                📋
+            <div className="bg-gray-50 p-8 rounded-2xl border border-gray-100 hover:shadow-xl transition text-center">
+              <div className="w-16 h-16 mx-auto bg-[#F47B20]/10 rounded-2xl flex items-center justify-center mb-5 text-2xl text-[#F47B20] font-bold">
+                ≡
               </div>
               <h3 className="text-xl font-bold text-[#2C3E50] mb-3">Instant BOQ</h3>
-              <p className="text-gray-600">Get a professional BOQ with hardware prices, supplier comparisons, and worker suggestions.</p>
+              <p className="text-gray-600 text-sm">Get a professional BOQ with hardware prices, supplier comparisons, and worker suggestions.</p>
             </div>
           </div>
         </div>
@@ -232,10 +247,22 @@ export default function Home() {
               <p className="text-4xl font-bold text-[#F47B20] my-4">$10</p>
               <p className="text-gray-600 text-sm">Per BOQ</p>
               <ul className="mt-6 space-y-3 text-left text-sm text-gray-600">
-                <li>✓ Full BOQ Generation</li>
-                <li>✓ Supplier Price Comparison</li>
-                <li>✓ Worker Suggestions</li>
-                <li>✓ 3 Exports (PDF/Excel/CSV)</li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#F47B20] font-bold mt-0.5">✓</span>
+                  Full BOQ Generation
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#F47B20] font-bold mt-0.5">✓</span>
+                  Supplier Price Comparison
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#F47B20] font-bold mt-0.5">✓</span>
+                  Worker Suggestions
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#F47B20] font-bold mt-0.5">✓</span>
+                  3 Exports (PDF/Excel/CSV)
+                </li>
               </ul>
               <Link href="/register" className="block mt-8 bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition">
                 Get Started
@@ -250,10 +277,22 @@ export default function Home() {
               <p className="text-4xl font-bold text-[#F47B20] my-4">$10</p>
               <p className="text-gray-600 text-sm">Per BOQ</p>
               <ul className="mt-6 space-y-3 text-left text-sm text-gray-600">
-                <li>✓ Full BOQ Generation</li>
-                <li>✓ Supplier Price Comparison</li>
-                <li>✓ Worker Suggestions</li>
-                <li>✓ 3 Exports (PDF/Excel/CSV)</li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#F47B20] font-bold mt-0.5">✓</span>
+                  Full BOQ Generation
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#F47B20] font-bold mt-0.5">✓</span>
+                  Supplier Price Comparison
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#F47B20] font-bold mt-0.5">✓</span>
+                  Worker Suggestions
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#F47B20] font-bold mt-0.5">✓</span>
+                  3 Exports (PDF/Excel/CSV)
+                </li>
               </ul>
               <Link href="/register" className="block mt-8 bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition">
                 Get Started
@@ -265,12 +304,30 @@ export default function Home() {
               <p className="text-4xl font-bold text-[#F47B20] my-4">$30</p>
               <p className="text-gray-600 text-sm">Per BOQ</p>
               <ul className="mt-6 space-y-3 text-left text-sm text-gray-600">
-                <li>✓ Full BOQ Generation</li>
-                <li>✓ Supplier Price Comparison</li>
-                <li>✓ Worker Suggestions</li>
-                <li>✓ Unlimited Exports</li>
-                <li>✓ Multi-Story Support</li>
-                <li>✓ Priority Processing</li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#F47B20] font-bold mt-0.5">✓</span>
+                  Full BOQ Generation
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#F47B20] font-bold mt-0.5">✓</span>
+                  Supplier Price Comparison
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#F47B20] font-bold mt-0.5">✓</span>
+                  Worker Suggestions
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#F47B20] font-bold mt-0.5">✓</span>
+                  Unlimited Exports
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#F47B20] font-bold mt-0.5">✓</span>
+                  Multi-Story Support
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#F47B20] font-bold mt-0.5">✓</span>
+                  Priority Processing
+                </li>
               </ul>
               <Link href="/register" className="block mt-8 bg-[#2C3E50] text-white py-3 rounded-lg font-semibold hover:bg-[#1a2a3a] transition">
                 Get Started
