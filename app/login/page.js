@@ -50,7 +50,6 @@ export default function Login() {
 
       // Redirect based on user type
       if (userType === 'hardware') {
-        // Check if store is verified
         const { data: storeData } = await supabase
           .from('hardware_stores')
           .select('is_verified')
@@ -64,7 +63,6 @@ export default function Login() {
       }
 
       if (userType === 'construction') {
-        // Check if company is verified
         const { data: companyData } = await supabase
           .from('construction_companies')
           .select('is_verified')
@@ -77,7 +75,6 @@ export default function Login() {
         }
       }
 
-      // Regular user or pending verification
       router.push('/dashboard');
       
     } catch (err) {
@@ -101,12 +98,12 @@ export default function Login() {
           <p className="text-gray-500 text-sm">Welcome back! Log in to your account</p>
         </div>
 
-        {/* User Type Options */}
-        <div className="flex justify-center gap-2 mb-6 text-xs">
-          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full">👤 Client</span>
-          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full">🏪 Hardware</span>
-          <span className="px-3 py-1 bg-[#F47B20] text-white rounded-full">🏗️ Construction</span>
-          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full">🔧 Worker</span>
+        {/* User Type Options - Plain text, NOT buttons */}
+        <div className="flex justify-center gap-3 mb-6 text-xs">
+          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full">Client</span>
+          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full">Hardware</span>
+          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full">Construction</span>
+          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full">Worker</span>
         </div>
 
         {/* Error Message */}
@@ -171,4 +168,4 @@ export default function Login() {
       </div>
     </div>
   );
-    }
+        }
