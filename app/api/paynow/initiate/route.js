@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { initiatePayNowPayment } from '@/lib/paynow';
-import { supabase } from '@/lib/supabase';
+import { initiatePayNowPayment } from '@/app/lib/paynow';
 
 export async function POST(request) {
   try {
@@ -42,25 +41,6 @@ export async function POST(request) {
       );
     }
 
-    // Save payment record to database
-    const { data: paymentData, error: paymentError } = await supabase
-      .from('payments')
-      .insert({
-        user_id: userId || null,
-        project_id: projectId || null,
-        amount: amount,
-        currency: 'USD',
-        payment_method: 'paynow',
-        payment_status: 'pending',
-        transaction_reference: result.reference,
-        created_at: new Date().toISOString(),
-      })
-      .select();
-
-    if (paymentError) {
-      console.error('Failed to save payment record:', paymentError);
-    }
-
     return NextResponse.json({
       success: true,
       redirectUrl: result.redirectUrl,
@@ -75,4 +55,4 @@ export async function POST(request) {
       { status: 500 }
     );
   }
-}
+      }
