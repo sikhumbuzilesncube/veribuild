@@ -15,11 +15,13 @@ export async function POST(request) {
       return NextResponse.json({
         success: false,
         error: 'Amount and email are required'
-      }, { status: 400 });
+      });
     }
 
+    // Generate unique reference
     const reference = `VERI-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
+    // Build PayNow data - CORRECT FORMAT
     const data = {
       id: PAYNOW_ID,
       key: PAYNOW_KEY,
@@ -34,6 +36,7 @@ export async function POST(request) {
 
     console.log('📤 Sending to PayNow:', data);
 
+    // Send as form data (x-www-form-urlencoded)
     const formData = new URLSearchParams();
     for (const [key, value] of Object.entries(data)) {
       formData.append(key, value);
@@ -50,37 +53,34 @@ export async function POST(request) {
     const responseText = await response.text();
     console.log('📥 PayNow raw response:', responseText);
 
-    // Check if response is empty
-    if (!responseText || responseText.trim() === '') {
-      console.error('❌ Empty response from PayNow');
-      return NextResponse.json({
-        success: false,
-        error: 'Empty response from PayNow. Please try again.'
-      });
-    }
-
-    // Parse the response
-    const params = new URLSearchParams(responseText);
-    const status = params.get('status');
-    const error = params.get('error');
-    const browserurl = params.get('browserurl');
-    const pollurl = params.get('pollurl');
-    const ref = params.get('reference');
-
-    console.log('📊 Parsed response:', { status, error, browserurl, pollurl, ref });
-
-    if (status === 'Ok' && browserurl) {
-      return NextResponse.json({
-        success: true,
-        redirectUrl: browserurl,
-        pollUrl: pollurl,
-        reference: ref || reference,
-      });
+    // Parse response
+    if (responseText.startsWith('status=')) {
+      const params = new URLSearchParams(responseText);
+      const status = params.get('status');
+      
+      if (status === 'Ok') {
+        const browserurl = params.get('browserurl');
+        const pollurl = params.get('pollurl');
+        
+        return NextResponse.json({
+          success: true,
+          redirectUrl: browserurl,
+          pollUrl: pollurl,
+          reference: reference,
+        });
+      } else {
+        const error = params.get('error') || 'Payment initiation failed';
+        return NextResponse.json({
+          success: false,
+          error: error,
+        });
+      }
     } else {
+      // If response is not in expected format
       return NextResponse.json({
         success: false,
-        error: error || 'Payment initiation failed. Status: ' + (status || 'unknown'),
-        details: responseText
+        error: 'Unexpected response from PayNow',
+        raw: responseText
       });
     }
 
@@ -89,6 +89,6 @@ export async function POST(request) {
     return NextResponse.json({
       success: false,
       error: error.message || 'Payment initiation failed',
-    }, { status: 500 });
+    });
   }
-      }
+}
