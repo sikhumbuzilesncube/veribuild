@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
+import { Paynow } from 'paynow';
 
 const PAYNOW_ID = '25439';
 const PAYNOW_KEY = '6d2661a1-2d18-4b83-8ae5-37dd0860b461';
-const PAYNOW_URL = 'https://www.paynow.co.zw/interface/initiatetransaction';
 
 export async function POST(request) {
   try {
@@ -11,7 +11,6 @@ export async function POST(request) {
 
     console.log('📊 PayNow request:', { amount, email, phone, description });
 
-    // Validate
     if (!amount || !email) {
       return NextResponse.json({
         success: false,
@@ -19,100 +18,44 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Generate reference
+    // Create PayNow instance
+    const paynow = new Paynow(PAYNOW_ID, PAYNOW_KEY);
+
+    // Set return and result URLs
+    paynow.returnUrl = 'https://veribuild.vercel.app/dashboard';
+    paynow.resultUrl = 'https://veribuild.vercel.app/api/paynow/status';
+
+    // Create a new payment
     const reference = `VERI-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const payment = paynow.createPayment(`VeriBuild Payment - ${reference}`);
 
-    // Build the request
-    const data = {
-      id: PAYNOW_ID,
-      key: PAYNOW_KEY,
-      reference: reference,
-      amount: amount.toString(),
-      email: email,
-      phone: phone || '',
-      additionalinfo: description || 'VeriBuild Payment',
-      returnurl: 'https://veribuild.vercel.app/dashboard',
-      statusurl: 'https://veribuild.vercel.app/api/paynow/status'
-    };
+    // Add item (the amount)
+    payment.add(description || 'VeriBuild Payment', parseFloat(amount));
 
-    console.log('📤 Sending to PayNow:', data);
+    // Send payment to PayNow
+    const response = await paynow.send(payment);
 
-    // Send as URLSearchParams
-    const formData = new URLSearchParams();
-    Object.entries(data).forEach(([key, value]) => {
-      formData.append(key, value);
-    });
+    console.log('📥 PayNow response:', response);
 
-    const response = await fetch(PAYNOW_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: formData.toString(),
-    });
-
-    const responseText = await response.text();
-    console.log('📥 PayNow raw response:', responseText);
-
-    // Check if response is empty
-    if (!responseText || responseText.trim() === '') {
-      console.error('❌ Empty response from PayNow');
+    if (response && response.success) {
       return NextResponse.json({
-        success: false,
-        error: 'No response from PayNow. Please try again.',
-        details: 'Empty response'
+        success: true,
+        redirectUrl: response.redirectUrl,
+        pollUrl: response.pollUrl,
+        reference: reference,
       });
-    }
-
-    // Try to parse as URL-encoded
-    try {
-      const params = new URLSearchParams(responseText);
-      const status = params.get('status');
-      
-      console.log('📊 Status:', status);
-
-      if (status === 'Ok') {
-        const browserurl = params.get('browserurl');
-        const pollurl = params.get('pollurl');
-        
-        if (!browserurl) {
-          console.error('❌ No browserurl in response');
-          return NextResponse.json({
-            success: false,
-            error: 'Invalid PayNow response: missing redirect URL',
-            details: responseText
-          });
-        }
-
-        return NextResponse.json({
-          success: true,
-          redirectUrl: browserurl,
-          pollUrl: pollurl,
-          reference: reference,
-        });
-      } else {
-        const error = params.get('error') || 'Payment initiation failed';
-        console.error('❌ PayNow error:', error);
-        return NextResponse.json({
-          success: false,
-          error: error,
-          details: responseText
-        });
-      }
-    } catch (parseError) {
-      console.error('❌ Parse error:', parseError);
+    } else {
       return NextResponse.json({
         success: false,
-        error: 'Could not parse PayNow response',
-        raw: responseText
+        error: response?.error || 'Payment initiation failed',
       });
     }
 
   } catch (error) {
-    console.error('❌ Server error:', error);
+    console.error('❌ Payment error:', error);
     return NextResponse.json({
       success: false,
-      error: 'Server error: ' + error.message,
+      error: error.message || 'Payment initiation failed',
     }, { status: 500 });
   }
 }
