@@ -7,15 +7,8 @@ const PAYNOW_INTEGRATION_KEY = '6d2661a1-2d18-4b83-8ae5-37dd0860b461';
 const PAYNOW_API_URL = 'https://www.paynow.co.zw/interface/initiatetransaction';
 
 export async function initiatePayNowPayment(orderData) {
-  const {
-    reference,
-    amount,
-    email,
-    phone,
-    description
-  } = orderData;
+  const { reference, amount, email, phone, description } = orderData;
 
-  // Build the data for PayNow
   const data = {
     id: PAYNOW_INTEGRATION_ID,
     key: PAYNOW_INTEGRATION_KEY,
@@ -28,7 +21,6 @@ export async function initiatePayNowPayment(orderData) {
     statusurl: 'https://veribuild.vercel.app/api/paynow/status'
   };
 
-  // Build form data
   const formData = new URLSearchParams();
   for (const [key, value] of Object.entries(data)) {
     formData.append(key, value);
@@ -77,4 +69,4 @@ export async function checkPaymentStatus(pollUrl) {
     console.error('Status check error:', error);
     return { status: 'error' };
   }
-                  }
+        }
