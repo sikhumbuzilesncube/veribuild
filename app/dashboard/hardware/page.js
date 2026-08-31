@@ -5,89 +5,86 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 
-export default function HardwareDashboard() {
+export default function ConstructionDashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [store, setStore] = useState(null);
-  const [materials, setMaterials] = useState([]);
+  const [company, setCompany] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [formData, setFormData] = useState({
-    store_name: '',
+    company_name: '',
     contact_person: '',
     phone: '',
     location: '',
+    ad_text: '',
+    website: '',
   });
 
   useEffect(() => {
-    async function loadHardwareData() {
+    async function loadData() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push('/login');
         return;
       }
 
-      const { data: storeData, error: storeError } = await supabase
-        .from('hardware_stores')
+      const { data: companyData, error } = await supabase
+        .from('construction_companies')
         .select('*')
         .eq('email', session.user.email)
         .single();
 
-      if (storeError) {
-        console.error('Store error:', storeError);
+      if (error) {
+        console.error('Company error:', error);
         setLoading(false);
         return;
       }
 
-      setStore(storeData);
+      setCompany(companyData);
       setFormData({
-        store_name: storeData.store_name || '',
-        contact_person: storeData.contact_person || '',
-        phone: storeData.phone || '',
-        location: storeData.location || '',
+        company_name: companyData.company_name || '',
+        contact_person: companyData.contact_person || '',
+        phone: companyData.phone || '',
+        location: companyData.location || '',
+        ad_text: companyData.ad_text || '',
+        website: companyData.website || '',
       });
-
-      const { data: materialsData } = await supabase
-        .from('materials')
-        .select('*')
-        .eq('hardware_store_id', storeData.id)
-        .order('created_at', { ascending: false });
-
-      setMaterials(materialsData || []);
       setLoading(false);
     }
 
-    loadHardwareData();
+    loadData();
   }, [router]);
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSaveProfile = async (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
     setMessage('');
 
     try {
       const { error } = await supabase
-        .from('hardware_stores')
+        .from('construction_companies')
         .update({
-          store_name: formData.store_name,
+          company_name: formData.company_name,
           contact_person: formData.contact_person,
           phone: formData.phone,
           location: formData.location,
+          ad_text: formData.ad_text,
+          website: formData.website,
         })
-        .eq('id', store.id);
+        .eq('id', company.id);
 
       if (error) {
         setMessage({ type: 'error', text: error.message });
       } else {
-        setMessage({ type: 'success', text: 'Profile updated successfully!' });
-        setStore({ ...store, ...formData });
+        setMessage({ type: 'success', text: '✅ Profile updated successfully!' });
+        setCompany({ ...company, ...formData });
         setEditMode(false);
       }
     } catch (err) {
@@ -107,23 +104,25 @@ export default function HardwareDashboard() {
     );
   }
 
-  if (!store) {
+  if (!company) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="text-center">
-          <div className="text-6xl mb-4">🏪</div>
-          <h2 className="text-2xl font-bold text-[#2C3E50] mb-2">No Store Found</h2>
-          <p className="text-gray-600">You haven't registered a hardware store yet.</p>
+          <div className="text-6xl mb-4">🏗️</div>
+          <h2 className="text-2xl font-bold text-[#2C3E50] mb-2">No Company Found</h2>
+          <p className="text-gray-600">You haven't registered a construction company yet.</p>
           <Link
-            href="/hardware/register"
+            href="/construction/register"
             className="mt-4 inline-block bg-[#F47B20] text-white px-6 py-2 rounded-lg hover:bg-[#E06B10] transition"
           >
-            Register Your Store
+            Register Your Company
           </Link>
         </div>
       </div>
     );
   }
+
+  const isActive = company.subscription_status === 'active';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -134,7 +133,7 @@ export default function HardwareDashboard() {
             V
           </div>
           <h1 className="text-lg font-bold">VeriBuild</h1>
-          <span className="text-xs bg-[#F47B20]/30 px-2 py-1 rounded-full">Store</span>
+          <span className="text-xs bg-[#F47B20]/30 px-2 py-1 rounded-full">Construction</span>
         </div>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -148,13 +147,10 @@ export default function HardwareDashboard() {
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#2C3E50] text-white p-4 border-t border-[#F47B20]/30">
           <nav className="space-y-3">
-            <Link href="/dashboard/hardware" className="block py-3 px-4 bg-[#F47B20] rounded-lg font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/dashboard/construction" className="block py-3 px-4 bg-[#F47B20] rounded-lg font-medium" onClick={() => setMobileMenuOpen(false)}>
               Dashboard
             </Link>
-            <Link href="/dashboard/hardware/materials" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
-              Materials
-            </Link>
-            <Link href="/dashboard/hardware/subscription" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/dashboard/construction/subscription" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
               Subscription
             </Link>
             <Link href="/dashboard" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
@@ -180,17 +176,14 @@ export default function HardwareDashboard() {
             V
           </div>
           <h1 className="text-xl font-bold">VeriBuild</h1>
-          <span className="text-xs bg-[#F47B20]/30 px-2 py-1 rounded-full">Store</span>
+          <span className="text-xs bg-[#F47B20]/30 px-2 py-1 rounded-full">Construction</span>
         </div>
 
         <nav className="space-y-2">
-          <Link href="/dashboard/hardware" className="block py-2 px-4 bg-[#F47B20] rounded-lg font-medium">
+          <Link href="/dashboard/construction" className="block py-2 px-4 bg-[#F47B20] rounded-lg font-medium">
             Dashboard
           </Link>
-          <Link href="/dashboard/hardware/materials" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
-            Materials
-          </Link>
-          <Link href="/dashboard/hardware/subscription" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
+          <Link href="/dashboard/construction/subscription" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
             Subscription
           </Link>
           <Link href="/dashboard" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
@@ -210,110 +203,92 @@ export default function HardwareDashboard() {
 
       {/* Main Content */}
       <div className="md:ml-64 p-4 md:p-6">
-        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-[#2C3E50]">Store Dashboard</h1>
-            <p className="text-gray-600 font-semibold text-sm md:text-base">{store.store_name}</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-[#2C3E50]">🏗️ Construction Dashboard</h1>
+            <p className="text-gray-600 font-semibold">{company.company_name}</p>
             <p className="text-xs md:text-sm text-gray-500">
-              {store.location || 'No location set'} • {store.phone || 'No phone'}
+              {company.location || 'No location set'} • {company.phone || 'No phone'}
             </p>
             <p className="text-xs md:text-sm text-gray-500">
-              Contact: {store.contact_person} • {store.email}
+              Contact: {company.contact_person} • {company.email}
             </p>
           </div>
           <div className="text-right">
             <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-semibold ${
-              store.subscription_status === 'active' 
-                ? 'bg-green-100 text-green-700' 
-                : 'bg-yellow-100 text-yellow-700'
+              isActive ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
             }`}>
-              {store.subscription_status === 'active' ? 'Active' : 'Inactive'}
+              {isActive ? '✅ Active' : '⚠️ Inactive'}
             </span>
-            {store.subscription_status !== 'active' && (
+            {!isActive && (
               <Link
-                href="/dashboard/hardware/subscription"
+                href="/dashboard/construction/subscription"
                 className="block mt-2 bg-[#F47B20] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#E06B10] transition text-center"
               >
-                Subscribe Now →
+                Subscribe $15/month →
               </Link>
             )}
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
-          <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
-            <p className="text-gray-500 text-xs md:text-sm">Total Materials</p>
-            <p className="text-2xl md:text-3xl font-bold text-[#2C3E50]">{materials.length}</p>
+        <div className="grid md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <p className="text-gray-500 text-sm">Ad Impressions</p>
+            <p className="text-3xl font-bold text-[#2C3E50]">0</p>
+            <p className="text-xs text-gray-400">This month</p>
           </div>
-          <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
-            <p className="text-gray-500 text-xs md:text-sm">Total Leads</p>
-            <p className="text-2xl md:text-3xl font-bold text-[#2C3E50]">0</p>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <p className="text-gray-500 text-sm">Total Leads</p>
+            <p className="text-3xl font-bold text-[#2C3E50]">0</p>
+            <p className="text-xs text-gray-400">All time</p>
           </div>
-          <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100 col-span-2 md:col-span-1">
-            <p className="text-gray-500 text-xs md:text-sm">Store Status</p>
-            <p className={`text-lg md:text-xl font-bold ${
-              store.subscription_status === 'active' ? 'text-green-600' : 'text-yellow-600'
-            }`}>
-              {store.subscription_status === 'active' ? 'Active' : 'Inactive'}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <p className="text-gray-500 text-sm">Subscription Status</p>
+            <p className={`text-xl font-bold ${isActive ? 'text-green-600' : 'text-yellow-600'}`}>
+              {isActive ? '✅ Active' : '⚠️ Inactive'}
+            </p>
+            {company.subscription_expiry && (
+              <p className="text-xs text-gray-400 mt-1">
+                Expires: {new Date(company.subscription_expiry).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* ===== WHY SUBSCRIBE SECTION (NEW) ===== */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+          <h2 className="text-lg font-bold text-[#2C3E50] mb-4">💳 Why Subscribe?</h2>
+          
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="bg-gray-50 p-4 rounded-lg text-center">
+              <div className="text-3xl mb-2">📢</div>
+              <h3 className="font-bold text-[#2C3E50] text-sm">Reach More Customers</h3>
+              <p className="text-xs text-gray-500 mt-1">Your ad appears on every BOQ generated by users</p>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-lg text-center">
+              <div className="text-3xl mb-2">👥</div>
+              <h3 className="font-bold text-[#2C3E50] text-sm">Get Quality Leads</h3>
+              <p className="text-xs text-gray-500 mt-1">Users contact you directly from your ad</p>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-lg text-center">
+              <div className="text-3xl mb-2">🏆</div>
+              <h3 className="font-bold text-[#2C3E50] text-sm">Build Your Brand</h3>
+              <p className="text-xs text-gray-500 mt-1">Establish credibility and visibility in the market</p>
+            </div>
+          </div>
+          
+          <div className="mt-4 p-4 bg-[#F47B20]/5 border border-[#F47B20]/20 rounded-lg text-center">
+            <p className="text-sm text-gray-700">
+              <strong>Only $15/month</strong> — Cancel anytime. Start growing your business today!
             </p>
           </div>
         </div>
 
-{/* Subscription Status with Info */}
-<div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
-  <p className="text-gray-500 text-xs md:text-sm">Store Status</p>
-  <p className={`text-lg md:text-xl font-bold ${
-    store.subscription_status === 'active' ? 'text-green-600' : 'text-yellow-600'
-  }`}>
-    {store.subscription_status === 'active' ? '✅ Active' : '⚠️ Inactive'}
-  </p>
-  {store.subscription_status !== 'active' && (
-    <p className="text-xs text-gray-500 mt-1">
-      Subscribe to appear on BOQs
-    </p>
-  )}
-  {store.subscription_expiry && (
-    <p className="text-xs text-gray-500 mt-1">
-      Expires: {new Date(store.subscription_expiry).toLocaleDateString()}
-    </p>
-  )}
-</div>
-
-{/* ===== WHY SUBSCRIBE SECTION ===== */}
-<div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-  <h2 className="text-lg font-bold text-[#2C3E50] mb-4">💳 Why Subscribe?</h2>
-  
-  <div className="grid md:grid-cols-3 gap-4">
-    <div className="bg-gray-50 p-4 rounded-lg text-center">
-      <div className="text-3xl mb-2">📢</div>
-      <h3 className="font-bold text-[#2C3E50] text-sm">Reach More Customers</h3>
-      <p className="text-xs text-gray-500 mt-1">Your ad appears on every BOQ generated by users</p>
-    </div>
-    <div className="bg-gray-50 p-4 rounded-lg text-center">
-      <div className="text-3xl mb-2">👥</div>
-      <h3 className="font-bold text-[#2C3E50] text-sm">Get Quality Leads</h3>
-      <p className="text-xs text-gray-500 mt-1">Users contact you directly from your ad</p>
-    </div>
-    <div className="bg-gray-50 p-4 rounded-lg text-center">
-      <div className="text-3xl mb-2">🏆</div>
-      <h3 className="font-bold text-[#2C3E50] text-sm">Build Your Brand</h3>
-      <p className="text-xs text-gray-500 mt-1">Establish credibility and visibility in the market</p>
-    </div>
-  </div>
-  
-  <div className="mt-4 p-4 bg-[#F47B20]/5 border border-[#F47B20]/20 rounded-lg text-center">
-    <p className="text-sm text-gray-700">
-      <strong>Only $15/month</strong> — Cancel anytime. Start growing your business today!
-    </p>
-  </div>
-</div>
-
-        {/* Store Profile */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6 mb-6">
+        {/* Company Profile */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-base md:text-lg font-bold text-[#2C3E50]">Store Profile</h2>
+            <h2 className="text-lg font-bold text-[#2C3E50]">🏢 Company Profile</h2>
             <button
               onClick={() => setEditMode(!editMode)}
               className="text-[#F47B20] hover:underline text-sm font-medium"
@@ -333,13 +308,13 @@ export default function HardwareDashboard() {
           )}
 
           {editMode ? (
-            <form onSubmit={handleSaveProfile} className="space-y-4">
+            <form onSubmit={handleSave} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Store Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
                 <input
                   type="text"
-                  name="store_name"
-                  value={formData.store_name}
+                  name="company_name"
+                  value={formData.company_name}
                   onChange={handleInputChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none"
                   required
@@ -357,14 +332,13 @@ export default function HardwareDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                 <input
                   type="text"
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none"
-                  placeholder="+263 78 123 4567"
                 />
               </div>
               <div>
@@ -375,7 +349,28 @@ export default function HardwareDashboard() {
                   value={formData.location}
                   onChange={handleInputChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none"
-                  placeholder="e.g., Corner Street, Harare"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                <input
+                  type="url"
+                  name="website"
+                  value={formData.website}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none"
+                  placeholder="www.yourcompany.co.zw"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ad Text</label>
+                <textarea
+                  name="ad_text"
+                  value={formData.ad_text}
+                  onChange={handleInputChange}
+                  rows="3"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none"
+                  placeholder="Describe your company and services"
                 />
               </div>
               <button
@@ -383,124 +378,90 @@ export default function HardwareDashboard() {
                 disabled={saving}
                 className="bg-[#F47B20] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition disabled:opacity-50"
               >
-                {saving ? 'Saving...' : 'Save Profile'}
+                {saving ? 'Saving...' : 'Save Changes'}
               </button>
             </form>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-gray-500">Store Name</p>
-                <p className="font-medium text-[#2C3E50]">{store.store_name}</p>
+                <p className="text-gray-500">Company Name</p>
+                <p className="font-medium text-[#2C3E50]">{company.company_name}</p>
               </div>
               <div>
                 <p className="text-gray-500">Contact Person</p>
-                <p className="font-medium text-[#2C3E50]">{store.contact_person || 'Not set'}</p>
+                <p className="font-medium text-[#2C3E50]">{company.contact_person || 'Not set'}</p>
               </div>
               <div>
                 <p className="text-gray-500">Phone</p>
-                <p className="font-medium text-[#2C3E50]">{store.phone || 'Not set'}</p>
+                <p className="font-medium text-[#2C3E50]">{company.phone || 'Not set'}</p>
               </div>
               <div>
                 <p className="text-gray-500">Location</p>
-                <p className="font-medium text-[#2C3E50]">{store.location || 'Not set'}</p>
+                <p className="font-medium text-[#2C3E50]">{company.location || 'Not set'}</p>
               </div>
-              <div>
-                <p className="text-gray-500">Email</p>
-                <p className="font-medium text-[#2C3E50]">{store.email}</p>
-              </div>
-              <div>
-                <p className="text-gray-500">Status</p>
-                <p className={`font-medium ${
-                  store.subscription_status === 'active' ? 'text-green-600' : 'text-yellow-600'
-                }`}>
-                  {store.subscription_status === 'active' ? 'Active' : 'Inactive'}
+              <div className="md:col-span-2">
+                <p className="text-gray-500">Website</p>
+                <p className="font-medium text-[#2C3E50]">
+                  {company.website ? (
+                    <a href={`https://${company.website}`} target="_blank" rel="noopener noreferrer" className="text-[#F47B20] hover:underline">
+                      {company.website}
+                    </a>
+                  ) : 'Not set'}
                 </p>
               </div>
+              <div className="md:col-span-2">
+                <p className="text-gray-500">Ad Text</p>
+                <p className="font-medium text-[#2C3E50]">{company.ad_text || 'No ad text set'}</p>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Materials */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
-            <h2 className="text-base md:text-lg font-bold text-[#2C3E50]">Inventory</h2>
-            <Link
-              href="/dashboard/hardware/materials"
-              className="bg-[#F47B20] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#E06B10] transition w-full sm:w-auto text-center"
-            >
-              Manage Inventory
-            </Link>
+        {/* How Your Ad Appears */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+          <h2 className="text-lg font-bold text-[#2C3E50] mb-4">📢 How Your Ad Appears</h2>
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-[#F47B20] rounded-full flex items-center justify-center text-white font-bold text-xl">
+                {company.company_name.charAt(0)}
+              </div>
+              <div>
+                <h3 className="font-bold text-[#2C3E50]">{company.company_name}</h3>
+                <p className="text-sm text-gray-600">{company.ad_text || 'Your ad text will appear here.'}</p>
+                <p className="text-sm text-gray-500 mt-1">📞 {company.phone || 'No phone'} • 📧 {company.email}</p>
+                {company.website && (
+                  <p className="text-sm text-[#F47B20]">🔗 {company.website}</p>
+                )}
+              </div>
+            </div>
           </div>
-          {materials.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-gray-500 text-xs md:text-sm border-b">
-                    <th className="pb-2">Material</th>
-                    <th className="pb-2 hidden sm:table-cell">Category</th>
-                    <th className="pb-2 hidden sm:table-cell">Unit</th>
-                    <th className="pb-2">Price (USD)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {materials.slice(0, 5).map((material) => (
-                    <tr key={material.id} className="border-b last:border-0">
-                      <td className="py-3 font-medium text-[#2C3E50] text-xs md:text-sm">{material.name}</td>
-                      <td className="py-3 text-gray-600 text-xs hidden sm:table-cell">{material.category || 'Uncategorized'}</td>
-                      <td className="py-3 text-gray-600 text-xs hidden sm:table-cell">{material.unit}</td>
-                      <td className="py-3 font-bold text-[#2C3E50] text-xs md:text-sm">${material.price_usd}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {materials.length > 5 && (
-                <p className="text-xs md:text-sm text-gray-500 mt-2">+ {materials.length - 5} more materials</p>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <div className="text-5xl mb-4">📦</div>
-              <p className="text-gray-500">No materials added yet</p>
-              <Link
-                href="/dashboard/hardware/materials"
-                className="inline-block mt-2 text-[#F47B20] hover:underline font-medium"
-              >
-                Add your first material
-              </Link>
-            </div>
-          )}
+          <p className="text-xs text-gray-400 mt-3">This is how your ad will appear on every BOQ generated by users.</p>
         </div>
 
-        {/* Quick Actions - Professional */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mt-6">
+        {/* Quick Links */}
+        <div className="grid md:grid-cols-3 gap-4">
           <Link
-            href="/dashboard/hardware/materials"
-            className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center hover:shadow-md transition"
-          >
-            <div className="text-3xl mb-2">📦</div>
-            <h3 className="font-bold text-[#2C3E50] text-sm md:text-base">Inventory</h3>
-            <p className="text-xs text-gray-500">Manage materials</p>
-          </Link>
-
-          <Link
-            href="/dashboard/hardware/subscription"
-            className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center hover:shadow-md transition"
+            href="/dashboard/construction/subscription"
+            className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center hover:shadow-lg transition"
           >
             <div className="text-3xl mb-2">💳</div>
-            <h3 className="font-bold text-[#2C3E50] text-sm md:text-base">Subscription</h3>
-            <p className="text-xs text-gray-500">Manage your plan</p>
+            <h3 className="font-bold text-[#2C3E50]">Subscription</h3>
+            <p className="text-sm text-gray-500">$15/month</p>
           </Link>
-
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center opacity-50">
             <div className="text-3xl mb-2">📊</div>
-            <h3 className="font-bold text-[#2C3E50] text-sm md:text-base">Analytics</h3>
-            <p className="text-xs text-gray-500">Coming soon</p>
+            <h3 className="font-bold text-[#2C3E50]">Analytics</h3>
+            <p className="text-sm text-gray-500">Coming soon</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center opacity-50">
+            <div className="text-3xl mb-2">👥</div>
+            <h3 className="font-bold text-[#2C3E50]">Leads</h3>
+            <p className="text-sm text-gray-500">Coming soon</p>
           </div>
         </div>
 
-        {/* Back to Main */}
         <div className="mt-6">
-          <Link href="/dashboard" className="text-gray-500 hover:text-[#2C3E50] transition text-sm">
+          <Link href="/dashboard" className="text-gray-600 hover:text-[#2C3E50] transition">
             ← Back to Main Dashboard
           </Link>
         </div>
