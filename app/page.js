@@ -92,6 +92,52 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ===== REGISTRATION TYPES ===== */}
+      <section className="py-16 px-6 bg-white border-y border-gray-100">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-3xl font-bold text-center text-[#2C3E50] mb-8">Who Are You?</h2>
+          <p className="text-center text-gray-600 mb-10">Choose your account type and get started</p>
+          
+          <div className="grid md:grid-cols-4 gap-4">
+            <Link
+              href="/register"
+              className="group bg-gray-50 hover:bg-[#F47B20]/10 rounded-xl p-6 text-center border border-gray-200 hover:border-[#F47B20] transition-all duration-300"
+            >
+              <div className="text-4xl mb-3">👤</div>
+              <h3 className="font-bold text-[#2C3E50] group-hover:text-[#F47B20] transition">Client</h3>
+              <p className="text-xs text-gray-500 mt-1">Generate BOQs</p>
+            </Link>
+            
+            <Link
+              href="/hardware/register"
+              className="group bg-gray-50 hover:bg-[#F47B20]/10 rounded-xl p-6 text-center border border-gray-200 hover:border-[#F47B20] transition-all duration-300"
+            >
+              <div className="text-4xl mb-3">🏪</div>
+              <h3 className="font-bold text-[#2C3E50] group-hover:text-[#F47B20] transition">Hardware Store</h3>
+              <p className="text-xs text-gray-500 mt-1">List your prices</p>
+            </Link>
+            
+            <Link
+              href="/construction/register"
+              className="group bg-gray-50 hover:bg-[#F47B20]/10 rounded-xl p-6 text-center border border-gray-200 hover:border-[#F47B20] transition-all duration-300"
+            >
+              <div className="text-4xl mb-3">🏗️</div>
+              <h3 className="font-bold text-[#2C3E50] group-hover:text-[#F47B20] transition">Construction Co.</h3>
+              <p className="text-xs text-gray-500 mt-1">Advertise on BOQs</p>
+            </Link>
+            
+            <Link
+              href="/workers/register"
+              className="group bg-gray-50 hover:bg-[#F47B20]/10 rounded-xl p-6 text-center border border-gray-200 hover:border-[#F47B20] transition-all duration-300"
+            >
+              <div className="text-4xl mb-3">🔧</div>
+              <h3 className="font-bold text-[#2C3E50] group-hover:text-[#F47B20] transition">Skilled Worker</h3>
+              <p className="text-xs text-gray-500 mt-1">Get hired</p>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ===== FEATURES SECTION ===== */}
       <section id="features" className="py-20 px-6 bg-white">
         <div className="max-w-6xl mx-auto">
