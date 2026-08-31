@@ -90,6 +90,7 @@ export default function BOQPage() {
   const [boqItems, setBoqItems] = useState([]);
   const [totalCost, setTotalCost] = useState(0);
   const [hardwareStores, setHardwareStores] = useState([]);
+  const [constructionCompanies, setConstructionCompanies] = useState([]);
   const [workerSuggestions, setWorkerSuggestions] = useState([]);
   const [saving, setSaving] = useState(false);
 
@@ -121,10 +122,14 @@ export default function BOQPage() {
       // Fetch hardware stores with their prices
       await fetchHardwareStores(items);
 
+      // Fetch construction companies with ads
+      const constructionData = await fetchConstructionCompanies();
+      setConstructionCompanies(constructionData);
+
       const workers = generateWorkerSuggestions(projectData);
       setWorkerSuggestions(workers);
 
-      // Calculate total using default prices (using let, not const)
+      // Calculate total using default prices
       const defaultPrices = {
         'Foundation Excavation': 15.00,
         'Concrete Mix': 85.00,
@@ -156,7 +161,6 @@ export default function BOQPage() {
         'Supervisors': 25.00,
       };
 
-      // ✅ FIX: Use let for calculatedTotal
       let calculatedTotal = 0;
       items.forEach(item => {
         const price = defaultPrices[item.name] || 10.00;
@@ -192,7 +196,6 @@ export default function BOQPage() {
   // ============================================================
   async function fetchHardwareStores(items) {
     try {
-      // First, check if there are any active hardware stores
       const { data: activeStores, error: storeCheck } = await supabase
         .from('hardware_stores')
         .select('id, store_name, contact_person, phone, location, email, subscription_status')
@@ -210,7 +213,6 @@ export default function BOQPage() {
         return;
       }
 
-      // Get materials for active stores
       const storeIds = activeStores.map(s => s.id);
       
       const { data: materialsData, error: materialsError } = await supabase
@@ -231,21 +233,17 @@ export default function BOQPage() {
 
       console.log('Materials found:', materialsData?.length || 0);
 
-      // Build store data with matching materials
       const storesWithPrices = activeStores.map(store => {
         const storeMaterials = materialsData?.filter(m => m.hardware_store_id === store.id) || [];
         
-        // For each BOQ item, find matching material (flexible matching)
         const matchedMaterials = [];
         let storeTotal = 0;
 
         for (const item of items) {
-          // Try exact match first
           let material = storeMaterials.find(m => 
             m.name.toLowerCase() === item.name.toLowerCase()
           );
           
-          // If no exact match, try partial match
           if (!material) {
             material = storeMaterials.find(m => 
               item.name.toLowerCase().includes(m.name.toLowerCase()) ||
@@ -273,7 +271,6 @@ export default function BOQPage() {
         };
       });
 
-      // Sort by total price (cheapest first)
       storesWithPrices.sort((a, b) => a.total - b.total);
       
       console.log('Stores with prices:', storesWithPrices.length);
@@ -282,6 +279,29 @@ export default function BOQPage() {
     } catch (err) {
       console.error('Error fetching hardware stores:', err);
       setHardwareStores([]);
+    }
+  }
+
+  // ============================================================
+  // FETCH CONSTRUCTION COMPANIES WITH ADS
+  // ============================================================
+  async function fetchConstructionCompanies() {
+    try {
+      const { data, error } = await supabase
+        .from('construction_companies')
+        .select('*')
+        .eq('subscription_status', 'active')
+        .eq('is_verified', true);
+
+      if (error) {
+        console.error('Error fetching construction companies:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (err) {
+      console.error('Error:', err);
+      return [];
     }
   }
 
@@ -305,7 +325,6 @@ export default function BOQPage() {
 
     const items = [];
 
-    // Extract window codes
     const windowDetails = project.window_details || '';
     const windowCodes = windowDetails.match(/[A-Z]{2,4}\d{4,6}/g) || [];
     const uniqueWindowCodes = [...new Set(windowCodes)];
@@ -509,7 +528,6 @@ export default function BOQPage() {
     categories[item.category].push(item);
   });
 
-  // Use the totalCost from state
   const displayTotal = totalCost;
 
   return (
@@ -640,6 +658,40 @@ export default function BOQPage() {
           )}
         </div>
 
+        {/* Construction Companies Section */}
+        {constructionCompanies && constructionCompanies.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+            <h2 className="text-xl font-bold text-[#2C3E50] mb-4">🏗️ Construction Companies</h2>
+            <p className="text-sm text-gray-500 mb-4">Quality construction companies to help build your project</p>
+            
+            <div className="grid md:grid-cols-2 gap-4">
+              {constructionCompanies.map((company) => (
+                <div key={company.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-[#F47B20] rounded-full flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
+                      {company.company_name.charAt(0)}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-[#2C3E50]">{company.company_name}</h3>
+                      <p className="text-sm text-gray-600 mt-1">{company.ad_text || 'No description available'}</p>
+                      <div className="mt-2 space-y-1 text-sm text-gray-500">
+                        <p>📞 {company.phone || 'No phone'}</p>
+                        <p>📧 {company.email}</p>
+                        {company.website && (
+                          <p>🔗 <a href={`https://${company.website}`} target="_blank" rel="noopener noreferrer" className="text-[#F47B20] hover:underline">
+                            {company.website}
+                          </a></p>
+                        )}
+                        <p>📍 {company.location || 'No location'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Worker Suggestions */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
           <h2 className="text-xl font-bold text-[#2C3E50] mb-4">👷 Suggested Workers</h2>
@@ -663,7 +715,8 @@ export default function BOQPage() {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-4">
-          <button            onClick={() => {
+          <button
+            onClick={() => {
               const headers = ['Material', 'Category', 'Qty', 'Unit'];
               const rows = boqItems.map(item => [
                 item.name, item.category, item.qty, item.unit
@@ -690,4 +743,4 @@ export default function BOQPage() {
       </div>
     </div>
   );
-      }
+                }
