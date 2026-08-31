@@ -11,22 +11,23 @@ export async function POST(request) {
 
     console.log('📊 PayNow request:', { amount, email, phone, description });
 
+    // Validate
     if (!amount || !email) {
       return NextResponse.json({
         success: false,
         error: 'Amount and email are required'
-      });
+      }, { status: 400 });
     }
 
-    // Generate unique reference
+    // Generate reference
     const reference = `VERI-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-    // Build PayNow data - CORRECT FORMAT
+    // Build the request
     const data = {
       id: PAYNOW_ID,
       key: PAYNOW_KEY,
       reference: reference,
-      amount: amount,
+      amount: amount.toString(),
       email: email,
       phone: phone || '',
       additionalinfo: description || 'VeriBuild Payment',
@@ -36,11 +37,11 @@ export async function POST(request) {
 
     console.log('📤 Sending to PayNow:', data);
 
-    // Send as form data (x-www-form-urlencoded)
+    // Send as URLSearchParams
     const formData = new URLSearchParams();
-    for (const [key, value] of Object.entries(data)) {
+    Object.entries(data).forEach(([key, value]) => {
       formData.append(key, value);
-    }
+    });
 
     const response = await fetch(PAYNOW_URL, {
       method: 'POST',
@@ -53,15 +54,36 @@ export async function POST(request) {
     const responseText = await response.text();
     console.log('📥 PayNow raw response:', responseText);
 
-    // Parse response
-    if (responseText.startsWith('status=')) {
+    // Check if response is empty
+    if (!responseText || responseText.trim() === '') {
+      console.error('❌ Empty response from PayNow');
+      return NextResponse.json({
+        success: false,
+        error: 'No response from PayNow. Please try again.',
+        details: 'Empty response'
+      });
+    }
+
+    // Try to parse as URL-encoded
+    try {
       const params = new URLSearchParams(responseText);
       const status = params.get('status');
       
+      console.log('📊 Status:', status);
+
       if (status === 'Ok') {
         const browserurl = params.get('browserurl');
         const pollurl = params.get('pollurl');
         
+        if (!browserurl) {
+          console.error('❌ No browserurl in response');
+          return NextResponse.json({
+            success: false,
+            error: 'Invalid PayNow response: missing redirect URL',
+            details: responseText
+          });
+        }
+
         return NextResponse.json({
           success: true,
           redirectUrl: browserurl,
@@ -70,25 +92,27 @@ export async function POST(request) {
         });
       } else {
         const error = params.get('error') || 'Payment initiation failed';
+        console.error('❌ PayNow error:', error);
         return NextResponse.json({
           success: false,
           error: error,
+          details: responseText
         });
       }
-    } else {
-      // If response is not in expected format
+    } catch (parseError) {
+      console.error('❌ Parse error:', parseError);
       return NextResponse.json({
         success: false,
-        error: 'Unexpected response from PayNow',
+        error: 'Could not parse PayNow response',
         raw: responseText
       });
     }
 
   } catch (error) {
-    console.error('❌ Payment error:', error);
+    console.error('❌ Server error:', error);
     return NextResponse.json({
       success: false,
-      error: error.message || 'Payment initiation failed',
-    });
+      error: 'Server error: ' + error.message,
+    }, { status: 500 });
   }
 }
