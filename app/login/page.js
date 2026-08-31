@@ -44,33 +44,40 @@ export default function Login() {
 
       console.log('✅ Auth successful:', data.user);
 
-      // Check if user is a hardware store
-      if (data.user.user_metadata?.user_type === 'hardware') {
-        console.log('🏪 Hardware store user detected');
-        
+      // Check user type
+      const userType = data.user.user_metadata?.user_type || 'client';
+      console.log('👤 User type:', userType);
+
+      // Redirect based on user type
+      if (userType === 'hardware') {
         // Check if store is verified
-        const { data: storeData, error: storeError } = await supabase
+        const { data: storeData } = await supabase
           .from('hardware_stores')
-          .select('is_verified, store_name')
+          .select('is_verified')
           .eq('email', email)
           .single();
 
-        if (storeError) {
-          console.error('❌ Store check error:', storeError);
-          // Still allow login, just redirect to dashboard
-        }
-
         if (storeData?.is_verified) {
-          console.log('✅ Store is verified, redirecting to hardware dashboard');
           router.push('/dashboard/hardware');
           return;
-        } else {
-          console.log('⚠️ Store not verified yet');
-          // Still redirect to dashboard with message
         }
       }
 
-      // Regular user or hardware store pending verification
+      if (userType === 'construction') {
+        // Check if company is verified
+        const { data: companyData } = await supabase
+          .from('construction_companies')
+          .select('is_verified')
+          .eq('email', email)
+          .single();
+
+        if (companyData?.is_verified) {
+          router.push('/dashboard/construction');
+          return;
+        }
+      }
+
+      // Regular user or pending verification
       router.push('/dashboard');
       
     } catch (err) {
@@ -92,11 +99,14 @@ export default function Login() {
             <h1 className="text-2xl font-bold text-[#2C3E50]">VeriBuild</h1>
           </div>
           <p className="text-gray-500 text-sm">Welcome back! Log in to your account</p>
-          <p className="text-xs text-gray-400 mt-1">
-            <Link href="/hardware/login" className="text-[#F47B20] hover:underline">
-              🏪 Hardware Store Login
-            </Link>
-          </p>
+        </div>
+
+        {/* User Type Options */}
+        <div className="flex justify-center gap-2 mb-6 text-xs">
+          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full">👤 Client</span>
+          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full">🏪 Hardware</span>
+          <span className="px-3 py-1 bg-[#F47B20] text-white rounded-full">🏗️ Construction</span>
+          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full">🔧 Worker</span>
         </div>
 
         {/* Error Message */}
@@ -157,13 +167,8 @@ export default function Login() {
               Sign Up
             </Link>
           </p>
-          <p className="text-gray-500 text-xs mt-2">
-            <Link href="/hardware/login" className="hover:underline text-[#F47B20]">
-              🏪 Hardware Store Login
-            </Link>
-          </p>
         </div>
       </div>
     </div>
   );
-  }
+    }
