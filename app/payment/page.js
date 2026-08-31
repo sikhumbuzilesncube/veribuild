@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-// Force dynamic rendering - prevents static generation error
 export const dynamic = 'force-dynamic';
 
 export default function PaymentPage() {
@@ -51,16 +50,15 @@ export default function PaymentPage() {
         }),
       });
 
+      console.log('📥 Response status:', response.status);
       const result = await response.json();
-      console.log('📥 Payment response:', result);
+      console.log('📥 Response data:', result);
 
       if (result.success) {
         setSuccess('Payment initiated! Redirecting to PayNow...');
-        // Open PayNow in new window
         if (result.redirectUrl) {
           window.open(result.redirectUrl, '_blank');
         }
-        // Redirect to dashboard after 3 seconds
         setTimeout(() => {
           router.push('/dashboard');
         }, 3000);
