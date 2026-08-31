@@ -1,18 +1,13 @@
 import { NextResponse } from 'next/server';
-import { initiatePayNowPayment } from '@/app/lib/paynow';
+
+const PAYNOW_INTEGRATION_ID = '25439';
+const PAYNOW_INTEGRATION_KEY = '6d2661a1-2d18-4b83-8ae5-37dd0860b461';
+const PAYNOW_API_URL = 'https://www.paynow.co.zw/interface/initiatetransaction';
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { 
-      amount, 
-      email, 
-      phone, 
-      description, 
-      projectId, 
-      paymentType,
-      userId 
-    } = body;
+    const { amount, email, phone, description } = body;
 
     // Validate
     if (!amount || !email) {
@@ -25,28 +20,49 @@ export async function POST(request) {
     // Generate unique reference
     const reference = `VERI-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-    // Initiate PayNow payment
-    const result = await initiatePayNowPayment({
-      reference,
-      amount,
-      email,
+    // Build the data for PayNow
+    const data = {
+      id: PAYNOW_INTEGRATION_ID,
+      key: PAYNOW_INTEGRATION_KEY,
+      reference: reference,
+      amount: amount.toFixed(2),
+      email: email,
       phone: phone || '',
-      description: description || `VeriBuild Payment - ${reference}`,
-    });
+      additionalinfo: description || 'VeriBuild Payment',
+      returnurl: 'https://veribuild.vercel.app/payment/success',
+      statusurl: 'https://veribuild.vercel.app/api/paynow/status'
+    };
 
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 400 }
-      );
+    // Build form data
+    const formData = new URLSearchParams();
+    for (const [key, value] of Object.entries(data)) {
+      formData.append(key, value);
     }
 
-    return NextResponse.json({
-      success: true,
-      redirectUrl: result.redirectUrl,
-      pollUrl: result.pollUrl,
-      reference: result.reference,
+    const response = await fetch(PAYNOW_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData.toString(),
     });
+
+    const result = await response.json();
+    console.log('PayNow response:', result);
+
+    if (result.status === 'Ok') {
+      return NextResponse.json({
+        success: true,
+        redirectUrl: result.browserurl,
+        pollUrl: result.pollurl,
+        reference: result.reference,
+      });
+    } else {
+      return NextResponse.json({
+        success: false,
+        error: result.error || 'Payment initiation failed',
+      });
+    }
 
   } catch (error) {
     console.error('Payment initiation error:', error);
