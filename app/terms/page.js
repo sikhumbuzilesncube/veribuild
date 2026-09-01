@@ -1,0 +1,104 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+
+export default function TermsPage() {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-white">
+      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled ? 'bg-white shadow-md py-3' : 'bg-transparent py-5'
+      }`}>
+        <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-xl">
+              V
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-[#2C3E50] leading-tight">VeriBuild</h1>
+              <p className="text-[10px] text-gray-500 tracking-wider uppercase">A product of GatekeeperAI</p>
+            </div>
+          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/login" className="text-[#2C3E50] hover:text-[#F47B20] transition font-medium text-sm">Log In</Link>
+            <Link href="/register" className="bg-[#F47B20] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition shadow-lg shadow-orange-200 text-sm">Get Started</Link>
+          </div>
+        </div>
+      </header>
+
+      <section className="pt-32 pb-12 px-6 max-w-4xl mx-auto">
+        <h1 className="text-4xl font-bold text-[#2C3E50] mb-8">Terms & Conditions</h1>
+        <div className="space-y-6 text-gray-600 leading-relaxed">
+          <p><strong>Last Updated:</strong> September 2026</p>
+          
+          <div>
+            <h2 className="text-xl font-bold text-[#2C3E50] mb-3">1. Acceptance of Terms</h2>
+            <p>By using VeriBuild, you agree to these Terms & Conditions. If you do not agree, please do not use our platform.</p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-bold text-[#2C3E50] mb-3">2. Description of Service</h2>
+            <p>VeriBuild provides AI-powered BOQ generation from floor plans. Users can upload plans, generate estimates, and connect with hardware stores, construction companies, and workers.</p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-bold text-[#2C3E50] mb-3">3. User Accounts</h2>
+            <p>Users must create an account to use VeriBuild. You are responsible for maintaining the confidentiality of your account credentials.</p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-bold text-[#2C3E50] mb-3">4. Payments and Subscriptions</h2>
+            <p>BOQ generation fees: Residential $10, Commercial $30. Subscriptions: Hardware Stores $15/month, Construction Companies $15/month, Workers $5/month. All payments are processed through PayNow.</p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-bold text-[#2C3E50] mb-3">5. Cancellation and Refunds</h2>
+            <p>Subscriptions can be canceled at any time. Refunds are available within 14 days of purchase for unused services. Contact admin@gatekeeperai.co.zw for refund requests.</p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-bold text-[#2C3E50] mb-3">6. Intellectual Property</h2>
+            <p>All content on VeriBuild is the property of GatekeeperAI and protected by copyright laws.</p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-bold text-[#2C3E50] mb-3">7. Limitation of Liability</h2>
+            <p>VeriBuild provides estimates based on AI analysis. We are not responsible for errors or omissions in generated BOQs. Always verify critical data with professionals.</p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-bold text-[#2C3E50] mb-3">8. Governing Law</h2>
+            <p>These terms are governed by the laws of Zimbabwe.</p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-bold text-[#2C3E50] mb-3">9. Contact Information</h2>
+            <p>Email: admin@gatekeeperai.co.zw or gatekeeperzw@gmail.com<br />Phone: +263 77 780 3517</p>
+          </div>
+
+          <div className="mt-8 p-4 bg-gray-50 rounded-xl border border-gray-200 text-sm text-gray-500">
+            <p>By using VeriBuild, you acknowledge that you have read and understood these Terms & Conditions.</p>
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <Link href="/" className="text-[#F47B20] hover:underline">← Back to Home</Link>
+        </div>
+      </section>
+
+      <footer className="bg-[#2C3E50] text-white py-8 px-6 text-center text-sm text-gray-400">
+        <p>© 2026 VeriBuild. A product of GatekeeperAI. All rights reserved.</p>
+      </footer>
+    </div>
+  );
+    }
