@@ -144,10 +144,10 @@ export default function Dashboard() {
             <Link href="/dashboard/workers" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
               🔧 Workers Dashboard
             </Link>
-            <Link href="/dashboard/settings" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
             <Link href="/dashboard/jobs" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
               📋 Jobs
             </Link>
+            <Link href="/dashboard/settings" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
               ⚙️ Settings
             </Link>
             <Link href="/payment" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
