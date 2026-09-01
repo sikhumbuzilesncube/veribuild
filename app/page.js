@@ -33,6 +33,7 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Navigation */}
           <nav className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-gray-600 hover:text-[#F47B20] transition text-sm font-medium">Features</a>
             <a href="#how-it-works" className="text-gray-600 hover:text-[#F47B20] transition text-sm font-medium">How It Works</a>
@@ -82,6 +83,7 @@ export default function Home() {
             </button>
           </div>
 
+          {/* Trust badges */}
           <div className="flex flex-wrap justify-center gap-8 mt-12 text-sm text-gray-500">
             <span className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 bg-[#F47B20] rounded-full"></span>
@@ -105,7 +107,7 @@ export default function Home() {
           <h2 className="text-3xl font-bold text-center text-[#2C3E50] mb-8">Who Are You?</h2>
           <p className="text-center text-gray-600 mb-10">Choose your account type and get started</p>
           
-          <div className="grid md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Link
               href="/register"
               className="group bg-gray-50 hover:bg-[#F47B20]/10 rounded-xl p-6 text-center border border-gray-200 hover:border-[#F47B20] transition-all duration-300"
@@ -140,14 +142,15 @@ export default function Home() {
             </Link>
             
             <Link
-            <Link
-  href="/workers/register"
-  className="group bg-gray-50 hover:bg-[#F47B20]/10 rounded-xl p-6 text-center border border-gray-200 hover:border-[#F47B20] transition-all duration-300"
->
-  <div className="text-3xl mb-3 text-[#2C3E50]">🔧</div>
-  <h3 className="font-bold text-[#2C3E50] group-hover:text-[#F47B20] transition">Skilled Worker</h3>
-  <p className="text-xs text-gray-500 mt-1">Get hired</p>
-</Link>
+              href="/workers/register"
+              className="group bg-gray-50 hover:bg-[#F47B20]/10 rounded-xl p-6 text-center border border-gray-200 hover:border-[#F47B20] transition-all duration-300"
+            >
+              <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-gray-200 group-hover:bg-[#F47B20]/20 flex items-center justify-center text-[#2C3E50] group-hover:text-[#F47B20] transition font-bold text-xl">
+                W
+              </div>
+              <h3 className="font-bold text-[#2C3E50] group-hover:text-[#F47B20] transition">Skilled Worker</h3>
+              <p className="text-xs text-gray-500 mt-1">Get hired</p>
+            </Link>
           </div>
         </div>
       </section>
@@ -416,9 +419,9 @@ export default function Home() {
           <div>
             <h4 className="font-semibold mb-4">Connect</h4>
             <ul className="space-y-2 text-sm text-gray-400">
-              <li>Zimbabwe</li>
-              <li>info@veribuild.co.zw</li>
-              <li>+263 78 123 4567</li>
+              <li>🇿🇼 Zimbabwe</li>
+              <li>📧 info@veribuild.co.zw</li>
+              <li>📞 +263 78 123 4567</li>
             </ul>
           </div>
         </div>
