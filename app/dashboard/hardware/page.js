@@ -14,6 +14,10 @@ export default function HardwareDashboard() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [subscriptionSettings, setSubscriptionSettings] = useState({
+    auto_renew: true,
+  });
+  const [renewing, setRenewing] = useState(false);
 
   const [formData, setFormData] = useState({
     store_name: '',
@@ -30,6 +34,7 @@ export default function HardwareDashboard() {
         return;
       }
 
+      // Get hardware store
       const { data: storeData, error: storeError } = await supabase
         .from('hardware_stores')
         .select('*')
@@ -50,6 +55,20 @@ export default function HardwareDashboard() {
         location: storeData.location || '',
       });
 
+      // Get subscription settings
+      const { data: settingsData } = await supabase
+        .from('subscription_settings')
+        .select('*')
+        .eq('user_id', storeData.user_id)
+        .single();
+
+      if (settingsData) {
+        setSubscriptionSettings({
+          auto_renew: settingsData.auto_renew !== false,
+        });
+      }
+
+      // Get materials
       const { data: materialsData } = await supabase
         .from('materials')
         .select('*')
@@ -96,6 +115,60 @@ export default function HardwareDashboard() {
     setSaving(false);
   };
 
+  const handleAutoRenewToggle = async () => {
+    const newStatus = !subscriptionSettings.auto_renew;
+    
+    try {
+      const { error } = await supabase
+        .from('subscription_settings')
+        .upsert({
+          user_id: store.user_id,
+          user_type: 'hardware',
+          auto_renew: newStatus,
+          payment_method: 'paynow',
+        }, { onConflict: 'user_id' });
+
+      if (error) {
+        alert('Failed to update auto-renewal settings.');
+        return;
+      }
+
+      setSubscriptionSettings({ ...subscriptionSettings, auto_renew: newStatus });
+      alert(`Auto-renewal ${newStatus ? 'enabled' : 'disabled'} successfully!`);
+    } catch (err) {
+      alert('Something went wrong.');
+    }
+  };
+
+  const handleRenew = async () => {
+    setRenewing(true);
+    try {
+      const response = await fetch('/api/subscription/renew', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: store.user_id,
+          userType: 'hardware',
+          email: store.email,
+          phone: store.phone,
+          autoRenew: subscriptionSettings.auto_renew,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.redirectUrl) {
+        window.open(result.redirectUrl, '_blank');
+        alert('Subscription renewal initiated! Please complete payment on PayNow.');
+      } else {
+        alert(result.error || 'Renewal failed. Please try again.');
+      }
+    } catch (err) {
+      alert('Something went wrong. Please try again.');
+    }
+    setRenewing(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -124,6 +197,8 @@ export default function HardwareDashboard() {
       </div>
     );
   }
+
+  const isActive = store.subscription_status === 'active';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -224,19 +299,27 @@ export default function HardwareDashboard() {
           </div>
           <div className="text-right">
             <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-semibold ${
-              store.subscription_status === 'active' 
-                ? 'bg-green-100 text-green-700' 
-                : 'bg-yellow-100 text-yellow-700'
+              isActive ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
             }`}>
-              {store.subscription_status === 'active' ? '✅ Active' : '⚠️ Inactive'}
+              {isActive ? '✅ Active' : '⚠️ Inactive'}
             </span>
-            {store.subscription_status !== 'active' && (
-              <Link
-                href="/dashboard/hardware/subscription"
-                className="block mt-2 bg-[#F47B20] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#E06B10] transition text-center"
+            {!isActive && (
+              <button
+                onClick={handleRenew}
+                disabled={renewing}
+                className="block mt-2 bg-[#F47B20] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#E06B10] transition text-center w-full disabled:opacity-50"
               >
-                Subscribe $15/month →
-              </Link>
+                {renewing ? 'Processing...' : 'Subscribe $15/month →'}
+              </button>
+            )}
+            {isActive && (
+              <button
+                onClick={handleRenew}
+                disabled={renewing}
+                className="block mt-2 bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-600 transition text-center w-full disabled:opacity-50"
+              >
+                {renewing ? 'Processing...' : '🔄 Renew Now'}
+              </button>
             )}
           </div>
         </div>
@@ -254,10 +337,42 @@ export default function HardwareDashboard() {
           <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100 col-span-2 md:col-span-1">
             <p className="text-gray-500 text-xs md:text-sm">Store Status</p>
             <p className={`text-lg md:text-xl font-bold ${
-              store.subscription_status === 'active' ? 'text-green-600' : 'text-yellow-600'
+              isActive ? 'text-green-600' : 'text-yellow-600'
             }`}>
-              {store.subscription_status === 'active' ? '✅ Active' : '⚠️ Inactive'}
+              {isActive ? '✅ Active' : '⚠️ Inactive'}
             </p>
+            {store.subscription_expiry && (
+              <p className="text-xs text-gray-400 mt-1">
+                Expires: {new Date(store.subscription_expiry).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* ===== AUTO-RENEW TOGGLE ===== */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6 mb-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h3 className="font-bold text-[#2C3E50] text-sm md:text-base">🔄 Auto-Renewal</h3>
+              <p className="text-xs md:text-sm text-gray-500">
+                Automatically renew your subscription each month
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`text-sm font-medium ${subscriptionSettings.auto_renew ? 'text-green-600' : 'text-gray-400'}`}>
+                {subscriptionSettings.auto_renew ? 'On' : 'Off'}
+              </span>
+              <button
+                onClick={handleAutoRenewToggle}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${
+                  subscriptionSettings.auto_renew ? 'bg-[#F47B20]' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${
+                  subscriptionSettings.auto_renew ? 'translate-x-6' : 'translate-x-0'
+                }`} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -362,9 +477,9 @@ export default function HardwareDashboard() {
               <div>
                 <p className="text-gray-500">Status</p>
                 <p className={`font-medium ${
-                  store.subscription_status === 'active' ? 'text-green-600' : 'text-yellow-600'
+                  isActive ? 'text-green-600' : 'text-yellow-600'
                 }`}>
-                  {store.subscription_status === 'active' ? '✅ Active' : '⚠️ Inactive'}
+                  {isActive ? '✅ Active' : '⚠️ Inactive'}
                 </p>
               </div>
             </div>
@@ -451,4 +566,4 @@ export default function HardwareDashboard() {
       </div>
     </div>
   );
-      }
+        }
