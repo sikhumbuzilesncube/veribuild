@@ -455,48 +455,47 @@ export default function Home() {
       )}
 
       {/* ===== FOOTER ===== */}
-      <footer className="bg-[#2C3E50] text-white py-16 px-6">
-        <div className="max-w-7xl mx-auto grid md:grid-cols-5 gap-8">
-          <div className="md:col-span-2">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-[#F47B20] rounded-xl flex items-center justify-center text-white font-bold text-lg">
-                V
-              </div>
-              <h3 className="text-xl font-bold">VeriBuild</h3>
-            </div>
-            <p className="text-gray-400 text-sm max-w-sm leading-relaxed">
-              Building Zimbabwe's future, one BOQ at a time.
-            </p>
-            <p className="text-gray-500 text-xs mt-4">© 2026 VeriBuild. A product of GatekeeperAI. All rights reserved.</p>
-          </div>
-          <div>
-            <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-gray-400">Platform</h4>
-            <ul className="space-y-3 text-sm text-gray-400">
-              <li><a href="#features" className="hover:text-white transition">Features</a></li>
-              <li><a href="#how-it-works" className="hover:text-white transition">How It Works</a></li>
-              <li><Link href="/pricing" className="hover:text-white transition">Pricing</Link></li>
-              <li><Link href="/about" className="hover:text-white transition">About</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-gray-400">Support</h4>
-            <ul className="space-y-3 text-sm text-gray-400">
-              <li><Link href="/contact" className="hover:text-white transition">Contact</Link></li>
-              <li><a href="#" className="hover:text-white transition">Help Center</a></li>
-              <li><a href="#" className="hover:text-white transition">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-white transition">Terms of Service</a></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-gray-400">Connect</h4>
-            <ul className="space-y-3 text-sm text-gray-400">
-              <li className="flex items-center gap-2">🇿🇼 Zimbabwe</li>
-              <li className="flex items-center gap-2">📧 info@veribuild.co.zw</li>
-              <li className="flex items-center gap-2">📞 +263 78 123 4567</li>
-            </ul>
-          </div>
+      <footer className="bg-[#2C3E50] text-white py-12 px-6">
+  <div className="max-w-7xl mx-auto grid md:grid-cols-5 gap-8">
+    <div className="md:col-span-2">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 bg-[#F47B20] rounded-xl flex items-center justify-center text-white font-bold text-lg">
+          V
         </div>
-      </footer>
+        <h3 className="text-xl font-bold">VeriBuild</h3>
+      </div>
+      <p className="text-gray-400 text-sm">A product of GatekeeperAI</p>
+      <p className="text-gray-500 text-xs mt-4">© 2026 VeriBuild. All rights reserved.</p>
     </div>
+    <div>
+      <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-gray-400">Platform</h4>
+      <ul className="space-y-3 text-sm text-gray-400">
+        <li><Link href="/" className="hover:text-white transition">Home</Link></li>
+        <li><Link href="/about" className="hover:text-white transition">About</Link></li>
+        <li><Link href="/pricing" className="hover:text-white transition">Pricing</Link></li>
+      </ul>
+    </div>
+    <div>
+      <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-gray-400">Support</h4>
+      <ul className="space-y-3 text-sm text-gray-400">
+        <li><Link href="/contact" className="hover:text-white transition">Contact</Link></li>
+        <li><Link href="/faq" className="hover:text-white transition">FAQ</Link></li>
+        <li><Link href="/privacy" className="hover:text-white transition">Privacy Policy</Link></li>
+        <li><Link href="/terms" className="hover:text-white transition">Terms & Conditions</Link></li>
+        <li><Link href="/refund" className="hover:text-white transition">Refund Policy</Link></li>
+      </ul>
+    </div>
+    <div>
+      <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-gray-400">Connect</h4>
+      <ul className="space-y-3 text-sm text-gray-400">
+        <li>🇿🇼 Zimbabwe</li>
+        <li>📧 admin@gatekeeperai.co.zw</li>
+        <li>📧 gatekeeperzw@gmail.com</li>
+        <li>📞 +263 77 780 3517</li>
+      </ul>
+    </div>
+  </div>
+</footer>
+        </div>
   );
     }
