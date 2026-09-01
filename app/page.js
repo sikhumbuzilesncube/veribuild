@@ -140,15 +140,14 @@ export default function Home() {
             </Link>
             
             <Link
-              href="/workers/register"
-              className="group bg-gray-50 hover:bg-[#F47B20]/10 rounded-xl p-6 text-center border border-gray-200 hover:border-[#F47B20] transition-all duration-300"
-            >
-              <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-gray-200 group-hover:bg-[#F47B20]/20 flex items-center justify-center text-[#2C3E50] group-hover:text-[#F47B20] transition font-bold text-xl">
-                W
-              </div>
-              <h3 className="font-bold text-[#2C3E50] group-hover:text-[#F47B20] transition">Skilled Worker</h3>
-              <p className="text-xs text-gray-500 mt-1">Get hired</p>
-            </Link>
+            <Link
+  href="/workers/register"
+  className="group bg-gray-50 hover:bg-[#F47B20]/10 rounded-xl p-6 text-center border border-gray-200 hover:border-[#F47B20] transition-all duration-300"
+>
+  <div className="text-3xl mb-3 text-[#2C3E50]">🔧</div>
+  <h3 className="font-bold text-[#2C3E50] group-hover:text-[#F47B20] transition">Skilled Worker</h3>
+  <p className="text-xs text-gray-500 mt-1">Get hired</p>
+</Link>
           </div>
         </div>
       </section>
