@@ -13,6 +13,10 @@ export default function ConstructionDashboard() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [subscriptionSettings, setSubscriptionSettings] = useState({
+    auto_renew: true,
+  });
+  const [renewing, setRenewing] = useState(false);
 
   const [formData, setFormData] = useState({
     company_name: '',
@@ -31,6 +35,7 @@ export default function ConstructionDashboard() {
         return;
       }
 
+      // Get construction company
       const { data: companyData, error } = await supabase
         .from('construction_companies')
         .select('*')
@@ -52,6 +57,20 @@ export default function ConstructionDashboard() {
         ad_text: companyData.ad_text || '',
         website: companyData.website || '',
       });
+
+      // Get subscription settings
+      const { data: settingsData } = await supabase
+        .from('subscription_settings')
+        .select('*')
+        .eq('user_id', companyData.user_id)
+        .single();
+
+      if (settingsData) {
+        setSubscriptionSettings({
+          auto_renew: settingsData.auto_renew !== false,
+        });
+      }
+
       setLoading(false);
     }
 
@@ -91,6 +110,60 @@ export default function ConstructionDashboard() {
       setMessage({ type: 'error', text: 'Something went wrong.' });
     }
     setSaving(false);
+  };
+
+  const handleAutoRenewToggle = async () => {
+    const newStatus = !subscriptionSettings.auto_renew;
+    
+    try {
+      const { error } = await supabase
+        .from('subscription_settings')
+        .upsert({
+          user_id: company.user_id,
+          user_type: 'construction',
+          auto_renew: newStatus,
+          payment_method: 'paynow',
+        }, { onConflict: 'user_id' });
+
+      if (error) {
+        alert('Failed to update auto-renewal settings.');
+        return;
+      }
+
+      setSubscriptionSettings({ ...subscriptionSettings, auto_renew: newStatus });
+      alert(`Auto-renewal ${newStatus ? 'enabled' : 'disabled'} successfully!`);
+    } catch (err) {
+      alert('Something went wrong.');
+    }
+  };
+
+  const handleRenew = async () => {
+    setRenewing(true);
+    try {
+      const response = await fetch('/api/subscription/renew', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: company.user_id,
+          userType: 'construction',
+          email: company.email,
+          phone: company.phone,
+          autoRenew: subscriptionSettings.auto_renew,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.redirectUrl) {
+        window.open(result.redirectUrl, '_blank');
+        alert('Subscription renewal initiated! Please complete payment on PayNow.');
+      } else {
+        alert(result.error || 'Renewal failed. Please try again.');
+      }
+    } catch (err) {
+      alert('Something went wrong. Please try again.');
+    }
+    setRenewing(false);
   };
 
   if (loading) {
@@ -221,12 +294,22 @@ export default function ConstructionDashboard() {
               {isActive ? '✅ Active' : '⚠️ Inactive'}
             </span>
             {!isActive && (
-              <Link
-                href="/dashboard/construction/subscription"
-                className="block mt-2 bg-[#F47B20] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#E06B10] transition text-center"
+              <button
+                onClick={handleRenew}
+                disabled={renewing}
+                className="block mt-2 bg-[#F47B20] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#E06B10] transition text-center w-full disabled:opacity-50"
               >
-                Subscribe $15/month →
-              </Link>
+                {renewing ? 'Processing...' : 'Subscribe $15/month →'}
+              </button>
+            )}
+            {isActive && (
+              <button
+                onClick={handleRenew}
+                disabled={renewing}
+                className="block mt-2 bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-600 transition text-center w-full disabled:opacity-50"
+              >
+                {renewing ? 'Processing...' : '🔄 Renew Now'}
+              </button>
             )}
           </div>
         </div>
@@ -256,25 +339,52 @@ export default function ConstructionDashboard() {
           </div>
         </div>
 
-        {/* ===== WHY SUBSCRIBE SECTION ===== */}
+        {/* ===== AUTO-RENEW TOGGLE ===== */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-          <h2 className="text-lg font-bold text-[#2C3E50] mb-4">💳 Why Subscribe to VeriBuild?</h2>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h3 className="font-bold text-[#2C3E50] text-sm md:text-base">🔄 Auto-Renewal</h3>
+              <p className="text-xs md:text-sm text-gray-500">
+                Automatically renew your subscription each month
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`text-sm font-medium ${subscriptionSettings.auto_renew ? 'text-green-600' : 'text-gray-400'}`}>
+                {subscriptionSettings.auto_renew ? 'On' : 'Off'}
+              </span>
+              <button
+                onClick={handleAutoRenewToggle}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${
+                  subscriptionSettings.auto_renew ? 'bg-[#F47B20]' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${
+                  subscriptionSettings.auto_renew ? 'translate-x-6' : 'translate-x-0'
+                }`} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Why Subscribe */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+          <h2 className="text-lg font-bold text-[#2C3E50] mb-4">💳 Why Subscribe?</h2>
           
           <div className="grid md:grid-cols-3 gap-4">
-            <div className="bg-gray-50 p-4 rounded-lg text-center border border-gray-200">
+            <div className="bg-gray-50 p-4 rounded-lg text-center">
               <div className="text-3xl mb-2">📢</div>
               <h3 className="font-bold text-[#2C3E50] text-sm">Reach More Customers</h3>
-              <p className="text-xs text-gray-500 mt-1">Your ad appears on every BOQ generated by users</p>
+              <p className="text-xs text-gray-500 mt-1">Your ad appears on every BOQ</p>
             </div>
-            <div className="bg-gray-50 p-4 rounded-lg text-center border border-gray-200">
+            <div className="bg-gray-50 p-4 rounded-lg text-center">
               <div className="text-3xl mb-2">👥</div>
               <h3 className="font-bold text-[#2C3E50] text-sm">Get Quality Leads</h3>
-              <p className="text-xs text-gray-500 mt-1">Users contact you directly from your ad</p>
+              <p className="text-xs text-gray-500 mt-1">Users contact you directly</p>
             </div>
-            <div className="bg-gray-50 p-4 rounded-lg text-center border border-gray-200">
+            <div className="bg-gray-50 p-4 rounded-lg text-center">
               <div className="text-3xl mb-2">🏆</div>
               <h3 className="font-bold text-[#2C3E50] text-sm">Build Your Brand</h3>
-              <p className="text-xs text-gray-500 mt-1">Establish credibility and visibility in the market</p>
+              <p className="text-xs text-gray-500 mt-1">Establish credibility</p>
             </div>
           </div>
           
@@ -282,14 +392,6 @@ export default function ConstructionDashboard() {
             <p className="text-sm text-gray-700">
               <strong>Only $15/month</strong> — Cancel anytime. Start growing your business today!
             </p>
-            {!isActive && (
-              <Link
-                href="/dashboard/construction/subscription"
-                className="inline-block mt-3 bg-[#F47B20] text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-[#E06B10] transition"
-              >
-                Subscribe Now →
-              </Link>
-            )}
           </div>
         </div>
 
@@ -476,4 +578,4 @@ export default function ConstructionDashboard() {
       </div>
     </div>
   );
-         }
+                                           }
