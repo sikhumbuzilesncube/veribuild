@@ -15,13 +15,15 @@ export default function WorkerRegister() {
     fullName: '',
     email: '',
     phone: '',
-    trade: 'Mason',
+    trade: 'Builder',
     subTrade: '',
     yearsExperience: '',
-    dailyRate: '',
-    availability: 'available',
     location: '',
     city: 'Harare',
+    aboutMe: '',
+    pastProjects: '',
+    certifications: '',
+    availability: 'available',
     password: '',
     confirmPassword: '',
   });
@@ -102,12 +104,14 @@ export default function WorkerRegister() {
           trade: formData.trade,
           sub_trade: formData.subTrade || '',
           years_experience: parseInt(formData.yearsExperience) || 0,
-          daily_rate_usd: parseFloat(formData.dailyRate) || 0,
-          availability: formData.availability,
           location: formData.location || '',
           city_id: cityId,
           user_id: authData.user.id,
-          is_verified: true,
+          about_me: formData.aboutMe || '',
+          past_projects: formData.pastProjects || '',
+          certifications: formData.certifications || '',
+          availability: formData.availability,
+          is_verified: false,
           subscription_status: 'inactive',
         })
         .select();
@@ -160,187 +164,235 @@ export default function WorkerRegister() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="John Moyo"
-              required
-            />
+          {/* Personal Information */}
+          <div className="border-b border-gray-200 pb-4">
+            <h3 className="text-sm font-semibold text-[#2C3E50] mb-3">Personal Information</h3>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Full Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="fullName"
+                value={formData.fullName}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                placeholder="John Moyo"
+                required
+              />
+            </div>
+
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email Address <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                placeholder="john@worker.co.zw"
+                required
+              />
+            </div>
+
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                placeholder="+263 78 123 4567"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="john@worker.co.zw"
-              required
-            />
+          {/* Trade Information */}
+          <div className="border-b border-gray-200 pb-4">
+            <h3 className="text-sm font-semibold text-[#2C3E50] mb-3">Trade Information</h3>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Trade <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="trade"
+                value={formData.trade}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                required
+              >
+                {trades.map((trade) => (
+                  <option key={trade} value={trade}>{trade}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Sub-Trade / Specialization
+              </label>
+              <input
+                type="text"
+                name="subTrade"
+                value={formData.subTrade}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                placeholder="e.g., Bricklaying, Roofing"
+              />
+            </div>
+
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Years of Experience
+              </label>
+              <input
+                type="number"
+                name="yearsExperience"
+                value={formData.yearsExperience}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                placeholder="5"
+              />
+            </div>
+
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Availability
+              </label>
+              <select
+                name="availability"
+                value={formData.availability}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+              >
+                <option value="available">Available</option>
+                <option value="limited">Limited Availability</option>
+                <option value="unavailable">Unavailable</option>
+              </select>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone Number
-            </label>
-            <input
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="+263 78 123 4567"
-            />
+          {/* Location */}
+          <div className="border-b border-gray-200 pb-4">
+            <h3 className="text-sm font-semibold text-[#2C3E50] mb-3">Location</h3>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Location
+              </label>
+              <input
+                type="text"
+                name="location"
+                value={formData.location}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                placeholder="Harare, Zimbabwe"
+              />
+            </div>
+
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                City <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                required
+              >
+                {cities.map((city) => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Trade <span className="text-red-500">*</span>
-            </label>
-            <select
-              name="trade"
-              value={formData.trade}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              required
-            >
-              {trades.map((trade) => (
-                <option key={trade} value={trade}>{trade}</option>
-              ))}
-            </select>
+          {/* About & Portfolio */}
+          <div className="border-b border-gray-200 pb-4">
+            <h3 className="text-sm font-semibold text-[#2C3E50] mb-3">About & Portfolio</h3>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                About Me
+              </label>
+              <textarea
+                name="aboutMe"
+                value={formData.aboutMe}
+                onChange={handleChange}
+                rows="3"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                placeholder="Tell clients about yourself and your work..."
+              />
+            </div>
+
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Past Projects
+              </label>
+              <textarea
+                name="pastProjects"
+                value={formData.pastProjects}
+                onChange={handleChange}
+                rows="3"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                placeholder="List your previous projects..."
+              />
+            </div>
+
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Certifications
+              </label>
+              <textarea
+                name="certifications"
+                value={formData.certifications}
+                onChange={handleChange}
+                rows="2"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                placeholder="List any certifications or training..."
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sub-Trade / Specialization
-            </label>
-            <input
-              type="text"
-              name="subTrade"
-              value={formData.subTrade}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="e.g., Bricklaying, Wiring, Roofing"
-            />
+          {/* Password */}
+          <div className="border-b border-gray-200 pb-4">
+            <h3 className="text-sm font-semibold text-[#2C3E50] mb-3">Account Security</h3>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Password <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                placeholder="Min 8 characters"
+                required
+              />
+            </div>
+
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Confirm Password <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                placeholder="Confirm your password"
+                required
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Years of Experience
-            </label>
-            <input
-              type="number"
-              name="yearsExperience"
-              value={formData.yearsExperience}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="5"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Daily Rate (USD)
-            </label>
-            <input
-              type="number"
-              name="dailyRate"
-              value={formData.dailyRate}
-              onChange={handleChange}
-              step="0.01"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="15.00"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Availability
-            </label>
-            <select
-              name="availability"
-              value={formData.availability}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-            >
-              <option value="available">Available</option>
-              <option value="limited">Limited Availability</option>
-              <option value="unavailable">Unavailable</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Location
-            </label>
-            <input
-              type="text"
-              name="location"
-              value={formData.location}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="Harare, Zimbabwe"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              City <span className="text-red-500">*</span>
-            </label>
-            <select
-              name="city"
-              value={formData.city}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              required
-            >
-              {cities.map((city) => (
-                <option key={city} value={city}>{city}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="Min 8 characters"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Confirm Password <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="Confirm your password"
-              required
-            />
-          </div>
-
+          {/* Subscribe Info */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
             <strong>💡 Worker Plan:</strong> $5/month
             <ul className="list-disc list-inside mt-2 space-y-1">
