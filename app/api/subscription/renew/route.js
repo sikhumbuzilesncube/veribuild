@@ -10,6 +10,8 @@ export async function POST(request) {
     const body = await request.json();
     const { userId, userType, email, phone, autoRenew } = body;
 
+    console.log('📊 Subscription request:', { userId, userType, email, phone, autoRenew });
+
     if (!userId || !userType || !email) {
       return NextResponse.json({
         success: false,
@@ -17,7 +19,6 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Determine the amount based on user type
     const amounts = {
       hardware: 15,
       construction: 15,
@@ -25,7 +26,6 @@ export async function POST(request) {
     };
     const amount = amounts[userType] || 15;
 
-    // Generate reference
     const reference = `SUB-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
     const periodStart = new Date();
     const periodEnd = new Date();
@@ -44,6 +44,8 @@ export async function POST(request) {
       statusurl: 'https://veribuild.vercel.app/api/subscription/status'
     };
 
+    console.log('📤 Sending to PayNow:', data);
+
     const formData = new URLSearchParams();
     for (const [key, value] of Object.entries(data)) {
       formData.append(key, value);
@@ -58,16 +60,27 @@ export async function POST(request) {
     });
 
     const responseText = await response.text();
-    console.log('📥 Subscription response:', responseText);
+    console.log('📥 PayNow raw response:', responseText);
+
+    // Check if response is empty
+    if (!responseText || responseText.trim() === '') {
+      console.error('❌ Empty response from PayNow');
+      return NextResponse.json({
+        success: false,
+        error: 'No response from PayNow. Please try again.',
+        details: 'Empty response'
+      });
+    }
 
     // Parse response
     const params = new URLSearchParams(responseText);
     const status = params.get('status');
+    const browserurl = params.get('browserurl');
+    const pollurl = params.get('pollurl');
 
-    if (status === 'Ok') {
-      const browserurl = params.get('browserurl');
-      const pollurl = params.get('pollurl');
+    console.log('📊 Parsed response:', { status, browserurl, pollurl });
 
+    if (status === 'Ok' && browserurl) {
       // Create subscription log
       const { error: logError } = await supabase
         .from('subscription_logs')
@@ -86,7 +99,7 @@ export async function POST(request) {
         console.error('Failed to create subscription log:', logError);
       }
 
-      // Update or create subscription settings
+      // Update subscription settings
       if (autoRenew !== undefined) {
         const { error: settingsError } = await supabase
           .from('subscription_settings')
@@ -109,9 +122,12 @@ export async function POST(request) {
         reference: reference,
       });
     } else {
+      const error = params.get('error') || 'Subscription initiation failed';
+      console.error('❌ PayNow error:', error);
       return NextResponse.json({
         success: false,
-        error: params.get('error') || 'Subscription initiation failed',
+        error: error,
+        details: responseText
       });
     }
 
