@@ -178,6 +178,9 @@ export default function Dashboard() {
           <Link href="/dashboard/hardware" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
             🏪 Hardware Dashboard
           </Link>
+        <Link href="/dashboard/workers" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
+  🔧 Workers Dashboard
+</Link>
         <Link href="/payment" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
   💳 Make Payment
 </Link>
