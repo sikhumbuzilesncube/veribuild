@@ -267,6 +267,43 @@ export default function WorkerDashboard() {
           </div>
         </div>
 
+        {/* ===== WHY SUBSCRIBE SECTION ===== */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+          <h2 className="text-lg font-bold text-[#2C3E50] mb-4">💳 Why Subscribe to VeriBuild?</h2>
+          
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="bg-gray-50 p-4 rounded-lg text-center border border-gray-200">
+              <div className="text-3xl mb-2">👷</div>
+              <h3 className="font-bold text-[#2C3E50] text-sm">Get Hired</h3>
+              <p className="text-xs text-gray-500 mt-1">Clients see your profile when they need workers</p>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-lg text-center border border-gray-200">
+              <div className="text-3xl mb-2">⭐</div>
+              <h3 className="font-bold text-[#2C3E50] text-sm">Build Your Reputation</h3>
+              <p className="text-xs text-gray-500 mt-1">Get reviews and ratings from clients</p>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-lg text-center border border-gray-200">
+              <div className="text-3xl mb-2">📊</div>
+              <h3 className="font-bold text-[#2C3E50] text-sm">More Job Opportunities</h3>
+              <p className="text-xs text-gray-500 mt-1">Access to more projects and earn more</p>
+            </div>
+          </div>
+          
+          <div className="mt-4 p-4 bg-[#F47B20]/5 border border-[#F47B20]/20 rounded-lg text-center">
+            <p className="text-sm text-gray-700">
+              <strong>Only $5/month</strong> — Cancel anytime. Start getting hired today!
+            </p>
+            {!isActive && (
+              <Link
+                href="/dashboard/workers/subscription"
+                className="inline-block mt-3 bg-[#F47B20] text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-[#E06B10] transition"
+              >
+                Subscribe Now →
+              </Link>
+            )}
+          </div>
+        </div>
+
         {/* Worker Profile */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
@@ -462,4 +499,4 @@ export default function WorkerDashboard() {
       </div>
     </div>
   );
-      }
+    }
