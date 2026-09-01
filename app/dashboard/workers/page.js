@@ -24,9 +24,11 @@ export default function WorkerDashboard() {
     trade: '',
     sub_trade: '',
     years_experience: '',
-    daily_rate_usd: '',
     availability: '',
     location: '',
+    about_me: '',
+    past_projects: '',
+    certifications: '',
   });
 
   const trades = [
@@ -62,9 +64,11 @@ export default function WorkerDashboard() {
         trade: workerData.trade || '',
         sub_trade: workerData.sub_trade || '',
         years_experience: workerData.years_experience || '',
-        daily_rate_usd: workerData.daily_rate_usd || '',
         availability: workerData.availability || 'available',
         location: workerData.location || '',
+        about_me: workerData.about_me || '',
+        past_projects: workerData.past_projects || '',
+        certifications: workerData.certifications || '',
       });
 
       // Get subscription settings
@@ -104,9 +108,11 @@ export default function WorkerDashboard() {
           trade: formData.trade,
           sub_trade: formData.sub_trade,
           years_experience: parseInt(formData.years_experience) || 0,
-          daily_rate_usd: parseFloat(formData.daily_rate_usd) || 0,
           availability: formData.availability,
           location: formData.location,
+          about_me: formData.about_me,
+          past_projects: formData.past_projects,
+          certifications: formData.certifications,
         })
         .eq('id', worker.id);
 
@@ -338,8 +344,10 @@ export default function WorkerDashboard() {
             </p>
           </div>
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <p className="text-gray-500 text-sm">Daily Rate</p>
-            <p className="text-3xl font-bold text-[#2C3E50]">${worker.daily_rate_usd || 0}</p>
+            <p className="text-gray-500 text-sm">Rating</p>
+            <p className="text-3xl font-bold text-[#2C3E50]">
+              ⭐ {worker.rating || 0} ({worker.reviews_count || 0} reviews)
+            </p>
           </div>
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <p className="text-gray-500 text-sm">Status</p>
@@ -490,17 +498,6 @@ export default function WorkerDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Daily Rate (USD)</label>
-                <input
-                  type="number"
-                  name="daily_rate_usd"
-                  value={formData.daily_rate_usd}
-                  onChange={handleInputChange}
-                  step="0.01"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none"
-                />
-              </div>
-              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Availability</label>
                 <select
                   name="availability"
@@ -523,6 +520,42 @@ export default function WorkerDashboard() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none"
                 />
               </div>
+
+              {/* New Fields */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">About Me</label>
+                <textarea
+                  name="about_me"
+                  value={formData.about_me}
+                  onChange={handleInputChange}
+                  rows="3"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none"
+                  placeholder="Tell clients about yourself..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Past Projects</label>
+                <textarea
+                  name="past_projects"
+                  value={formData.past_projects}
+                  onChange={handleInputChange}
+                  rows="3"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none"
+                  placeholder="List your previous projects..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Certifications</label>
+                <textarea
+                  name="certifications"
+                  value={formData.certifications}
+                  onChange={handleInputChange}
+                  rows="2"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none"
+                  placeholder="List any certifications..."
+                />
+              </div>
+
               <button
                 type="submit"
                 disabled={saving}
@@ -554,10 +587,6 @@ export default function WorkerDashboard() {
                 <p className="font-medium text-[#2C3E50]">{worker.years_experience || 0} years</p>
               </div>
               <div>
-                <p className="text-gray-500">Daily Rate</p>
-                <p className="font-medium text-[#2C3E50]">${worker.daily_rate_usd || 0}</p>
-              </div>
-              <div>
                 <p className="text-gray-500">Availability</p>
                 <p className={`font-medium ${
                   worker.availability === 'available' ? 'text-green-600' : 
@@ -570,6 +599,24 @@ export default function WorkerDashboard() {
               <div>
                 <p className="text-gray-500">Location</p>
                 <p className="font-medium text-[#2C3E50]">{worker.location || 'Not set'}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Rating</p>
+                <p className="font-medium text-[#2C3E50]">⭐ {worker.rating || 0} ({worker.reviews_count || 0} reviews)</p>
+              </div>
+
+              {/* New Fields Display */}
+              <div className="md:col-span-2">
+                <p className="text-gray-500">About Me</p>
+                <p className="font-medium text-[#2C3E50]">{worker.about_me || 'Not set'}</p>
+              </div>
+              <div className="md:col-span-2">
+                <p className="text-gray-500">Past Projects</p>
+                <p className="font-medium text-[#2C3E50]">{worker.past_projects || 'Not set'}</p>
+              </div>
+              <div className="md:col-span-2">
+                <p className="text-gray-500">Certifications</p>
+                <p className="font-medium text-[#2C3E50]">{worker.certifications || 'Not set'}</p>
               </div>
             </div>
           )}
@@ -605,4 +652,4 @@ export default function WorkerDashboard() {
       </div>
     </div>
   );
-      }
+    }
