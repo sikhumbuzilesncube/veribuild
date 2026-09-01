@@ -145,6 +145,9 @@ export default function Dashboard() {
               🔧 Workers Dashboard
             </Link>
             <Link href="/dashboard/settings" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/dashboard/jobs" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
+              📋 Jobs
+            </Link>
               ⚙️ Settings
             </Link>
             <Link href="/payment" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
