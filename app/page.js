@@ -22,7 +22,13 @@ export default function Home() {
         scrolled ? 'bg-white shadow-md py-3' : 'bg-transparent py-5'
       }`}>
         <div className="max-w-6xl mx-auto px-6 flex justify-between items-center">
-          {/* Logo */}
+         <nav className="hidden md:flex items-center gap-8">
+           <a href="#features" className="text-gray-600 hover:text-[#F47B20] transition text-sm font-medium">Features</a>
+           <a href="#how-it-works" className="text-gray-600 hover:text-[#F47B20] transition text-sm font-medium">How It Works</a>
+           <Link href="/pricing" className="text-gray-600 hover:text-[#F47B20] transition text-sm font-medium">Pricing</Link>
+           <Link href="/about" className="text-gray-600 hover:text-[#F47B20] transition text-sm font-medium">About</Link>
+         </nav>
+         {/* Logo */}
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-xl">
               V
