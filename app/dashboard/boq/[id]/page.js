@@ -91,6 +91,7 @@ export default function BOQPage() {
   const [totalCost, setTotalCost] = useState(0);
   const [hardwareStores, setHardwareStores] = useState([]);
   const [constructionCompanies, setConstructionCompanies] = useState([]);
+  const [workers, setWorkers] = useState([]);
   const [workerSuggestions, setWorkerSuggestions] = useState([]);
   const [saving, setSaving] = useState(false);
 
@@ -125,6 +126,10 @@ export default function BOQPage() {
       // Fetch construction companies with ads
       const constructionData = await fetchConstructionCompanies();
       setConstructionCompanies(constructionData);
+
+      // Fetch workers
+      const workerData = await fetchWorkers();
+      setWorkers(workerData);
 
       const workers = generateWorkerSuggestions(projectData);
       setWorkerSuggestions(workers);
@@ -295,6 +300,31 @@ export default function BOQPage() {
 
       if (error) {
         console.error('Error fetching construction companies:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (err) {
+      console.error('Error:', err);
+      return [];
+    }
+  }
+
+  // ============================================================
+  // FETCH WORKERS
+  // ============================================================
+  async function fetchWorkers() {
+    try {
+      const { data, error } = await supabase
+        .from('workers')
+        .select('*')
+        .eq('subscription_status', 'active')
+        .eq('is_verified', true)
+        .eq('availability', 'available')
+        .order('rating', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching workers:', error);
         return [];
       }
 
@@ -692,6 +722,67 @@ export default function BOQPage() {
           </div>
         )}
 
+        {/* Workers Section */}
+        {workers && workers.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+            <h2 className="text-xl font-bold text-[#2C3E50] mb-4">🔧 Available Workers</h2>
+            <p className="text-sm text-gray-500 mb-4">Skilled workers available for your project</p>
+            
+            <div className="grid md:grid-cols-2 gap-4">
+              {workers.map((worker) => (
+                <div key={worker.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-[#F47B20] rounded-full flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
+                      {worker.full_name?.charAt(0) || 'W'}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-[#2C3E50]">{worker.full_name}</h3>
+                      <p className="text-sm text-gray-600">{worker.trade}</p>
+                      {worker.sub_trade && (
+                        <p className="text-xs text-gray-500">{worker.sub_trade}</p>
+                      )}
+                      <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
+                        <span>⭐ {worker.rating || 0} ({worker.reviews_count || 0} reviews)</span>
+                        <span>💰 ${worker.daily_rate_usd || 0}/day</span>
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          worker.availability === 'available' ? 'bg-green-100 text-green-700' :
+                          worker.availability === 'limited' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {worker.availability === 'available' ? 'Available' :
+                           worker.availability === 'limited' ? 'Limited' : 'Unavailable'}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-400">
+                        📍 {worker.location || 'No location'} • {worker.years_experience || 0} years exp
+                      </div>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          onClick={() => {
+                            window.location.href = `tel:${worker.phone}`;
+                          }}
+                          className="text-xs bg-[#F47B20] text-white px-3 py-1 rounded-lg hover:bg-[#E06B10] transition"
+                        >
+                          📞 Contact
+                        </button>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(`Worker: ${worker.full_name}\nTrade: ${worker.trade}\nPhone: ${worker.phone || 'No phone'}\nRate: $${worker.daily_rate_usd || 0}/day`);
+                            alert('Worker details copied to clipboard!');
+                          }}
+                          className="text-xs border border-gray-300 text-gray-600 px-3 py-1 rounded-lg hover:bg-gray-50 transition"
+                        >
+                          📋 Copy Details
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Worker Suggestions */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
           <h2 className="text-xl font-bold text-[#2C3E50] mb-4">👷 Suggested Workers</h2>
@@ -743,4 +834,4 @@ export default function BOQPage() {
       </div>
     </div>
   );
-                }
+    }
