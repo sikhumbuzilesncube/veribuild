@@ -91,11 +91,12 @@ export default function ContactPage() {
             <div className="space-y-6">
               <div>
                 <p className="text-sm font-medium text-gray-500">Email</p>
-                <p className="text-[#2C3E50] font-medium">info@veribuild.co.zw</p>
-              </div>
-              <div>
+                <p className="text-[#2C3E50] font-medium">admin@gatekeeperai.co.zw</p>
+                <p className="text-[#2C3E50] font-medium">gatekeeperzw@gmail.com</p>
+            </div>
+            <div>
                 <p className="text-sm font-medium text-gray-500">Phone</p>
-                <p className="text-[#2C3E50] font-medium">+263 78 123 4567</p>
+                <p className="text-[#2C3E50] font-medium">+263 77 780 3517</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500">Location</p>
