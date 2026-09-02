@@ -14,7 +14,6 @@ export default function JobsPage() {
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
-  const [userId, setUserId] = useState(null);
 
   const [formData, setFormData] = useState({
     project_id: '',
@@ -39,9 +38,7 @@ export default function JobsPage() {
         return;
       }
 
-      // Get user ID
-      setUserId(session.user.id);
-      console.log('📊 User ID:', session.user.id);
+      console.log('📊 Session user:', session.user.id);
 
       // Fetch user's completed projects
       const { data: projectsData } = await supabase
@@ -92,13 +89,9 @@ export default function JobsPage() {
     setSubmitting(true);
     setMessage('');
 
-    console.log('📊 Submitting job with client_id:', userId);
-    console.log('📊 Form data:', formData);
-
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
-      // Make sure we have a valid user ID
       if (!session || !session.user) {
         setMessage({ type: 'error', text: 'You must be logged in to post a job.' });
         setSubmitting(false);
@@ -106,24 +99,9 @@ export default function JobsPage() {
       }
 
       const clientId = session.user.id;
-      console.log('📊 Using client_id:', clientId);
+      console.log('📊 Posting job with client_id:', clientId);
 
-      // Validate that client exists in users table
-      const { data: userCheck, error: userCheckError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('id', clientId)
-        .single();
-
-      if (userCheckError || !userCheck) {
-        console.error('❌ User not found in users table:', userCheckError);
-        setMessage({ type: 'error', text: 'User profile not found. Please contact support.' });
-        setSubmitting(false);
-        return;
-      }
-
-      console.log('✅ User exists:', userCheck);
-
+      // Insert job
       const { data, error } = await supabase
         .from('jobs')
         .insert({
@@ -139,7 +117,7 @@ export default function JobsPage() {
         .select();
 
       if (error) {
-        console.error('❌ Error inserting job:', error);
+        console.error('❌ Error:', error);
         setMessage({ type: 'error', text: error.message });
       } else {
         setMessage({ type: 'success', text: '✅ Job posted successfully!' });
@@ -392,4 +370,4 @@ export default function JobsPage() {
       </div>
     </div>
   );
-}
+    }
