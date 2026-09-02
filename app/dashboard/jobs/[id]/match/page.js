@@ -13,9 +13,9 @@ export default function WorkerMatchPage() {
   const [loading, setLoading] = useState(true);
   const [job, setJob] = useState(null);
   const [workers, setWorkers] = useState([]);
-  const [requiredTrades, setRequiredTrades] = useState([]);
+  const [requiredTrades, setRequiredTrades] = useState(['Builder']);
   const [applying, setApplying] = useState({});
-  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     async function loadData() {
@@ -25,32 +25,41 @@ export default function WorkerMatchPage() {
         return;
       }
 
-      // Get job details
-      const { data: jobData } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('id', jobId)
-        .single();
+      try {
+        // Get job details
+        const { data: jobData, error: jobError } = await supabase
+          .from('jobs')
+          .select('*')
+          .eq('id', jobId)
+          .single();
 
-      if (!jobData) {
-        setLoading(false);
-        return;
-      }
+        if (jobError || !jobData) {
+          setError('Job not found');
+          setLoading(false);
+          return;
+        }
 
-      setJob(jobData);
+        setJob(jobData);
 
-      // Match workers
-      const response = await fetch('/api/test-match', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: jobData.project_id }),
-      });
+        // Get ALL workers directly from Supabase
+        const { data: workersData, error: workersError } = await supabase
+          .from('workers')
+          .select('*')
+          .eq('subscription_status', 'active')
+          .eq('is_verified', true)
+          .order('rating', { ascending: false });
 
-      const result = await response.json();
-      
-      if (result.success) {
-        setWorkers(result.recommended || []);
-        setRequiredTrades(result.required_trades || []);
+        if (workersError) {
+          console.error('Error fetching workers:', workersError);
+          setError('Error loading workers');
+        } else {
+          console.log('Workers found:', workersData?.length || 0);
+          setWorkers(workersData || []);
+        }
+
+      } catch (err) {
+        console.error('Error:', err);
+        setError('Something went wrong');
       }
 
       setLoading(false);
@@ -97,12 +106,12 @@ export default function WorkerMatchPage() {
     );
   }
 
-  if (!job) {
+  if (error || !job) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="text-center">
           <div className="text-6xl mb-4">📋</div>
-          <h2 className="text-2xl font-bold text-[#2C3E50] mb-2">Job not found</h2>
+          <h2 className="text-2xl font-bold text-[#2C3E50] mb-2">{error || 'Job not found'}</h2>
           <Link href="/dashboard/jobs" className="text-[#F47B20] hover:underline">
             ← Back to Jobs
           </Link>
@@ -142,11 +151,9 @@ export default function WorkerMatchPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
           <h2 className="text-lg font-bold text-[#2C3E50] mb-2">Required Trades</h2>
           <div className="flex flex-wrap gap-2">
-            {requiredTrades.map((trade, index) => (
-              <span key={index} className="bg-orange-100 text-orange-700 px-4 py-2 rounded-lg text-sm font-medium">
-                {trade}
-              </span>
-            ))}
+            <span className="bg-orange-100 text-orange-700 px-4 py-2 rounded-lg text-sm font-medium">
+              {job.trade_required}
+            </span>
           </div>
         </div>
 
@@ -175,13 +182,6 @@ export default function WorkerMatchPage() {
                       <span>{worker.years_experience || 0} years exp</span>
                       <span className="text-green-600 font-medium">Available</span>
                     </div>
-                    {worker.match_score && (
-                      <div className="mt-2">
-                        <span className="text-xs font-semibold text-[#F47B20]">
-                          Match Score: {worker.match_score}%
-                        </span>
-                      </div>
-                    )}
                   </div>
                   <button
                     onClick={() => handleApply(worker.id)}
@@ -192,7 +192,6 @@ export default function WorkerMatchPage() {
                   </button>
                 </div>
 
-                {/* Show About Me and Past Projects */}
                 {worker.about_me && (
                   <div className="mt-4 text-sm text-gray-600">
                     <p><strong>About:</strong> {worker.about_me}</p>
