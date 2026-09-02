@@ -33,14 +33,18 @@ export async function POST(request) {
 
     // Determine required trades from rooms
     const tradeMap = {
-      'kitchen': 'Plumber',
-      'bathroom': 'Plumber',
-      'toilet': 'Plumber',
+      'kitchen': 'Builder',
+      'bathroom': 'Builder',
+      'toilet': 'Builder',
       'lounge': 'Builder',
       'bedroom': 'Builder',
       'garage': 'Builder',
-      'study': 'Electrician',
-      'office': 'Electrician',
+      'study': 'Builder',
+      'office': 'Builder',
+      'electric': 'Electrician',
+      'electrical': 'Electrician',
+      'plumb': 'Plumber',
+      'pipe': 'Plumber',
     };
 
     for (const [room, trade] of Object.entries(tradeMap)) {
@@ -51,12 +55,14 @@ export async function POST(request) {
       }
     }
 
-    // If no specific trades found, default to Builder
+    // If no specific trades found, add default trades
     if (trades.length === 0) {
-      trades.push('Builder');
+      trades.push('Builder', 'Electrician', 'Plumber');
     }
 
-    // Find matching workers
+    console.log('📊 Required trades:', trades);
+
+    // Find matching workers - BROADER SEARCH
     const matchedWorkers = [];
     const cityId = project.city_id || 1;
 
@@ -64,15 +70,23 @@ export async function POST(request) {
       const { data: workers, error } = await supabase
         .from('workers')
         .select('*')
-        .eq('trade', trade)
-        .eq('availability', 'available')
         .eq('subscription_status', 'active')
         .eq('is_verified', true)
+        .in('availability', ['available', 'limited'])
         .order('rating', { ascending: false });
 
       if (!error && workers && workers.length > 0) {
-        // Add trade context to each worker
-        const workersWithContext = workers.map(w => ({
+        // Filter workers by trade (partial match)
+        const filteredWorkers = workers.filter(w => {
+          const workerTrade = (w.trade || '').toLowerCase();
+          const workerSubTrade = (w.sub_trade || '').toLowerCase();
+          const searchTrade = trade.toLowerCase();
+          return workerTrade.includes(searchTrade) || 
+                 searchTrade.includes(workerTrade) ||
+                 workerSubTrade.includes(searchTrade);
+        });
+
+        const workersWithContext = filteredWorkers.map(w => ({
           ...w,
           matched_for: trade,
           match_score: calculateMatchScore(w, project)
@@ -84,8 +98,10 @@ export async function POST(request) {
     // Sort by match score
     matchedWorkers.sort((a, b) => b.match_score - a.match_score);
 
-    // Get recommended workers (top 10)
-    const recommended = matchedWorkers.slice(0, 10);
+    // Get recommended workers (top 20)
+    const recommended = matchedWorkers.slice(0, 20);
+
+    console.log('📊 Matched workers:', recommended.length);
 
     return NextResponse.json({
       success: true,
@@ -117,10 +133,10 @@ function calculateMatchScore(worker, project) {
     score += Math.min(worker.years_experience * 2, 15);
   }
 
-  // Location proximity (max 10 points)
+  // Location bonus (max 10 points)
   if (worker.city_id === project.city_id) {
     score += 10;
   }
 
   return Math.round(score);
-  }
+}
