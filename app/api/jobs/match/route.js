@@ -27,88 +27,49 @@ export async function POST(request) {
       }, { status: 404 });
     }
 
-    // Get the room labels to determine required trades
-    const roomLabels = project.room_labels || '';
-    const trades = [];
+    console.log('📊 Project:', project);
 
-    // Determine required trades from rooms
-    const tradeMap = {
-      'kitchen': 'Builder',
-      'bathroom': 'Builder',
-      'toilet': 'Builder',
-      'lounge': 'Builder',
-      'bedroom': 'Builder',
-      'garage': 'Builder',
-      'study': 'Builder',
-      'office': 'Builder',
-      'electric': 'Electrician',
-      'electrical': 'Electrician',
-      'plumb': 'Plumber',
-      'pipe': 'Plumber',
-    };
+    // Get ALL active workers (simple query for testing)
+    const { data: allWorkers, error: workersError } = await supabase
+      .from('workers')
+      .select('*')
+      .eq('subscription_status', 'active')
+      .eq('is_verified', true);
 
-    for (const [room, trade] of Object.entries(tradeMap)) {
-      if (roomLabels.toLowerCase().includes(room)) {
-        if (!trades.includes(trade)) {
-          trades.push(trade);
-        }
-      }
+    if (workersError) {
+      console.error('❌ Workers error:', workersError);
     }
 
-    // If no specific trades found, add default trades
-    if (trades.length === 0) {
-      trades.push('Builder', 'Electrician', 'Plumber');
+    console.log('📊 All active workers:', allWorkers?.length || 0);
+
+    // If no active workers, show a message
+    if (!allWorkers || allWorkers.length === 0) {
+      return NextResponse.json({
+        success: true,
+        project: project,
+        required_trades: ['Builder'],
+        total_matched: 0,
+        recommended: [],
+        message: 'No active workers found. Please add workers or activate them.'
+      });
     }
 
-    console.log('📊 Required trades:', trades);
-
-    // Find matching workers - BROADER SEARCH
-    const matchedWorkers = [];
-    const cityId = project.city_id || 1;
-
-    for (const trade of trades) {
-      const { data: workers, error } = await supabase
-        .from('workers')
-        .select('*')
-        .eq('subscription_status', 'active')
-        .eq('is_verified', true)
-        .in('availability', ['available', 'limited'])
-        .order('rating', { ascending: false });
-
-      if (!error && workers && workers.length > 0) {
-        // Filter workers by trade (partial match)
-        const filteredWorkers = workers.filter(w => {
-          const workerTrade = (w.trade || '').toLowerCase();
-          const workerSubTrade = (w.sub_trade || '').toLowerCase();
-          const searchTrade = trade.toLowerCase();
-          return workerTrade.includes(searchTrade) || 
-                 searchTrade.includes(workerTrade) ||
-                 workerSubTrade.includes(searchTrade);
-        });
-
-        const workersWithContext = filteredWorkers.map(w => ({
-          ...w,
-          matched_for: trade,
-          match_score: calculateMatchScore(w, project)
-        }));
-        matchedWorkers.push(...workersWithContext);
-      }
-    }
+    // Map workers to the required trades
+    const matchedWorkers = allWorkers.map(w => ({
+      ...w,
+      matched_for: 'Builder',
+      match_score: calculateMatchScore(w, project)
+    }));
 
     // Sort by match score
     matchedWorkers.sort((a, b) => b.match_score - a.match_score);
 
-    // Get recommended workers (top 20)
-    const recommended = matchedWorkers.slice(0, 20);
-
-    console.log('📊 Matched workers:', recommended.length);
-
     return NextResponse.json({
       success: true,
       project: project,
-      required_trades: trades,
+      required_trades: ['Builder'],
       total_matched: matchedWorkers.length,
-      recommended: recommended,
+      recommended: matchedWorkers.slice(0, 20),
     });
 
   } catch (error) {
@@ -121,22 +82,19 @@ export async function POST(request) {
 }
 
 function calculateMatchScore(worker, project) {
-  let score = 50; // Base score
+  let score = 50;
 
-  // Rating bonus (max 25 points)
   if (worker.rating) {
     score += (worker.rating / 5) * 25;
   }
 
-  // Experience bonus (max 15 points)
   if (worker.years_experience) {
     score += Math.min(worker.years_experience * 2, 15);
   }
 
-  // Location bonus (max 10 points)
   if (worker.city_id === project.city_id) {
     score += 10;
   }
 
   return Math.round(score);
-}
+  }
