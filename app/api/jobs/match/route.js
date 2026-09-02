@@ -33,28 +33,28 @@ export async function POST(request) {
 
     console.log('📊 Project found:', project.id, project.project_name);
 
-    // Get ALL workers (no filters for testing)
+    // Get ALL workers
     const { data: allWorkers, error: workersError } = await supabase
       .from('workers')
-      .select('*');
+      .select('*')
+      .eq('subscription_status', 'active')
+      .eq('is_verified', true);
 
     console.log('📊 Total workers in DB:', allWorkers?.length || 0);
-    console.log('📊 Workers data:', allWorkers);
 
     if (workersError) {
       console.error('❌ Workers error:', workersError);
     }
 
-    // If no workers, return empty
     if (!allWorkers || allWorkers.length === 0) {
-      console.log('❌ No workers found in database');
+      console.log('❌ No workers found');
       return NextResponse.json({
         success: true,
         project: project,
         required_trades: ['Builder'],
         total_matched: 0,
         recommended: [],
-        debug: 'No workers in database'
+        message: 'No active workers found'
       });
     }
 
@@ -65,6 +65,9 @@ export async function POST(request) {
       match_score: calculateMatchScore(w, project)
     }));
 
+    // Sort by match score
+    matchedWorkers.sort((a, b) => b.match_score - a.match_score);
+
     console.log('📊 Matched workers:', matchedWorkers.length);
 
     return NextResponse.json({
@@ -73,10 +76,6 @@ export async function POST(request) {
       required_trades: ['Builder'],
       total_matched: matchedWorkers.length,
       recommended: matchedWorkers.slice(0, 20),
-      debug: {
-        total_workers: allWorkers.length,
-        workers: allWorkers.map(w => ({ name: w.full_name, trade: w.trade }))
-      }
     });
 
   } catch (error) {
@@ -94,4 +93,4 @@ function calculateMatchScore(worker, project) {
   if (worker.years_experience) score += Math.min(worker.years_experience * 2, 15);
   if (worker.city_id === project.city_id) score += 10;
   return Math.round(score);
-      }
+}
