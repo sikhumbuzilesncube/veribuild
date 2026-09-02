@@ -40,7 +40,7 @@ export default function WorkerMatchPage() {
       setJob(jobData);
 
       // Match workers
-      const response = await fetch('/api/jobs/match', {
+      const response = await fetch('/api/test-match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId: jobData.project_id }),
