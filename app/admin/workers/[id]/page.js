@@ -51,12 +51,14 @@ export default function VerifyWorkerPage() {
     setMessage('');
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const { error } = await supabase
         .from('workers')
         .update({
           verification_status: status,
           is_verified: status === 'approved',
-          verified_by: (await supabase.auth.getSession()).data.session?.user?.id,
+          verified_by: session?.user?.id,
           verified_at: new Date().toISOString(),
         })
         .eq('id', workerId);
@@ -142,7 +144,7 @@ export default function VerifyWorkerPage() {
               <p className="font-medium text-[#2C3E50]">{worker.sub_trade || 'Not set'}</p>
             </div>
             <div>
-              <p className="text-gray-500 text-sm">Trade Class (Optional)</p>
+              <p className="text-gray-500 text-sm">Trade Class</p>
               <p className="font-medium text-[#2C3E50]">{worker.trade_class || 'Not set'}</p>
             </div>
             <div>
@@ -209,4 +211,4 @@ export default function VerifyWorkerPage() {
       </div>
     </div>
   );
-        }
+    }
