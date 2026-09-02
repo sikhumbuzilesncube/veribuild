@@ -14,6 +14,7 @@ export default function JobsPage() {
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
+  const [userId, setUserId] = useState(null);
 
   const [formData, setFormData] = useState({
     project_id: '',
@@ -38,7 +39,11 @@ export default function JobsPage() {
         return;
       }
 
-      // Fetch user's projects
+      // Get user ID
+      setUserId(session.user.id);
+      console.log('📊 User ID:', session.user.id);
+
+      // Fetch user's completed projects
       const { data: projectsData } = await supabase
         .from('projects')
         .select('id, project_name, status')
@@ -71,7 +76,6 @@ export default function JobsPage() {
     setSelectedProject(projectId);
     setFormData({ ...formData, project_id: projectId });
     
-    // Auto-fill title and description from project
     const project = projects.find(p => p.id === parseInt(projectId));
     if (project) {
       setFormData(prev => ({
@@ -88,26 +92,58 @@ export default function JobsPage() {
     setSubmitting(true);
     setMessage('');
 
+    console.log('📊 Submitting job with client_id:', userId);
+    console.log('📊 Form data:', formData);
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
-      const { error } = await supabase
+      // Make sure we have a valid user ID
+      if (!session || !session.user) {
+        setMessage({ type: 'error', text: 'You must be logged in to post a job.' });
+        setSubmitting(false);
+        return;
+      }
+
+      const clientId = session.user.id;
+      console.log('📊 Using client_id:', clientId);
+
+      // Validate that client exists in users table
+      const { data: userCheck, error: userCheckError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', clientId)
+        .single();
+
+      if (userCheckError || !userCheck) {
+        console.error('❌ User not found in users table:', userCheckError);
+        setMessage({ type: 'error', text: 'User profile not found. Please contact support.' });
+        setSubmitting(false);
+        return;
+      }
+
+      console.log('✅ User exists:', userCheck);
+
+      const { data, error } = await supabase
         .from('jobs')
         .insert({
           project_id: parseInt(formData.project_id),
-          client_id: session.user.id,
+          client_id: clientId,
           title: formData.title,
           description: formData.description,
           trade_required: formData.trade_required,
-          location: formData.location,
+          location: formData.location || null,
           budget_estimate: parseFloat(formData.budget_estimate) || null,
           status: 'open',
-        });
+        })
+        .select();
 
       if (error) {
+        console.error('❌ Error inserting job:', error);
         setMessage({ type: 'error', text: error.message });
       } else {
         setMessage({ type: 'success', text: '✅ Job posted successfully!' });
+        console.log('✅ Job created:', data);
         setShowForm(false);
         setFormData({
           project_id: '',
@@ -126,7 +162,8 @@ export default function JobsPage() {
         setJobs(jobsData || []);
       }
     } catch (err) {
-      setMessage({ type: 'error', text: 'Something went wrong.' });
+      console.error('❌ Unexpected error:', err);
+      setMessage({ type: 'error', text: 'Something went wrong. Please try again.' });
     }
     setSubmitting(false);
   };
@@ -189,7 +226,7 @@ export default function JobsPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none"
                   required
                 >
-                  <option value="">Select a project</option>
+                  <option value="">Select a completed project</option>
                   {projects.map((p) => (
                     <option key={p.id} value={p.id}>{p.project_name}</option>
                   ))}
@@ -355,4 +392,4 @@ export default function JobsPage() {
       </div>
     </div>
   );
-                                               }
+}
