@@ -23,12 +23,18 @@ export default function AdminDashboard() {
     async function loadData() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        router.push('/login');
+        router.push('/admin/login');
         return;
       }
 
       // Check if admin
-      if (session.user.email !== 'admin@gatekeeperai.co.zw') {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('user_type')
+        .eq('id', session.user.id)
+        .single();
+
+      if (!userData || userData.user_type !== 'admin') {
         router.push('/dashboard');
         return;
       }
@@ -44,7 +50,7 @@ export default function AdminDashboard() {
         .select('*');
 
       const pendingWorkersData = workersData?.filter(w => w.verification_status === 'pending') || [];
-      
+
       // Get revenue from payments
       const { data: paymentsData } = await supabase
         .from('payments')
@@ -53,13 +59,23 @@ export default function AdminDashboard() {
 
       const totalRevenue = paymentsData?.reduce((sum, p) => sum + p.amount, 0) || 0;
 
+      // Get hardware stores
+      const { data: hardwareData } = await supabase
+        .from('hardware_stores')
+        .select('id');
+
+      // Get construction companies
+      const { data: constructionData } = await supabase
+        .from('construction_companies')
+        .select('id');
+
       setStats({
         totalUsers: userCount || 0,
         totalWorkers: workersData?.length || 0,
         pendingWorkers: pendingWorkersData.length,
         totalRevenue: totalRevenue,
-        totalHardware: 0,
-        totalConstruction: 0,
+        totalHardware: hardwareData?.length || 0,
+        totalConstruction: constructionData?.length || 0,
       });
 
       setPendingWorkers(pendingWorkersData);
@@ -90,7 +106,8 @@ export default function AdminDashboard() {
             <div className="w-8 h-8 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-sm">
               V
             </div>
-            <h1 className="text-xl font-bold">Admin</h1>
+            <h1 className="text-xl font-bold">VeriBuild</h1>
+            <span className="text-xs bg-[#F47B20]/30 px-2 py-1 rounded-full">Admin</span>
           </div>
 
           <nav className="space-y-2">
@@ -115,7 +132,7 @@ export default function AdminDashboard() {
             <button 
               onClick={async () => {
                 await supabase.auth.signOut();
-                router.push('/login');
+                router.push('/admin/login');
               }}
               className="block w-full text-left py-2 px-4 hover:bg-red-500/20 rounded-lg transition font-medium mt-8 text-red-300"
             >
@@ -185,4 +202,4 @@ export default function AdminDashboard() {
       </div>
     </div>
   );
-      }
+             }
