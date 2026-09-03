@@ -48,7 +48,9 @@ export default function AdminLogin() {
         return;
       }
 
+      // ✅ CORRECT: Redirect to ADMIN dashboard
       router.push('/admin/dashboard');
+      
     } catch (err) {
       setError('Something went wrong.');
       setLoading(false);
@@ -116,4 +118,4 @@ export default function AdminLogin() {
       </div>
     </div>
   );
-    }
+             }
