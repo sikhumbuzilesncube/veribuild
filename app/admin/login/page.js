@@ -29,8 +29,20 @@ export default function AdminLogin() {
         return;
       }
 
-      // Check if user is admin
-      if (data.user.email !== 'admin@gatekeeperai.co.zw') {
+      // Check if user is admin by checking user_type in database
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('user_type')
+        .eq('id', data.user.id)
+        .single();
+
+      if (userError || !userData) {
+        setError('User profile not found.');
+        setLoading(false);
+        return;
+      }
+
+      if (userData.user_type !== 'admin') {
         setError('Access denied. Admin only.');
         setLoading(false);
         return;
@@ -70,7 +82,7 @@ export default function AdminLogin() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="admin@gatekeeperai.co.zw"
+              placeholder="your-admin@email.com"
               required
             />
           </div>
@@ -104,4 +116,4 @@ export default function AdminLogin() {
       </div>
     </div>
   );
-  }
+    }
