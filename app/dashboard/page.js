@@ -36,7 +36,6 @@ export default function Dashboard() {
       setUserEmail(user.email || '');
       setUserType(metadata.user_type || 'client');
 
-      // Fetch projects
       const { data: projectsData, error } = await supabase
         .from('projects')
         .select('*')
@@ -127,31 +126,31 @@ export default function Dashboard() {
         <div className="md:hidden bg-[#2C3E50] text-white p-4 border-t border-[#F47B20]/30">
           <nav className="space-y-3">
             <Link href="/dashboard" className="block py-3 px-4 bg-[#F47B20] rounded-lg font-medium" onClick={() => setMobileMenuOpen(false)}>
-              🏠 Dashboard
+              Dashboard
             </Link>
             <Link href="/dashboard/new-project" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
-              📤 New BOQ
+              New BOQ
             </Link>
             <Link href="/dashboard/projects" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
-              📋 My Projects
+              My Projects
             </Link>
             <Link href="/dashboard/hardware" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
-              🏪 Hardware Dashboard
+              Hardware
             </Link>
             <Link href="/dashboard/construction" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
-              🏗️ Construction Dashboard
+              Construction
             </Link>
             <Link href="/dashboard/workers" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
-              🔧 Workers Dashboard
+              Workers
             </Link>
-            <Link href="/dashboard/jobs" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
-              📋 Jobs
+            <Link href="/dashboard/jobs" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+              Jobs
             </Link>
             <Link href="/dashboard/settings" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
-              ⚙️ Settings
+              Settings
             </Link>
             <Link href="/payment" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
-              💳 Payments
+              Payments
             </Link>
             <button 
               onClick={async () => {
@@ -160,7 +159,7 @@ export default function Dashboard() {
               }}
               className="block w-full text-left py-3 px-4 hover:bg-red-500/20 rounded-lg transition font-medium mt-4 text-red-300"
             >
-              🚪 Logout
+              Logout
             </button>
           </nav>
         </div>
@@ -175,62 +174,61 @@ export default function Dashboard() {
           <h1 className="text-xl font-bold">VeriBuild</h1>
         </div>
 
-        <nav className="space-y-2">
-          <Link href="/dashboard" className="block py-2 px-4 bg-[#F47B20] rounded-lg font-medium">
-            🏠 Dashboard
+        <nav className="space-y-1">
+          <Link href="/dashboard" className="block py-2.5 px-4 bg-[#F47B20] rounded-lg font-medium text-sm">
+            Dashboard
           </Link>
-          <Link href="/dashboard/new-project" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
-            📤 New BOQ
+          <Link href="/dashboard/new-project" className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm">
+            New BOQ
           </Link>
-          <Link href="/dashboard/projects" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
-            📋 My Projects
+          <Link href="/dashboard/projects" className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm">
+            My Projects
           </Link>
-          <Link href="/dashboard/hardware" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
-            🏪 Hardware Dashboard
+          <Link href="/dashboard/hardware" className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm">
+            Hardware
           </Link>
-          <Link href="/dashboard/construction" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
-            🏗️ Construction Dashboard
+          <Link href="/dashboard/construction" className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm">
+            Construction
           </Link>
-          <Link href="/dashboard/workers" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
-            🔧 Workers Dashboard
+          <Link href="/dashboard/workers" className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm">
+            Workers
           </Link>
-          <Link href="/dashboard/settings" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
-          <Link href="/dashboard/jobs" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
-            📋 Jobs
+          <Link href="/dashboard/jobs" className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm">
+            Jobs
           </Link>
-            ⚙️ Settings
+          <Link href="/dashboard/settings" className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm">
+            Settings
           </Link>
-          <Link href="/payment" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
-            💳 Payments
+          <Link href="/payment" className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm">
+            Payments
           </Link>
           <button 
             onClick={async () => {
               await supabase.auth.signOut();
               router.push('/login');
             }}
-            className="block w-full text-left py-2 px-4 hover:bg-red-500/20 rounded-lg transition font-medium mt-8 text-red-300"
+            className="block w-full text-left py-2.5 px-4 hover:bg-red-500/20 rounded-lg transition font-medium text-sm mt-4 text-red-300"
           >
-            🚪 Logout
+            Logout
           </button>
         </nav>
       </div>
 
       {/* ===== MAIN CONTENT ===== */}
       <div className="md:ml-64 p-4 md:p-6">
-        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-[#2C3E50]">Dashboard</h1>
             <p className="text-gray-600 text-sm md:text-base">Welcome back, {userName}!</p>
             <p className="text-xs md:text-sm text-gray-400">{userEmail}</p>
             {userType === 'hardware' && (
-              <p className="text-xs md:text-sm text-blue-600 font-semibold">🏪 Hardware Store Account</p>
+              <p className="text-xs md:text-sm text-blue-600 font-semibold">Hardware Store Account</p>
             )}
             {userType === 'construction' && (
-              <p className="text-xs md:text-sm text-green-600 font-semibold">🏗️ Construction Company Account</p>
+              <p className="text-xs md:text-sm text-green-600 font-semibold">Construction Company Account</p>
             )}
             {userType === 'worker' && (
-              <p className="text-xs md:text-sm text-purple-600 font-semibold">🔧 Worker Account</p>
+              <p className="text-xs md:text-sm text-purple-600 font-semibold">Worker Account</p>
             )}
           </div>
           <Link
@@ -315,4 +313,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-        }
+                  }
