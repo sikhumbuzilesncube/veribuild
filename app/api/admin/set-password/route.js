@@ -6,7 +6,6 @@ export async function POST(request) {
     const body = await request.json();
     const { email, password, secret } = body;
 
-    // Simple secret to protect this endpoint
     const ADMIN_SECRET = 'VeriBuild2026@Admin';
 
     if (secret !== ADMIN_SECRET) {
@@ -23,9 +22,23 @@ export async function POST(request) {
       });
     }
 
-    // Update user password via Supabase Auth Admin
+    // First, get the user from auth.users
+    const { data: authUser, error: authError } = await supabase
+      .from('auth.users')
+      .select('id, email')
+      .eq('email', email)
+      .single();
+
+    if (authError || !authUser) {
+      return NextResponse.json({
+        success: false,
+        error: 'Admin user not found in auth.users'
+      });
+    }
+
+    // Update password using Supabase Admin API
     const { data, error } = await supabase.auth.admin.updateUserById(
-      (await supabase.from('users').select('id').eq('email', email).single()).data.id,
+      authUser.id,
       { password: password }
     );
 
@@ -35,6 +48,12 @@ export async function POST(request) {
         error: error.message
       });
     }
+
+    // Make sure public.users has the admin role
+    await supabase
+      .from('users')
+      .update({ user_type: 'admin' })
+      .eq('id', authUser.id);
 
     return NextResponse.json({
       success: true,
