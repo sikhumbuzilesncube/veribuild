@@ -15,11 +15,18 @@ export default function AdminWorkersPage() {
     async function loadWorkers() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        router.push('/login');
+        router.push('/admin/login');
         return;
       }
 
-      if (session.user.email !== 'admin@gatekeeperai.co.zw') {
+      // Check if admin
+      const { data: userData } = await supabase
+        .from('users')
+        .select('user_type')
+        .eq('id', session.user.id)
+        .single();
+
+      if (!userData || userData.user_type !== 'admin') {
         router.push('/dashboard');
         return;
       }
@@ -61,122 +68,166 @@ export default function AdminWorkersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-[#2C3E50]">👷 Workers</h1>
-            <p className="text-gray-600">Manage all workers</p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="flex">
+        {/* Sidebar */}
+        <div className="fixed left-0 top-0 h-full w-64 bg-[#2C3E50] text-white p-6">
+          <div className="flex items-center gap-2 mb-8">
+            <div className="w-8 h-8 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-sm">
+              V
+            </div>
+            <h1 className="text-xl font-bold">VeriBuild</h1>
+            <span className="text-xs bg-[#F47B20]/30 px-2 py-1 rounded-full">Admin</span>
           </div>
-          <Link href="/admin/dashboard" className="text-gray-600 hover:text-[#2C3E50] transition">
-            ← Back to Dashboard
-          </Link>
+
+          <nav className="space-y-2">
+            <Link href="/admin/dashboard" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
+              📊 Dashboard
+            </Link>
+            <Link href="/admin/workers" className="block py-2 px-4 bg-[#F47B20] rounded-lg font-medium">
+              👷 Workers
+            </Link>
+            <Link href="/admin/hardware" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
+              🏪 Hardware
+            </Link>
+            <Link href="/admin/construction" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
+              🏗️ Construction
+            </Link>
+            <Link href="/admin/payments" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
+              💳 Payments
+            </Link>
+            <Link href="/admin/settings" className="block py-2 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium">
+              ⚙️ Settings
+            </Link>
+            <button 
+              onClick={async () => {
+                await supabase.auth.signOut();
+                router.push('/admin/login');
+              }}
+              className="block w-full text-left py-2 px-4 hover:bg-red-500/20 rounded-lg transition font-medium mt-8 text-red-300"
+            >
+              🚪 Logout
+            </button>
+          </nav>
         </div>
 
-        {/* Stats */}
-        <div className="grid md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
-            <p className="text-2xl font-bold text-[#2C3E50]">{stats.total}</p>
-            <p className="text-sm text-gray-500">Total Workers</p>
+        {/* Main Content */}
+        <div className="ml-64 p-6 w-full">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-[#2C3E50]">👷 Workers</h1>
+              <p className="text-gray-600">Manage all workers</p>
+            </div>
+            <Link href="/admin/dashboard" className="text-gray-600 hover:text-[#2C3E50] transition">
+              ← Back to Dashboard
+            </Link>
           </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
-            <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
-            <p className="text-sm text-gray-500">Pending</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
-            <p className="text-2xl font-bold text-green-600">{stats.approved}</p>
-            <p className="text-sm text-gray-500">Approved</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
-            <p className="text-2xl font-bold text-red-600">{stats.rejected}</p>
-            <p className="text-sm text-gray-500">Rejected</p>
-          </div>
-        </div>
 
-        {/* Filters */}
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              filter === 'all' ? 'bg-[#2C3E50] text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-            }`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setFilter('pending')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              filter === 'pending' ? 'bg-yellow-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-            }`}
-          >
-            Pending
-          </button>
-          <button
-            onClick={() => setFilter('approved')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              filter === 'approved' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-            }`}
-          >
-            Approved
-          </button>
-          <button
-            onClick={() => setFilter('rejected')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              filter === 'rejected' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-            }`}
-          >
-            Rejected
-          </button>
-        </div>
+          {/* Stats */}
+          <div className="grid md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
+              <p className="text-2xl font-bold text-[#2C3E50]">{stats.total}</p>
+              <p className="text-sm text-gray-500">Total Workers</p>
+            </div>
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
+              <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+              <p className="text-sm text-gray-500">Pending</p>
+            </div>
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
+              <p className="text-2xl font-bold text-green-600">{stats.approved}</p>
+              <p className="text-sm text-gray-500">Approved</p>
+            </div>
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
+              <p className="text-2xl font-bold text-red-600">{stats.rejected}</p>
+              <p className="text-sm text-gray-500">Rejected</p>
+            </div>
+          </div>
 
-        {/* Workers List */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          {filteredWorkers.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-[#2C3E50] text-white">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Name</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Trade</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Location</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredWorkers.map((worker) => (
-                    <tr key={worker.id} className="border-b border-gray-100 hover:bg-gray-50 transition">
-                      <td className="px-4 py-3 font-medium text-[#2C3E50]">{worker.full_name}</td>
-                      <td className="px-4 py-3 text-gray-600">{worker.trade}</td>
-                      <td className="px-4 py-3 text-gray-600">{worker.location || 'Not set'}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          worker.verification_status === 'approved' ? 'bg-green-100 text-green-700' :
-                          worker.verification_status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          {worker.verification_status || 'pending'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/admin/workers/${worker.id}`}
-                          className="text-[#F47B20] hover:underline text-sm font-medium"
-                        >
-                          Review
-                        </Link>
-                      </td>
+          {/* Filters */}
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={() => setFilter('all')}
+              className={`px-4 py-2 rounded-lg font-medium transition ${
+                filter === 'all' ? 'bg-[#2C3E50] text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilter('pending')}
+              className={`px-4 py-2 rounded-lg font-medium transition ${
+                filter === 'pending' ? 'bg-yellow-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              }`}
+            >
+              Pending
+            </button>
+            <button
+              onClick={() => setFilter('approved')}
+              className={`px-4 py-2 rounded-lg font-medium transition ${
+                filter === 'approved' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              }`}
+            >
+              Approved
+            </button>
+            <button
+              onClick={() => setFilter('rejected')}
+              className={`px-4 py-2 rounded-lg font-medium transition ${
+                filter === 'rejected' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              }`}
+            >
+              Rejected
+            </button>
+          </div>
+
+          {/* Workers List */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            {filteredWorkers.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-[#2C3E50] text-white">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-semibold">Name</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold">Trade</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold">Location</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <div className="text-5xl mb-4">👷</div>
-              <p className="text-gray-500">No workers found</p>
-            </div>
-          )}
+                  </thead>
+                  <tbody>
+                    {filteredWorkers.map((worker) => (
+                      <tr key={worker.id} className="border-b border-gray-100 hover:bg-gray-50 transition">
+                        <td className="px-4 py-3 font-medium text-[#2C3E50]">{worker.full_name}</td>
+                        <td className="px-4 py-3 text-gray-600">{worker.trade}</td>
+                        <td className="px-4 py-3 text-gray-600">{worker.location || 'Not set'}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            worker.verification_status === 'approved' ? 'bg-green-100 text-green-700' :
+                            worker.verification_status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {worker.verification_status || 'pending'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Link
+                            href={`/admin/workers/${worker.id}`}
+                            className="text-[#F47B20] hover:underline text-sm font-medium"
+                          >
+                            Review
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="text-5xl mb-4">👷</div>
+                <p className="text-gray-500">No workers found</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
