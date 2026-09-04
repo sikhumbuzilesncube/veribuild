@@ -3,11 +3,15 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 export default function PaymentPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const supabase = createClientComponentClient();
+  
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   
@@ -17,22 +21,58 @@ export default function PaymentPage() {
   const amount = searchParams.get('amount') || '15';
   
   useEffect(() => {
-    // Check if user is logged in
+    // Check if user is logged in using Supabase
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/auth/session');
-        const data = await response.json();
-        if (data.user) {
-          setUser(data.user);
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          setError('Authentication error. Please try again.');
+          setPageLoading(false);
+          return;
+        }
+        
+        if (session?.user) {
+          // Get user profile data
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (profileError) {
+            console.error('Profile error:', profileError);
+            // Still set user with basic info
+            setUser({
+              id: session.user.id,
+              email: session.user.email,
+              first_name: session.user.user_metadata?.first_name || 'Customer',
+              last_name: session.user.user_metadata?.last_name || 'User'
+            });
+          } else {
+            setUser({
+              id: session.user.id,
+              email: session.user.email,
+              first_name: profile.first_name || 'Customer',
+              last_name: profile.last_name || 'User'
+            });
+          }
         } else {
-          router.push('/login?redirect=/payment');
+          // Redirect to login
+          router.push(`/login?redirect=/payment?type=${userType}&amount=${amount}`);
+          return;
         }
       } catch (err) {
         console.error('Auth check error:', err);
+        setError('Failed to verify your session. Please try again.');
+      } finally {
+        setPageLoading(false);
       }
     };
+    
     checkAuth();
-  }, [router]);
+  }, [router, supabase, userType, amount]);
 
   const planDetails = {
     hardware: { name: 'Hardware Store', price: 15, duration: 'monthly' },
@@ -55,7 +95,8 @@ export default function PaymentPage() {
         customerLastName: user?.last_name || 'User',
         planType: userType,
         planName: selectedPlan.name,
-        planDuration: selectedPlan.duration
+        planDuration: selectedPlan.duration,
+        userId: user?.id
       };
 
       console.log('Initiating payment with data:', paymentData);
@@ -91,15 +132,43 @@ export default function PaymentPage() {
     }
   };
 
-  if (!user) {
+  // Show loading state
+  if (pageLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">Loading payment page...</p>
         </div>
       </div>
     );
+  }
+
+  // Show error state
+  if (error && !user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-6 text-center">
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+            <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Something went wrong</h3>
+          <p className="text-sm text-gray-600 mb-4">{error}</p>
+          <Link
+            href="/login"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+          >
+            Go to Login
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect to login
   }
 
   return (
@@ -186,4 +255,4 @@ export default function PaymentPage() {
       </div>
     </div>
   );
-      }
+               }
