@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { initiateContiPayPayment } from '../../../lib/contipay';
-import { supabase } from '../../../lib/supabase';
+import { initiateContiPayPayment } from '../../lib/contipay';
+import { supabase } from '../../lib/supabase';
 
 export async function POST(request) {
   try {
@@ -64,4 +64,4 @@ export async function POST(request) {
       error: 'Payment initiation failed'
     }, { status: 500 });
   }
-      }
+  }
