@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { initiateContiPayPayment } from '@/app/lib/contipay';
-import { supabase } from '@/app/lib/supabase';
+import { initiateContiPayPayment } from '@/lib/contipay';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { amount, email, phone, description, projectId, paymentType, provider } = body;
+    const { amount, email, phone, description, projectId, provider, userId } = body;
 
     console.log('📊 ContiPay initiate request:', { amount, email, phone, description, provider });
 
@@ -34,11 +34,10 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Save payment record to database
-    const { error: paymentError } = await supabase
+    await supabase
       .from('payments')
       .insert({
-        user_id: body.userId || null,
+        user_id: userId || null,
         project_id: projectId || null,
         amount: parseFloat(amount),
         currency: 'USD',
@@ -48,10 +47,6 @@ export async function POST(request) {
         provider_reference: result.providerReference,
         created_at: new Date().toISOString(),
       });
-
-    if (paymentError) {
-      console.error('Failed to save payment record:', paymentError);
-    }
 
     return NextResponse.json({
       success: true,
@@ -67,4 +62,4 @@ export async function POST(request) {
       error: 'Payment initiation failed'
     }, { status: 500 });
   }
-      }
+          }
