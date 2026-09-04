@@ -1,213 +1,187 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export const dynamic = 'force-dynamic';
-
 export default function PaymentPage() {
+  const searchParams = useSearchParams();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [paymentData, setPaymentData] = useState({
-    amount: '',
-    email: '',
-    phone: '',
-    description: '',
-    firstName: '',
-    lastName: '',
-  });
+  const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
+  
+  // Get payment details from URL params
+  const plan = searchParams.get('plan') || 'monthly';
+  const userType = searchParams.get('type') || 'hardware';
+  const amount = searchParams.get('amount') || '15';
+  
+  useEffect(() => {
+    // Check if user is logged in
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/session');
+        const data = await response.json();
+        if (data.user) {
+          setUser(data.user);
+        } else {
+          router.push('/login?redirect=/payment');
+        }
+      } catch (err) {
+        console.error('Auth check error:', err);
+      }
+    };
+    checkAuth();
+  }, [router]);
 
-  const handleChange = (e) => {
-    setPaymentData({ ...paymentData, [e.target.name]: e.target.value });
+  const planDetails = {
+    hardware: { name: 'Hardware Store', price: 15, duration: 'monthly' },
+    construction: { name: 'Construction Company', price: 15, duration: 'monthly' },
+    worker: { name: 'Skilled Worker', price: 5, duration: 'monthly' }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    setSuccess('');
+  const selectedPlan = planDetails[userType] || planDetails.hardware;
 
-    if (!paymentData.amount || !paymentData.email) {
-      setError('Please fill in amount and email');
-      setLoading(false);
-      return;
-    }
+  const handlePayment = async () => {
+    setLoading(true);
+    setError(null);
 
     try {
-      console.log('📊 Sending payment request:', paymentData);
+      const paymentData = {
+        amount: parseFloat(amount),
+        currency: 'USD',
+        customerEmail: user?.email || 'customer@example.com',
+        customerFirstName: user?.first_name || 'Customer',
+        customerLastName: user?.last_name || 'User',
+        planType: userType,
+        planName: selectedPlan.name,
+        planDuration: selectedPlan.duration
+      };
+
+      console.log('Initiating payment with data:', paymentData);
 
       const response = await fetch('/api/contipay', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          amount: parseFloat(paymentData.amount),
-          email: paymentData.email,
-          phone: paymentData.phone || '',
-          description: paymentData.description || 'VeriBuild Payment',
-          firstName: paymentData.firstName || '',
-          lastName: paymentData.lastName || '',
-        }),
+        body: JSON.stringify(paymentData),
       });
 
-      const result = await response.json();
-      console.log('📥 Payment response:', result);
+      const data = await response.json();
+      console.log('Payment response:', data);
 
-      if (result.success && result.redirectUrl) {
-        setSuccess('Payment initiated! Redirecting to ContiPay...');
-        setTimeout(() => {
-          window.location.href = result.redirectUrl;
-        }, 1500);
-      } else {
-        setError(result.error || 'Payment initiation failed');
+      if (!response.ok) {
+        throw new Error(data.error || 'Payment initialization failed');
       }
-    } catch (err) {
-      console.error('❌ Error:', err);
-      setError('Something went wrong. Please try again.');
-    }
 
-    setLoading(false);
+      // Redirect to ContiPay payment page
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl;
+      } else if (data.redirect_url) {
+        window.location.href = data.redirect_url;
+      } else {
+        throw new Error('No payment URL received');
+      }
+
+    } catch (err) {
+      console.error('Payment error:', err);
+      setError(err.message || 'An error occurred while processing your payment');
+      setLoading(false);
+    }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center px-4 py-8">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
-        <div className="text-center mb-8">
-          <div className="flex justify-center items-center gap-2 mb-2">
-            <div className="w-10 h-10 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-xl">
-              V
-            </div>
-            <h1 className="text-2xl font-bold text-[#2C3E50]">VeriBuild</h1>
-          </div>
-          <p className="text-gray-500 text-sm">💳 Pay with ContiPay</p>
-          <span className="inline-block bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded-full mt-1">
-            Sandbox Mode
-          </span>
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
         </div>
+      </div>
+    );
+  }
 
-        {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
-            {success}
-          </div>
-        )}
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Amount (USD) <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              name="amount"
-              value={paymentData.amount}
-              onChange={handleChange}
-              step="0.01"
-              min="0.01"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="0.00"
-              required
-            />
+  return (
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        <div className="px-6 py-8">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900">Payment Details</h2>
+            <p className="mt-2 text-sm text-gray-600">Complete your registration payment</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={paymentData.email}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="your@email.com"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone Number
-            </label>
-            <input
-              type="tel"
-              name="phone"
-              value={paymentData.phone}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="+263 78 123 4567"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                First Name
-              </label>
-              <input
-                type="text"
-                name="firstName"
-                value={paymentData.firstName}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-                placeholder="John"
-              />
+          <div className="mt-8 space-y-4">
+            <div className="bg-blue-50 rounded-lg p-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-gray-700">Plan</span>
+                <span className="text-sm font-semibold text-gray-900">{selectedPlan.name}</span>
+              </div>
+              <div className="flex justify-between items-center mt-2">
+                <span className="text-sm font-medium text-gray-700">Duration</span>
+                <span className="text-sm font-semibold text-gray-900">{selectedPlan.duration}</span>
+              </div>
+              <div className="flex justify-between items-center mt-2 pt-2 border-t border-blue-200">
+                <span className="text-sm font-medium text-gray-700">Amount</span>
+                <span className="text-lg font-bold text-blue-600">${amount}.00 USD</span>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Last Name
-              </label>
-              <input
-                type="text"
-                name="lastName"
-                value={paymentData.lastName}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-                placeholder="Doe"
-              />
+
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Customer Information</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Name</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {user.first_name} {user.last_name}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Email</span>
+                  <span className="text-sm font-medium text-gray-900">{user.email}</span>
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
+
+            <button
+              onClick={handlePayment}
+              disabled={loading}
+              className="w-full flex justify-center items-center px-4 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            >
+              {loading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </>
+              ) : (
+                'Pay Now'
+              )}
+            </button>
+
+            <div className="mt-4 text-center">
+              <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-700">
+                Cancel and return to dashboard
+              </Link>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description (Optional)
-            </label>
-            <input
-              type="text"
-              name="description"
-              value={paymentData.description}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="What is this payment for?"
-            />
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <div className="flex items-center justify-center space-x-2">
+              <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+              </svg>
+              <span className="text-xs text-gray-500">Secured by ContiPay</span>
+            </div>
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Processing...' : 'Pay with ContiPay →'}
-          </button>
-        </form>
-
-        <div className="text-center mt-6">
-          <p className="text-sm text-gray-500">
-            <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-            Secured by ContiPay
-          </p>
-          <Link href="/dashboard" className="text-sm text-[#F47B20] hover:underline mt-2 inline-block">
-            ← Back to Dashboard
-          </Link>
         </div>
       </div>
     </div>
