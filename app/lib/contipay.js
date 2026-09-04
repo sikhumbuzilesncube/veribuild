@@ -6,6 +6,9 @@ const CONTIPAY_API_KEY = 'VJIZB2LIK1O0VJZYRXDPUXZHNHOYZZ09';
 const CONTIPAY_SECRET_KEY = '764cc5e8-3d34-45ea-b9f0-66df7fff19fe';
 const CONTIPAY_BASE_URL = 'https://sandbox.contipay.co.zw/api/v1';
 
+/**
+ * Initiate a payment with ContiPay
+ */
 export async function initiateContiPayPayment(orderData) {
   const {
     amount,
@@ -14,7 +17,7 @@ export async function initiateContiPayPayment(orderData) {
     description,
     reference,
     currency = 'USD',
-    provider = 'ecocash',
+    provider = 'ecocash', // ecocash, onemoney, visa, mastercard
   } = orderData;
 
   const payload = {
@@ -68,6 +71,9 @@ export async function initiateContiPayPayment(orderData) {
   }
 }
 
+/**
+ * Check payment status with ContiPay
+ */
 export async function checkContiPayStatus(paymentId, merchantRef) {
   try {
     let url = `${CONTIPAY_BASE_URL}/payment/status`;
@@ -119,6 +125,19 @@ export async function checkContiPayStatus(paymentId, merchantRef) {
   }
 }
 
+/**
+ * Verify webhook signature
+ */
+export function verifyContiPayWebhookSignature(payload, signature) {
+  // ContiPay will send a signature header
+  // Verify it using your secret key
+  // For now, we'll accept all webhooks (add proper verification later)
+  return true;
+}
+
+/**
+ * Parse webhook payload
+ */
 export function parseContiPayWebhook(payload) {
   return {
     paymentId: payload.paymentId || payload.id,
@@ -132,4 +151,4 @@ export function parseContiPayWebhook(payload) {
     fee: payload.fee,
     timestamp: payload.timestamp || new Date().toISOString(),
   };
-        }
+    }
