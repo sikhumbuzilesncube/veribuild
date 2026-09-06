@@ -1,83 +1,91 @@
 import { NextResponse } from 'next/server';
-import { initiateContiPayPayment } from '@/lib/contipay';
-import { supabase } from '@/lib/supabase';
+import { initiatePayment } from '../../lib/contipay';
 
-export async function POST(request) {
+export async function PUT(request) {
   try {
     const body = await request.json();
-    const {
-      amount,
-      email,
-      phone,
-      description,
-      firstName,
-      lastName,
-      userId,
-      projectId,
+    console.log('Payment request received:', body);
+
+    const { 
+      amount, 
+      customerEmail, 
+      customerFirstName, 
+      customerLastName,
+      customerPhone,
+      nationalId,
+      planType, 
+      planName, 
+      planDuration, 
+      userId 
     } = body;
 
-    console.log('📊 ContiPay payment request:', { amount, email, phone, firstName, lastName });
-
-    if (!amount || !email) {
-      return NextResponse.json({
-        success: false,
-        error: 'Amount and email are required'
-      }, { status: 400 });
+    if (!amount) {
+      return NextResponse.json(
+        { error: 'Amount is required' },
+        { status: 400 }
+      );
     }
 
-    const reference = `VERI-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-
-    const result = await initiateContiPayPayment({
-      amount: parseFloat(amount),
-      email: email,
-      phone: phone || '',
-      description: description || 'VeriBuild Payment',
-      reference: reference,
-      firstName: firstName || '',
-      lastName: lastName || '',
-    });
-
-    if (!result.success) {
-      return NextResponse.json({
-        success: false,
-        error: result.error,
-        code: result.code,
-        details: result.raw,
-      }, { status: 400 });
+    if (!customerEmail) {
+      return NextResponse.json(
+        { error: 'Customer email is required' },
+        { status: 400 }
+      );
     }
 
-    // Save payment record to database
-    try {
-      await supabase
-        .from('payments')
-        .insert({
-          user_id: userId || null,
-          project_id: projectId || null,
-          amount: parseFloat(amount),
-          currency: 'USD',
-          payment_method: 'contipay',
-          payment_status: 'pending',
-          transaction_reference: result.reference,
-          provider_reference: result.paymentId,
-          contipay_ref: result.paymentId,
-          created_at: new Date().toISOString(),
-        });
-    } catch (dbError) {
-      console.error('❌ Failed to save payment record:', dbError);
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return NextResponse.json(
+        { error: 'Invalid amount' },
+        { status: 400 }
+      );
     }
 
+    const paymentData = {
+      amount: parsedAmount,
+      currency: body.currency || 'USD',
+      customerEmail: customerEmail,
+      customerFirstName: customerFirstName || 'Customer',
+      customerLastName: customerLastName || 'User',
+      customerPhone: customerPhone || '+2637000000000',
+      nationalId: nationalId || '00 1234567 A 00',
+      planType: planType || 'hardware',
+      planName: planName || 'Hardware Store',
+      planDuration: planDuration || 'monthly',
+      userId: userId || 'guest-user'
+    };
+
+    console.log('Initiating payment with data:', paymentData);
+
+    const result = await initiatePayment(paymentData);
+    
     return NextResponse.json({
       success: true,
       redirectUrl: result.redirectUrl,
-      paymentId: result.paymentId,
+      transactionId: result.transactionId,
       reference: result.reference,
+      status: result.status,
+      message: result.message
     });
 
   } catch (error) {
-    console.error('❌ ContiPay initiation error:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Payment initiation failed'
-    }, { status: 500 });
+    console.error('Payment error:', error);
+    
+    return NextResponse.json(
+      { 
+        error: error.message || 'Failed to initiate payment'
+      },
+      { status: 500 }
+    );
   }
+}
+
+export async function OPTIONS() {
+  return NextResponse.json({}, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'PUT, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept'
+    }
+  });
       }
