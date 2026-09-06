@@ -1,14 +1,12 @@
 /**
  * ContiPay Payment Integration
  * For VeriBuild - A Product of GateKeeperAI
- * Using credentials from ContiPay dashboard
  */
 
 const CONTIPAY_CONFIG = {
   baseUrl: process.env.CONTIPAY_BASE_URL || 'https://api-uat.contipay.net',
-  merchantId: process.env.CONTIPAY_MERCHANT_ID || '25439',
-  // CORRECTED: Using the API key from your latest screenshot
-  apiKey: process.env.CONTIPAY_API_KEY || 'VjIzb21IK1o0VjZyRxDpUXZNH0yZz09',
+  merchantId: process.env.CONTIPAY_MERCHANT_ID || '952',  // UPDATED: 952
+  apiKey: process.env.CONTIPAY_API_KEY || 'VjIzb2lIK1o0VjZyRXdPUXZHNHoyZz09',
   secretKey: process.env.CONTIPAY_SECRET_KEY || '764cc5e8-3d34-45ea-b9f0-66df7fff19fe',
 };
 
@@ -25,7 +23,7 @@ export async function initiatePayment(paymentData) {
       description: `VeriBuild - ${paymentData.planName} Subscription - #${reference}`,
       amount: parseFloat(paymentData.amount),
       reference: reference,
-      merchantId: parseInt(CONTIPAY_CONFIG.merchantId),
+      merchantId: parseInt(CONTIPAY_CONFIG.merchantId),  // Now 952
       currencyCode: paymentData.currency || 'USD',
       successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success?reference=${reference}`,
       cancelUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/cancel?reference=${reference}`,
@@ -43,6 +41,7 @@ export async function initiatePayment(paymentData) {
     console.log('ContiPay Request:', {
       url: `${CONTIPAY_CONFIG.baseUrl}/acquire/payment`,
       method: 'PUT',
+      merchantId: CONTIPAY_CONFIG.merchantId,
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
