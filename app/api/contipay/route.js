@@ -1,16 +1,22 @@
 import { NextResponse } from 'next/server';
-
-const CONTIPAY_API_KEY = 'VjIzb2lIK1o0VjZyRXdPUXZHNHoyZz09';
-const CONTIPAY_SECRET_KEY = '764cc5e8-3d34-45ea-b9f0-66df7fff19fe';
-const CONTIPAY_MERCHANT_ID = 952;
-const CONTIPAY_BASE_URL = 'https://api.uat.contipay.net';
+import { initiateContiPayPayment } from '@/lib/contipay';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { amount, email, phone, description, firstName, lastName } = body;
+    const {
+      amount,
+      email,
+      phone,
+      description,
+      firstName,
+      lastName,
+      userId,
+      projectId,
+    } = body;
 
-    console.log('📊 ContiPay request:', { amount, email, phone, firstName, lastName });
+    console.log('📊 ContiPay payment request:', { amount, email, phone, firstName, lastName });
 
     if (!amount || !email) {
       return NextResponse.json({
@@ -19,72 +25,59 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Encode credentials for Basic Auth
-    const credentials = Buffer.from(`${CONTIPAY_API_KEY}:${CONTIPAY_SECRET_KEY}`).toString('base64');
-
     const reference = `VERI-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-    // Build customer object
-    const customer = {
-      nationalId: '00 1234567 A 00',
-      surname: lastName || 'Customer',
-      firstName: firstName || 'VeriBuild',
-      middleName: '',
-      email: email,
-      cell: phone || '+263700000000',
-      countryCode: 'ZW',
-    };
-
-    // Build payment payload
-    const payload = {
-      webhookUrl: 'https://veribuild.vercel.app/api/contipay/webhook',
-      description: description || 'VeriBuild Payment',
+    const result = await initiateContiPayPayment({
       amount: parseFloat(amount),
+      email: email,
+      phone: phone || '',
+      description: description || 'VeriBuild Payment',
       reference: reference,
-      merchantId: CONTIPAY_MERCHANT_ID,
-      currencyCode: 'USD',
-      successUrl: 'https://veribuild.vercel.app/payment/success',
-      cancelUrl: 'https://veribuild.vercel.app/dashboard',
-      customer: customer,
-    };
-
-    console.log('📤 Sending to ContiPay:', JSON.stringify(payload, null, 2));
-
-    const response = await fetch(`${CONTIPAY_BASE_URL}/acquire/payment`, {
-      method: 'PUT',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Basic ${credentials}`,
-      },
-      body: JSON.stringify(payload),
+      firstName: firstName || '',
+      lastName: lastName || '',
     });
 
-    const result = await response.json();
-    console.log('📥 ContiPay response:', JSON.stringify(result, null, 2));
-
-    // Check if payment was initiated successfully
-    if (result.statusCode === 0 || result.status === 'pending') {
-      return NextResponse.json({
-        success: true,
-        redirectUrl: result.redirectUrl || result.paymentUrl,
-        paymentId: result.contiPayRef || result.paymentId,
-        reference: result.merchantRef || reference,
-        status: result.status || 'pending',
-      });
-    } else {
+    if (!result.success) {
       return NextResponse.json({
         success: false,
-        error: result.message || result.status || 'Payment initiation failed',
-        details: result,
+        error: result.error,
+        code: result.code,
+        details: result.raw,
       }, { status: 400 });
     }
 
+    // Save payment record to database
+    try {
+      await supabase
+        .from('payments')
+        .insert({
+          user_id: userId || null,
+          project_id: projectId || null,
+          amount: parseFloat(amount),
+          currency: 'USD',
+          payment_method: 'contipay',
+          payment_status: 'pending',
+          transaction_reference: result.reference,
+          provider_reference: result.paymentId,
+          contipay_ref: result.paymentId,
+          created_at: new Date().toISOString(),
+        });
+    } catch (dbError) {
+      console.error('❌ Failed to save payment record:', dbError);
+    }
+
+    return NextResponse.json({
+      success: true,
+      redirectUrl: result.redirectUrl,
+      paymentId: result.paymentId,
+      reference: result.reference,
+    });
+
   } catch (error) {
-    console.error('❌ ContiPay error:', error);
+    console.error('❌ ContiPay initiation error:', error);
     return NextResponse.json({
       success: false,
-      error: error.message || 'Payment initiation failed'
+      error: 'Payment initiation failed'
     }, { status: 500 });
   }
-        }
+      }
