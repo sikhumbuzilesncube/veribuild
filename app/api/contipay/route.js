@@ -55,6 +55,8 @@ export async function PUT(request) {
       userId: userId || 'guest-user'
     };
 
+    console.log('Initiating payment with data:', paymentData);
+
     const result = await initiatePayment(paymentData);
     
     return NextResponse.json({
@@ -86,4 +88,4 @@ export async function OPTIONS() {
       'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept'
     }
   });
-}
+      }
