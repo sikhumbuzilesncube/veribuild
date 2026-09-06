@@ -8,21 +8,19 @@ export default function PaymentPage() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
   
-  // Get payment details from URL params
   const plan = searchParams.get('plan') || 'monthly';
   const userType = searchParams.get('type') || 'hardware';
   const amount = searchParams.get('amount') || '15';
   
-  // Use a test email if no user is logged in
   const testEmail = 'test@example.com';
   const testName = 'Test User';
+  const testPhone = '+2637000000000';
 
   const planDetails = {
-    hardware: { name: 'Hardware Store', price: 15, duration: 'monthly', emoji: '🏪' },
-    construction: { name: 'Construction Company', price: 15, duration: 'monthly', emoji: '🏗️' },
-    worker: { name: 'Skilled Worker', price: 5, duration: 'monthly', emoji: '🔧' }
+    hardware: { name: 'Hardware Store', price: 15, duration: 'monthly' },
+    construction: { name: 'Construction Company', price: 15, duration: 'monthly' },
+    worker: { name: 'Skilled Worker', price: 5, duration: 'monthly' }
   };
 
   const selectedPlan = planDetails[userType] || planDetails.hardware;
@@ -38,35 +36,31 @@ export default function PaymentPage() {
         customerEmail: testEmail,
         customerFirstName: testName.split(' ')[0] || 'Test',
         customerLastName: testName.split(' ')[1] || 'User',
+        customerPhone: testPhone,
+        nationalId: '00 1234567 A 00',
         planType: userType,
         planName: selectedPlan.name,
         planDuration: selectedPlan.duration,
-        // Use a test user ID - you can replace this with actual user ID later
         userId: 'test-user-123'
       };
 
-      console.log('Initiating payment with data:', paymentData);
-
       const response = await fetch('/api/contipay', {
-        method: 'POST',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
         body: JSON.stringify(paymentData),
       });
 
       const data = await response.json();
-      console.log('Payment response:', data);
 
       if (!response.ok) {
-        throw new Error(data.error || 'Payment initialization failed');
+        throw new Error(data.error || 'Payment initiation failed');
       }
 
-      // Redirect to ContiPay payment page
-      if (data.paymentUrl) {
-        window.location.href = data.paymentUrl;
-      } else if (data.redirect_url) {
-        window.location.href = data.redirect_url;
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
       } else {
         throw new Error('No payment URL received');
       }
@@ -81,21 +75,24 @@ export default function PaymentPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
-        {/* Header with logo */}
-        <div className="bg-blue-600 px-6 py-4">
-          <h1 className="text-white text-xl font-bold text-center">VeriBuild</h1>
-          <p className="text-blue-100 text-sm text-center">Complete Your Payment</p>
+        {/* Header with VeriBuild branding - Orange theme */}
+        <div className="px-6 py-5" style={{ backgroundColor: '#E65A00' }}>
+          <div className="text-center">
+            <h1 className="text-white text-2xl font-bold tracking-tight">VeriBuild</h1>
+            <p className="text-orange-100 text-xs font-medium tracking-wider mt-1">
+              A PRODUCT OF GATEKEEPERAI
+            </p>
+            <p className="text-white/80 text-sm mt-2">Complete Your Payment</p>
+          </div>
         </div>
 
         <div className="px-6 py-8">
-          {/* Plan details */}
           <div className="text-center mb-6">
-            <div className="text-4xl mb-2">{selectedPlan.emoji}</div>
             <h2 className="text-2xl font-bold text-gray-900">{selectedPlan.name}</h2>
             <p className="text-sm text-gray-600">{selectedPlan.duration} subscription</p>
           </div>
 
-          <div className="bg-blue-50 rounded-lg p-4 mb-6">
+          <div className="rounded-lg p-4 mb-6" style={{ backgroundColor: '#FFF3E8' }}>
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium text-gray-700">Plan</span>
               <span className="text-sm font-semibold text-gray-900">{selectedPlan.name}</span>
@@ -104,20 +101,19 @@ export default function PaymentPage() {
               <span className="text-sm font-medium text-gray-700">Duration</span>
               <span className="text-sm font-semibold text-gray-900">{selectedPlan.duration}</span>
             </div>
-            <div className="flex justify-between items-center mt-2 pt-2 border-t border-blue-200">
+            <div className="flex justify-between items-center mt-2 pt-2 border-t" style={{ borderColor: '#FFD4B8' }}>
               <span className="text-sm font-medium text-gray-700">Amount</span>
-              <span className="text-2xl font-bold text-blue-600">${amount}.00 USD</span>
+              <span className="text-2xl font-bold" style={{ color: '#E65A00' }}>${amount}.00 USD</span>
             </div>
           </div>
 
-          {/* Test mode notice */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
             <div className="flex items-start">
-              <svg className="h-5 w-5 text-yellow-400 mt-0.5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
+              <span className="text-yellow-600 text-sm font-medium mr-2">ⓘ</span>
               <p className="text-xs text-yellow-700">
-                <strong>Test Mode:</strong> Using test customer details. Log in for your actual account.
+                <strong>Test Mode:</strong> Using test customer details.
+                <br />
+                <span className="text-xs">Test with EcoCash: 8771234567 (Success) or 8771234568 (Failed)</span>
               </p>
             </div>
           </div>
@@ -131,7 +127,10 @@ export default function PaymentPage() {
           <button
             onClick={handlePayment}
             disabled={loading}
-            className="w-full flex justify-center items-center px-4 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            className="w-full flex justify-center items-center px-4 py-3 border border-transparent text-base font-medium rounded-lg text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ backgroundColor: '#E65A00' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#CC4F00'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#E65A00'}
           >
             {loading ? (
               <>
@@ -152,20 +151,14 @@ export default function PaymentPage() {
             </Link>
           </div>
 
-          {/* Security badges */}
           <div className="mt-6 pt-4 border-t border-gray-200">
             <div className="flex items-center justify-center space-x-4">
               <div className="flex items-center space-x-1">
-                <svg className="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                </svg>
+                <span className="text-green-500 text-sm">✓</span>
                 <span className="text-xs text-gray-500">Secure Payment</span>
               </div>
               <div className="flex items-center space-x-1">
-                <svg className="h-4 w-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
-                  <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
-                </svg>
+                <span className="text-sm" style={{ color: '#E65A00' }}>◆</span>
                 <span className="text-xs text-gray-500">ContiPay</span>
               </div>
             </div>
@@ -174,4 +167,4 @@ export default function PaymentPage() {
       </div>
     </div>
   );
-}
+    }
