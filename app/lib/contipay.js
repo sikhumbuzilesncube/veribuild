@@ -7,7 +7,8 @@
 const CONTIPAY_CONFIG = {
   baseUrl: process.env.CONTIPAY_BASE_URL || 'https://api-uat.contipay.net',
   merchantId: process.env.CONTIPAY_MERCHANT_ID || '25439',
-  apiKey: process.env.CONTIPAY_API_KEY || 'VjIzb21IK1o0VjZyRXdPUXZHNoYzZ09',
+  // CORRECTED: Using the API key from your latest screenshot
+  apiKey: process.env.CONTIPAY_API_KEY || 'VjIzb21IK1o0VjZyRxDpUXZNH0yZz09',
   secretKey: process.env.CONTIPAY_SECRET_KEY || '764cc5e8-3d34-45ea-b9f0-66df7fff19fe',
 };
 
