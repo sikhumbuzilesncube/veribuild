@@ -1,68 +1,57 @@
 /**
- * ContiPay Payment Integration Library - UAT Version
- * For VeriBuild - Zimbabwe Construction Platform
+ * ContiPay Payment Integration - V3
+ * Based on official ContiPay UAT documentation
+ * For VeriBuild - A Product of GateKeeperAI
  */
 
 // Configuration
 const CONTIPAY_CONFIG = {
+  baseUrl: process.env.CONTIPAY_BASE_URL || 'https://api-uat.contipay.net',
+  merchantId: process.env.CONTIPAY_MERCHANT_ID || '25439',
   apiKey: process.env.CONTIPAY_API_KEY,
   secretKey: process.env.CONTIPAY_SECRET_KEY,
-  merchantId: process.env.CONTIPAY_MERCHANT_ID,
-  baseUrl: process.env.CONTIPAY_BASE_URL || 'https://api.uat.contipay.net',
 };
 
 /**
- * Initialize a payment transaction with ContiPay
+ * Initialize a payment with ContiPay
+ * Uses PUT method with Basic Authentication
  */
 export async function initiatePayment(paymentData) {
   try {
-    // Validate required fields
     if (!paymentData.amount || !paymentData.customerEmail) {
       throw new Error('Amount and customer email are required');
     }
 
-    // Generate a unique transaction reference
-    const transactionRef = generateTransactionRef();
+    const reference = generateReference();
 
-    // Prepare payment payload for ContiPay UAT
     const payload = {
-      merchant_id: CONTIPAY_CONFIG.merchantId,
-      transaction_reference: transactionRef,
-      amount: parseFloat(paymentData.amount).toFixed(2),
-      currency: paymentData.currency || 'USD',
-      customer_email: paymentData.customerEmail,
-      customer_first_name: paymentData.customerFirstName || 'Customer',
-      customer_last_name: paymentData.customerLastName || 'User',
-      customer_phone: paymentData.customerPhone || '',
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://veribuild.vercel.app'}/payment/success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://veribuild.vercel.app'}/payment/cancel`,
-      webhook_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://veribuild.vercel.app'}/api/contipay/webhook`,
-      metadata: {
-        plan_type: paymentData.planType,
-        plan_name: paymentData.planName,
-        plan_duration: paymentData.planDuration,
-        user_id: paymentData.userId,
-        source: 'veribuild'
-      },
-      items: [
-        {
-          name: `${paymentData.planName} - ${paymentData.planDuration}`,
-          description: `VeriBuild ${paymentData.planName} subscription plan`,
-          quantity: 1,
-          price: parseFloat(paymentData.amount).toFixed(2)
-        }
-      ]
+      webhookUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/contipay/webhook`,
+      description: `VeriBuild - ${paymentData.planName} Subscription - #${reference}`,
+      amount: parseFloat(paymentData.amount),
+      reference: reference,
+      merchantId: parseInt(CONTIPAY_CONFIG.merchantId),
+      currencyCode: paymentData.currency || 'USD',
+      successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success?reference=${reference}`,
+      cancelUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/cancel?reference=${reference}`,
+      customers: {
+        nationalId: paymentData.nationalId || '00 1234567 A 00',
+        surname: paymentData.customerLastName || 'User',
+        firstName: paymentData.customerFirstName || 'Customer',
+        middleName: paymentData.customerMiddleName || '',
+        email: paymentData.customerEmail,
+        cell: paymentData.customerPhone || '+2637000000000',
+        countryCode: 'ZH'
+      }
     };
 
-    console.log('ContiPay Payment Payload:', JSON.stringify(payload, null, 2));
+    console.log('ContiPay Request:', JSON.stringify(payload, null, 2));
 
-    // Make the API call to ContiPay UAT
-    const response = await fetch(`${CONTIPAY_CONFIG.baseUrl}/payments`, {
-      method: 'POST',
+    const response = await fetch(`${CONTIPAY_CONFIG.baseUrl}/acquire/payment`, {
+      method: 'PUT',
       headers: {
+        'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${CONTIPAY_CONFIG.apiKey}`,
-        'X-Merchant-ID': CONTIPAY_CONFIG.merchantId
+        'Authorization': `Basic ${CONTIPAY_CONFIG.apiKey}`
       },
       body: JSON.stringify(payload)
     });
@@ -71,61 +60,45 @@ export async function initiatePayment(paymentData) {
     console.log('ContiPay Response:', data);
 
     if (!response.ok) {
-      // Handle specific error codes
-      if (response.status === 400) {
-        throw new Error(data.message || 'Invalid payment request. Please check the information provided.');
-      } else if (response.status === 401) {
-        throw new Error('Authentication failed. Please contact support.');
-      } else if (response.status === 422) {
-        throw new Error(data.message || 'Validation error. Please check your payment details.');
-      } else {
-        throw new Error(data.message || data.error || 'Payment initiation failed');
-      }
+      throw new Error(data.message || data.error || 'Payment initiation failed');
     }
 
-    // Store payment record in database (async, don't wait for it)
-    storePaymentRecord({
-      transactionId: data.transaction_id || transactionRef,
+    await storePaymentRecord({
+      transactionId: data.contiPayRef || reference,
+      reference: reference,
       amount: payload.amount,
-      currency: payload.currency,
+      currency: payload.currencyCode,
       planType: paymentData.planType,
       planName: paymentData.planName,
       userId: paymentData.userId,
       customerEmail: paymentData.customerEmail,
       status: 'pending'
-    }).catch(err => console.error('Error storing payment record:', err));
+    });
 
     return {
       success: true,
-      transactionId: data.transaction_id || transactionRef,
-      paymentUrl: data.payment_url || data.redirect_url,
-      redirect_url: data.payment_url || data.redirect_url,
-      status: data.status || 'pending',
-      reference: data.reference || transactionRef
+      transactionId: data.contiPayRef || reference,
+      reference: reference,
+      redirectUrl: data.redirectUrl,
+      status: data.status,
+      statusCode: data.statusCode,
+      message: data.message
     };
 
   } catch (error) {
-    console.error('ContiPay Initiation Error:', error);
+    console.error('ContiPay Error:', error);
     throw error;
   }
 }
 
-/**
- * Generate a unique transaction reference
- */
-function generateTransactionRef() {
+function generateReference() {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 8);
-  const prefix = 'VB';
-  return `${prefix}${timestamp}${random}`.toUpperCase();
+  return `VB-${timestamp}-${random}`.toUpperCase();
 }
 
-/**
- * Store payment record in database (placeholder - implement your actual storage)
- */
 async function storePaymentRecord(paymentData) {
   try {
-    // Try to use Supabase if available
     const { createClient } = await import('@supabase/supabase-js');
     
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -138,6 +111,7 @@ async function storePaymentRecord(paymentData) {
         .from('payments')
         .insert({
           transaction_id: paymentData.transactionId,
+          reference: paymentData.reference,
           user_id: paymentData.userId,
           amount: paymentData.amount,
           currency: paymentData.currency,
@@ -151,8 +125,6 @@ async function storePaymentRecord(paymentData) {
 
       if (error) {
         console.error('Error storing payment record:', error);
-      } else {
-        console.log('Payment record stored successfully');
       }
     }
   } catch (error) {
@@ -161,5 +133,6 @@ async function storePaymentRecord(paymentData) {
 }
 
 export default {
-  initiatePayment
+  initiatePayment,
+  generateReference
 };
