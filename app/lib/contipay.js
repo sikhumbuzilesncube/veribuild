@@ -1,145 +1,230 @@
+// ============================================================
+// CONTIPAY INTEGRATION - Zimbabwe Payment Gateway
+// Based on official ContiPay examples
+// ============================================================
+
+const CONTIPAY_API_KEY = 'VjIzb2lIK1o0VjZyRXdPUXZHNHoyZz09';
+const CONTIPAY_SECRET_KEY = '764cc5e8-3d34-45ea-b9f0-66df7fff19fe';
+const CONTIPAY_MERCHANT_ID = 952;
+const CONTIPAY_BASE_URL = 'https://api-uat.contipay.net';
+const CONTIPAY_WEBHOOK_TOKEN = 'veribuild_webhook_2026';
+
 /**
- * ContiPay Payment Integration
- * For VeriBuild - A Product of GateKeeperAI
+ * Generate authorization header with timestamp
  */
+function generateAuth() {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const authString = `${CONTIPAY_API_KEY}${CONTIPAY_SECRET_KEY}${timestamp}`;
+  const authorization = Buffer.from(authString).toString('base64');
+  return { timestamp, authorization };
+}
 
-const CONTIPAY_CONFIG = {
-  baseUrl: process.env.CONTIPAY_BASE_URL || 'https://api-uat.contipay.net',
-  merchantId: process.env.CONTIPAY_MERCHANT_ID || '952',  // UPDATED: 952
-  apiKey: process.env.CONTIPAY_API_KEY || 'VjIzb2lIK1o0VjZyRXdPUXZHNHoyZz09',
-  secretKey: process.env.CONTIPAY_SECRET_KEY || '764cc5e8-3d34-45ea-b9f0-66df7fff19fe',
-};
+/**
+ * Initiate payment with ContiPay (Redirect method)
+ */
+export async function initiateContiPayPayment(orderData) {
+  const {
+    amount,
+    email,
+    phone,
+    description,
+    reference,
+    firstName,
+    lastName,
+    currencyCode = 'USD',
+    successUrl = 'https://veribuild.vercel.app/payment/success',
+    cancelUrl = 'https://veribuild.vercel.app/dashboard',
+    webhookUrl = 'https://veribuild.vercel.app/api/contipay/webhook',
+  } = orderData;
 
-export async function initiatePayment(paymentData) {
-  try {
-    if (!paymentData.amount || !paymentData.customerEmail) {
-      throw new Error('Amount and customer email are required');
+  const { timestamp, authorization } = generateAuth();
+
+  // Build the request payload
+  const payload = {
+    timestamp: timestamp,
+    returnUrl: webhookUrl,
+    request: {
+      center: "1",
+      amount: parseFloat(amount),
+      type: "charge",
+      reference: reference || `VERI-${Date.now()}`,
+      description: description || 'VeriBuild Payment',
+      currency: currencyCode,
+      successUrl: successUrl,
+      cancelUrl: cancelUrl,
     }
+  };
 
-    const reference = generateReference();
+  // Add customer details to request
+  if (email || phone || firstName || lastName) {
+    payload.request.customer = {};
+    if (email) payload.request.customer.email = email;
+    if (phone) payload.request.customer.cell = phone;
+    if (firstName) payload.request.customer.firstName = firstName;
+    if (lastName) payload.request.customer.surname = lastName;
+  }
 
+  console.log('📤 ContiPay payload:', JSON.stringify(payload, null, 2));
+
+  try {
+    const response = await fetch(`${CONTIPAY_BASE_URL}/request/payment/`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authorization,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await response.json();
+    console.log('📥 ContiPay response:', JSON.stringify(result, null, 2));
+
+    // Check if payment was initiated successfully (code: 0 = success)
+    if (result.code === 0 && result.url) {
+      return {
+        success: true,
+        redirectUrl: result.url,
+        paymentId: result.reference || result.contiPayRef,
+        reference: result.reference || reference,
+        status: 'pending',
+        raw: result,
+      };
+    } else {
+      return {
+        success: false,
+        error: result.message || 'Payment initiation failed',
+        code: result.code,
+        raw: result,
+      };
+    }
+  } catch (error) {
+    console.error('❌ ContiPay error:', error);
+    return {
+      success: false,
+      error: error.message || 'Payment initiation failed',
+    };
+  }
+}
+
+/**
+ * Check payment status with ContiPay
+ */
+export async function checkContiPayStatus(reference) {
+  const { timestamp, authorization } = generateAuth();
+
+  try {
     const payload = {
-      webhookUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/contipay/webhook`,
-      description: `VeriBuild - ${paymentData.planName} Subscription - #${reference}`,
-      amount: parseFloat(paymentData.amount),
+      timestamp: timestamp,
       reference: reference,
-      merchantId: parseInt(CONTIPAY_CONFIG.merchantId),  // Now 952
-      currencyCode: paymentData.currency || 'USD',
-      successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success?reference=${reference}`,
-      cancelUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/cancel?reference=${reference}`,
-      customers: {
-        nationalId: paymentData.nationalId || '00 1234567 A 00',
-        surname: paymentData.customerLastName || 'User',
-        firstName: paymentData.customerFirstName || 'Customer',
-        middleName: paymentData.customerMiddleName || '',
-        email: paymentData.customerEmail,
-        cell: paymentData.customerPhone || '+2637000000000',
-        countryCode: 'ZH'
-      }
     };
 
-    console.log('ContiPay Request:', {
-      url: `${CONTIPAY_CONFIG.baseUrl}/acquire/payment`,
-      method: 'PUT',
-      merchantId: CONTIPAY_CONFIG.merchantId,
+    const response = await fetch(`${CONTIPAY_BASE_URL}/request/payment/status`, {
+      method: 'POST',
       headers: {
-        'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${CONTIPAY_CONFIG.apiKey}`
-      }
-    });
-
-    const response = await fetch(`${CONTIPAY_CONFIG.baseUrl}/acquire/payment`, {
-      method: 'PUT',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Basic ${CONTIPAY_CONFIG.apiKey}`
+        'Authorization': authorization,
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
-    const data = await response.json();
-    console.log('ContiPay Response:', data);
+    const result = await response.json();
+    console.log('📥 ContiPay status response:', JSON.stringify(result, null, 2));
 
-    if (!response.ok) {
-      console.error('ContiPay Error:', {
-        status: response.status,
-        data: data
-      });
-      throw new Error(data.message || data.error || `Payment initiation failed (${response.status})`);
-    }
-
-    await storePaymentRecord({
-      transactionId: data.contiPayRef || reference,
-      reference: reference,
-      amount: payload.amount,
-      currency: payload.currencyCode,
-      planType: paymentData.planType,
-      planName: paymentData.planName,
-      userId: paymentData.userId,
-      customerEmail: paymentData.customerEmail,
-      status: 'pending'
-    });
+    // Status codes: 0=Pending, 1=Paid, 2=Refunded, 3=Error, 4=Declined, 5=Confirmed, 6=Queued, 7=Approved
+    const statusMap = {
+      0: 'pending',
+      1: 'completed',
+      2: 'refunded',
+      3: 'error',
+      4: 'declined',
+      5: 'completed',
+      6: 'pending',
+      7: 'approved',
+    };
 
     return {
       success: true,
-      transactionId: data.contiPayRef || reference,
-      reference: reference,
-      redirectUrl: data.redirectUrl,
-      status: data.status,
-      statusCode: data.statusCode,
-      message: data.message
+      status: statusMap[result.statusCode] || 'unknown',
+      statusCode: result.statusCode,
+      amount: result.amount,
+      currency: result.currency,
+      reference: result.reference,
+      contiPayRef: result.contiPayRef,
+      provider: result.providerName,
+      providerCode: result.providerCode,
+      raw: result,
     };
-
   } catch (error) {
-    console.error('ContiPay Error:', error);
-    throw error;
+    console.error('❌ ContiPay status error:', error);
+    return {
+      success: false,
+      error: error.message,
+    };
   }
 }
 
-function generateReference() {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 8);
-  return `VB-${timestamp}-${random}`.toUpperCase();
+/**
+ * Parse webhook payload
+ */
+export function parseContiPayWebhook(payload) {
+  // Status codes: 0=Pending, 1=Paid, 2=Refunded, 3=Error, 4=Declined, 5=Confirmed, 6=Queued, 7=Approved
+  const statusMap = {
+    0: 'pending',
+    1: 'paid',
+    2: 'refunded',
+    3: 'error',
+    4: 'declined',
+    5: 'confirmed',
+    6: 'queued',
+    7: 'approved',
+  };
+
+  return {
+    reference: payload.reference || payload.merchantRef,
+    contiPayRef: payload.contiPayRef,
+    status: statusMap[payload.statusCode] || 'unknown',
+    statusCode: payload.statusCode,
+    amount: payload.amount,
+    currency: payload.currencyCode || payload.currency,
+    provider: payload.providerName || payload.provider,
+    providerCode: payload.providerCode,
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+    email: payload.email,
+    message: payload.message,
+    methodCode: payload.methodCode,
+    correlation: payload.correlation,
+    isPaid: payload.statusCode === 1,
+    isPending: payload.statusCode === 0 || payload.statusCode === 6,
+    isDeclined: payload.statusCode === 4,
+  };
 }
 
-async function storePaymentRecord(paymentData) {
-  try {
-    const { createClient } = await import('@supabase/supabase-js');
-    
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
-    if (supabaseUrl && supabaseServiceKey) {
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
-      
-      const { error } = await supabase
-        .from('payments')
-        .insert({
-          transaction_id: paymentData.transactionId,
-          reference: paymentData.reference,
-          user_id: paymentData.userId,
-          amount: paymentData.amount,
-          currency: paymentData.currency,
-          plan_type: paymentData.planType,
-          plan_name: paymentData.planName,
-          customer_email: paymentData.customerEmail,
-          status: paymentData.status || 'pending',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-
-      if (error) {
-        console.error('Error storing payment record:', error);
-      }
-    }
-  } catch (error) {
-    console.error('Database storage error:', error);
-  }
+/**
+ * Verify webhook bearer token
+ */
+export function verifyWebhookToken(authorizationHeader) {
+  if (!authorizationHeader) return false;
+  
+  const expectedToken = CONTIPAY_WEBHOOK_TOKEN;
+  const supplied = authorizationHeader.replace('Bearer ', '');
+  
+  return supplied === expectedToken;
 }
 
-export default {
-  initiatePayment,
-  generateReference
-};
+/**
+ * Get status display name
+ */
+export function getStatusDisplay(statusCode) {
+  const statusMap = {
+    0: 'Pending',
+    1: '✅ Paid',
+    2: 'Refunded',
+    3: 'Error',
+    4: '❌ Declined',
+    5: 'Confirmed',
+    6: 'Queued',
+    7: 'Approved',
+  };
+  return statusMap[statusCode] || 'Unknown';
+}
