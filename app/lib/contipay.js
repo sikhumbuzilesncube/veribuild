@@ -1,21 +1,16 @@
 /**
- * ContiPay Payment Integration - V3
- * Based on official ContiPay UAT documentation
+ * ContiPay Payment Integration
  * For VeriBuild - A Product of GateKeeperAI
+ * Using credentials from ContiPay dashboard
  */
 
-// Configuration
 const CONTIPAY_CONFIG = {
   baseUrl: process.env.CONTIPAY_BASE_URL || 'https://api-uat.contipay.net',
   merchantId: process.env.CONTIPAY_MERCHANT_ID || '25439',
-  apiKey: process.env.CONTIPAY_API_KEY,
-  secretKey: process.env.CONTIPAY_SECRET_KEY,
+  apiKey: process.env.CONTIPAY_API_KEY || 'VjIzb21IK1o0VjZyRXdPUXZHNoYzZ09',
+  secretKey: process.env.CONTIPAY_SECRET_KEY || '764cc5e8-3d34-45ea-b9f0-66df7fff19fe',
 };
 
-/**
- * Initialize a payment with ContiPay
- * Uses PUT method with Basic Authentication
- */
 export async function initiatePayment(paymentData) {
   try {
     if (!paymentData.amount || !paymentData.customerEmail) {
@@ -44,7 +39,15 @@ export async function initiatePayment(paymentData) {
       }
     };
 
-    console.log('ContiPay Request:', JSON.stringify(payload, null, 2));
+    console.log('ContiPay Request:', {
+      url: `${CONTIPAY_CONFIG.baseUrl}/acquire/payment`,
+      method: 'PUT',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${CONTIPAY_CONFIG.apiKey}`
+      }
+    });
 
     const response = await fetch(`${CONTIPAY_CONFIG.baseUrl}/acquire/payment`, {
       method: 'PUT',
@@ -60,7 +63,11 @@ export async function initiatePayment(paymentData) {
     console.log('ContiPay Response:', data);
 
     if (!response.ok) {
-      throw new Error(data.message || data.error || 'Payment initiation failed');
+      console.error('ContiPay Error:', {
+        status: response.status,
+        data: data
+      });
+      throw new Error(data.message || data.error || `Payment initiation failed (${response.status})`);
     }
 
     await storePaymentRecord({
