@@ -37,13 +37,9 @@ export default function PaymentPage() {
     }
 
     try {
-      console.log('📊 Sending payment request:', paymentData);
-
       const response = await fetch('/api/contipay', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: parseFloat(paymentData.amount),
           email: paymentData.email,
@@ -55,21 +51,16 @@ export default function PaymentPage() {
       });
 
       const result = await response.json();
-      console.log('📥 Payment response:', result);
 
       if (result.success && result.redirectUrl) {
-        setSuccess('Payment initiated! Redirecting to ContiPay...');
+        setSuccess('Payment initiated! Redirecting...');
         setTimeout(() => {
           window.location.href = result.redirectUrl;
         }, 1500);
       } else {
         setError(result.error || 'Payment initiation failed');
-        if (result.details) {
-          console.log('📊 Details:', result.details);
-        }
       }
     } catch (err) {
-      console.error('❌ Error:', err);
       setError('Something went wrong. Please try again.');
     }
 
@@ -87,28 +78,15 @@ export default function PaymentPage() {
             <h1 className="text-2xl font-bold text-[#2C3E50]">VeriBuild</h1>
           </div>
           <p className="text-gray-500 text-sm">💳 Pay with ContiPay</p>
-          <span className="inline-block bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded-full mt-1">
-            Sandbox Mode
-          </span>
+          <span className="inline-block bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded-full mt-1">Sandbox Mode</span>
         </div>
 
-        {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
-            {success}
-          </div>
-        )}
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
-            {error}
-          </div>
-        )}
+        {success && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">{success}</div>}
+        {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Amount (USD) <span className="text-red-500">*</span>
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Amount (USD) *</label>
             <input
               type="number"
               name="amount"
@@ -123,9 +101,7 @@ export default function PaymentPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address <span className="text-red-500">*</span>
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
             <input
               type="email"
               name="email"
@@ -138,9 +114,7 @@ export default function PaymentPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone Number
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
             <input
               type="tel"
               name="phone"
@@ -153,9 +127,7 @@ export default function PaymentPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                First Name
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
               <input
                 type="text"
                 name="firstName"
@@ -166,9 +138,7 @@ export default function PaymentPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Last Name
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
               <input
                 type="text"
                 name="lastName"
@@ -181,9 +151,7 @@ export default function PaymentPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description (Optional)
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
             <input
               type="text"
               name="description"
@@ -204,10 +172,6 @@ export default function PaymentPage() {
         </form>
 
         <div className="text-center mt-6">
-          <p className="text-sm text-gray-500">
-            <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-            Secured by ContiPay
-          </p>
           <Link href="/dashboard" className="text-sm text-[#F47B20] hover:underline mt-2 inline-block">
             ← Back to Dashboard
           </Link>
