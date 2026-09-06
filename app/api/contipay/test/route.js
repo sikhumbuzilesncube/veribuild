@@ -8,6 +8,10 @@ export async function GET() {
     const baseUrl = process.env.CONTIPAY_BASE_URL || 'https://api-uat.contipay.net';
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://veribuild.gatekeeperai.co.zw';
 
+    // Clean the base URL - remove trailing slash if present
+    const cleanBaseUrl = baseUrl.replace(/\/$/, '');
+    const url = `${cleanBaseUrl}/acquire/payment`;
+
     const payload = {
       webhookUrl: `${appUrl}/api/contipay/webhook`,
       description: 'VeriBuild - Auth Test',
@@ -28,7 +32,9 @@ export async function GET() {
       }
     };
 
-    const response = await fetch(`${baseUrl}/acquire/payment`, {
+    console.log('Testing URL:', url);
+
+    const response = await fetch(url, {
       method: 'PUT',
       headers: {
         'Accept': 'application/json',
@@ -44,7 +50,8 @@ export async function GET() {
       status: 'test',
       config: {
         merchantId: merchantId,
-        baseUrl: baseUrl,
+        baseUrl: cleanBaseUrl,
+        fullUrl: url,
         appUrl: appUrl,
         apiKeyPreview: apiKey.substring(0, 10) + '...' + apiKey.substring(apiKey.length - 5)
       },
