@@ -1,13 +1,23 @@
 import { NextResponse } from 'next/server';
 import { initiatePayment } from '../../lib/contipay';
 
-export async function POST(request) {
+export async function PUT(request) {
   try {
     const body = await request.json();
-    console.log('Received payment request:', body);
+    console.log('Payment request received:', body);
 
-    // Validate required fields
-    const { amount, customerEmail, customerFirstName, customerLastName, planType, planName, planDuration, userId } = body;
+    const { 
+      amount, 
+      customerEmail, 
+      customerFirstName, 
+      customerLastName,
+      customerPhone,
+      nationalId,
+      planType, 
+      planName, 
+      planDuration, 
+      userId 
+    } = body;
 
     if (!amount) {
       return NextResponse.json(
@@ -23,65 +33,57 @@ export async function POST(request) {
       );
     }
 
-    // Ensure amount is a valid number
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       return NextResponse.json(
-        { error: 'Invalid amount. Must be a positive number.' },
+        { error: 'Invalid amount' },
         { status: 400 }
       );
     }
 
-    // Prepare payment data with all required fields
     const paymentData = {
       amount: parsedAmount,
       currency: body.currency || 'USD',
       customerEmail: customerEmail,
       customerFirstName: customerFirstName || 'Customer',
       customerLastName: customerLastName || 'User',
-      customerPhone: body.customerPhone || '',
+      customerPhone: customerPhone || '+2637000000000',
+      nationalId: nationalId || '00 1234567 A 00',
       planType: planType || 'hardware',
       planName: planName || 'Hardware Store',
       planDuration: planDuration || 'monthly',
       userId: userId || 'guest-user'
     };
 
-    console.log('Initiating payment with data:', paymentData);
-
-    // Call ContiPay initiation
     const result = await initiatePayment(paymentData);
     
-    console.log('Payment initiated successfully:', result);
-
     return NextResponse.json({
       success: true,
-      paymentUrl: result.paymentUrl,
-      redirect_url: result.paymentUrl,
+      redirectUrl: result.redirectUrl,
       transactionId: result.transactionId,
-      status: result.status
+      reference: result.reference,
+      status: result.status,
+      message: result.message
     });
 
   } catch (error) {
-    console.error('Payment initiation error:', error);
+    console.error('Payment error:', error);
     
-    // Return a more detailed error message
     return NextResponse.json(
       { 
-        error: error.message || 'Failed to initiate payment',
-        details: error.details || 'Please try again or contact support'
+        error: error.message || 'Failed to initiate payment'
       },
       { status: 500 }
     );
   }
 }
 
-// Handle OPTIONS requests for CORS
 export async function OPTIONS() {
   return NextResponse.json({}, {
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+      'Access-Control-Allow-Methods': 'PUT, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept'
     }
   });
-         }
+  }
