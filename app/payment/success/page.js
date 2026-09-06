@@ -1,33 +1,31 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 export default function PaymentSuccessPage() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [paymentStatus, setPaymentStatus] = useState(null);
+  const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
 
-  const transactionId = searchParams.get('transaction_id');
-  const status = searchParams.get('status');
+  const reference = searchParams.get('reference');
 
   useEffect(() => {
     const verifyPayment = async () => {
-      if (!transactionId) {
-        setError('No transaction ID provided');
+      if (!reference) {
+        setError('No transaction reference provided');
         setLoading(false);
         return;
       }
 
       try {
-        const response = await fetch(`/api/contipay/verify?transaction_id=${transactionId}`);
+        const response = await fetch(`/api/contipay/verify?reference=${reference}`);
         const data = await response.json();
 
         if (response.ok) {
-          setPaymentStatus(data);
+          setStatus(data);
         } else {
           setError(data.error || 'Payment verification failed');
         }
@@ -40,13 +38,13 @@ export default function PaymentSuccessPage() {
     };
 
     verifyPayment();
-  }, [transactionId]);
+  }, [reference]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" style={{ borderColor: '#E65A00' }}></div>
           <p className="mt-4 text-gray-600">Verifying your payment...</p>
         </div>
       </div>
@@ -58,15 +56,14 @@ export default function PaymentSuccessPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-6 text-center">
           <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-            <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
+            <span className="text-red-600 text-xl">✕</span>
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">Payment Verification Failed</h3>
           <p className="text-sm text-gray-600 mb-4">{error}</p>
           <Link
             href="/dashboard"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white"
+            style={{ backgroundColor: '#E65A00' }}
           >
             Return to Dashboard
           </Link>
@@ -79,10 +76,8 @@ export default function PaymentSuccessPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-6">
         <div className="text-center">
-          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-            <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-            </svg>
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4" style={{ backgroundColor: '#E65A00' }}>
+            <span className="text-white text-xl">✓</span>
           </div>
           
           <h3 className="text-lg font-medium text-gray-900 mb-2">Payment Successful!</h3>
@@ -90,24 +85,19 @@ export default function PaymentSuccessPage() {
 
           <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
             <div className="flex justify-between mb-2">
-              <span className="text-sm text-gray-600">Transaction ID</span>
-              <span className="text-sm font-medium text-gray-900">{transactionId}</span>
+              <span className="text-sm text-gray-600">Reference</span>
+              <span className="text-sm font-medium text-gray-900">{reference}</span>
             </div>
-            <div className="flex justify-between mb-2">
+            <div className="flex justify-between">
               <span className="text-sm text-gray-600">Status</span>
-              <span className="text-sm font-medium text-green-600 capitalize">{status || 'completed'}</span>
+              <span className="text-sm font-medium" style={{ color: '#E65A00' }}>Completed</span>
             </div>
-            {paymentStatus?.amount && (
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Amount</span>
-                <span className="text-sm font-medium text-gray-900">${paymentStatus.amount} USD</span>
-              </div>
-            )}
           </div>
 
           <Link
             href="/dashboard"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 w-full justify-center"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white w-full justify-center"
+            style={{ backgroundColor: '#E65A00' }}
           >
             Go to Dashboard
           </Link>
@@ -115,4 +105,4 @@ export default function PaymentSuccessPage() {
       </div>
     </div>
   );
-        }
+            }
