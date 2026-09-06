@@ -18,6 +18,10 @@ export async function initiatePayment(paymentData) {
 
     const reference = generateReference();
 
+    // Build the URL correctly - WITHOUT trailing slash
+    const baseUrl = CONTIPAY_CONFIG.baseUrl.replace(/\/$/, '');
+    const url = `${baseUrl}/acquire/payment`;
+
     const payload = {
       webhookUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/contipay/webhook`,
       description: `VeriBuild - ${paymentData.planName} Subscription - #${reference}`,
@@ -38,9 +42,10 @@ export async function initiatePayment(paymentData) {
       }
     };
 
+    console.log('ContiPay URL:', url);
     console.log('ContiPay Request:', JSON.stringify(payload, null, 2));
 
-    const response = await fetch(`${CONTIPAY_CONFIG.baseUrl}/acquire/payment`, {
+    const response = await fetch(url, {
       method: 'PUT',
       headers: {
         'Accept': 'application/json',
