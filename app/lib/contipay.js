@@ -16,6 +16,14 @@ export async function initiatePayment(paymentData) {
       throw new Error('Amount and customer email are required');
     }
 
+    if (!paymentData.paymentMethod) {
+      throw new Error('Payment method is required');
+    }
+
+    if (!paymentData.customerPhone) {
+      throw new Error('Phone number is required');
+    }
+
     const reference = generateReference();
 
     // Build the URL correctly - WITHOUT trailing slash
@@ -31,13 +39,14 @@ export async function initiatePayment(paymentData) {
       currencyCode: paymentData.currency || 'USD',
       successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success?reference=${reference}`,
       cancelUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/cancel?reference=${reference}`,
+      paymentMethod: paymentData.paymentMethod, // Include the selected payment method
       customers: {
         nationalId: paymentData.nationalId || '00 1234567 A 00',
         surname: paymentData.customerLastName || 'User',
         firstName: paymentData.customerFirstName || 'Customer',
         middleName: paymentData.customerMiddleName || '',
         email: paymentData.customerEmail,
-        cell: paymentData.customerPhone || '+2637000000000',
+        cell: paymentData.customerPhone, // Phone number from user input
         countryCode: 'ZH'
       }
     };
@@ -71,6 +80,8 @@ export async function initiatePayment(paymentData) {
       planName: paymentData.planName,
       userId: paymentData.userId,
       customerEmail: paymentData.customerEmail,
+      customerPhone: paymentData.customerPhone,
+      paymentMethod: paymentData.paymentMethod,
       status: 'pending'
     });
 
@@ -117,6 +128,8 @@ async function storePaymentRecord(paymentData) {
           plan_type: paymentData.planType,
           plan_name: paymentData.planName,
           customer_email: paymentData.customerEmail,
+          customer_phone: paymentData.customerPhone,
+          payment_method: paymentData.paymentMethod,
           status: paymentData.status || 'pending',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
