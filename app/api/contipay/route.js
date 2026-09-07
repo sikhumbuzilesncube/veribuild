@@ -16,9 +16,11 @@ export async function PUT(request) {
       planType, 
       planName, 
       planDuration, 
-      userId 
+      userId,
+      paymentMethod // New field
     } = body;
 
+    // Validate required fields
     if (!amount) {
       return NextResponse.json(
         { error: 'Amount is required' },
@@ -29,6 +31,20 @@ export async function PUT(request) {
     if (!customerEmail) {
       return NextResponse.json(
         { error: 'Customer email is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!customerPhone) {
+      return NextResponse.json(
+        { error: 'Phone number is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!paymentMethod) {
+      return NextResponse.json(
+        { error: 'Payment method is required' },
         { status: 400 }
       );
     }
@@ -47,12 +63,13 @@ export async function PUT(request) {
       customerEmail: customerEmail,
       customerFirstName: customerFirstName || 'Customer',
       customerLastName: customerLastName || 'User',
-      customerPhone: customerPhone || '+2637000000000',
+      customerPhone: customerPhone,
       nationalId: nationalId || '00 1234567 A 00',
       planType: planType || 'hardware',
       planName: planName || 'Hardware Store',
       planDuration: planDuration || 'monthly',
-      userId: userId || 'guest-user'
+      userId: userId || 'guest-user',
+      paymentMethod: paymentMethod // Pass through to ContiPay
     };
 
     const result = await initiatePayment(paymentData);
@@ -86,4 +103,4 @@ export async function OPTIONS() {
       'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept'
     }
   });
-      }
+         }
