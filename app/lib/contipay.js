@@ -1,7 +1,6 @@
 /**
  * ContiPay Payment Integration
  * For VeriBuild - A Product of GateKeeperAI
- * Using correct Basic Authentication format: Basic base64(authKey:authSecret)
  */
 
 const CONTIPAY_CONFIG = {
@@ -11,36 +10,30 @@ const CONTIPAY_CONFIG = {
   authSecret: process.env.CONTIPAY_SECRET_KEY || '764cc5e8-3d34-45ea-b9f0-66df7fff19fe',
 };
 
-// Build the authorization header correctly
 function getAuthHeader() {
-  // Combine authKey and authSecret with colon
   const credentials = `${CONTIPAY_CONFIG.authKey}:${CONTIPAY_CONFIG.authSecret}`;
-  // Encode in Base64
   const encodedCredentials = Buffer.from(credentials).toString('base64');
-  // Return the full Authorization header
   return `Basic ${encodedCredentials}`;
 }
 
 export async function initiatePayment(paymentData) {
   try {
+    // Validation checks
     if (!paymentData.amount || !paymentData.customerEmail) {
       throw new Error('Amount and customer email are required');
     }
-
     if (!paymentData.paymentMethod) {
       throw new Error('Payment method is required');
     }
-
     if (!paymentData.customerPhone) {
       throw new Error('Phone number is required');
     }
 
     const reference = generateReference();
-
-    // Build the URL correctly - WITHOUT trailing slash
     const cleanBaseUrl = CONTIPAY_CONFIG.baseUrl.replace(/\/$/, '');
     const url = `${cleanBaseUrl}/acquire/payment`;
 
+    // IMPORTANT: Use 'customer' (singular) and include all required fields
     const payload = {
       webhookUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/contipay/webhook`,
       description: `VeriBuild - ${paymentData.planName} Subscription - #${reference}`,
@@ -50,23 +43,19 @@ export async function initiatePayment(paymentData) {
       currencyCode: paymentData.currency || 'USD',
       successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success?reference=${reference}`,
       cancelUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/cancel?reference=${reference}`,
-      paymentMethod: paymentData.paymentMethod,
-      customers: {
+      customer: {  // Changed from 'customers' to 'customer' (singular)
         nationalId: paymentData.nationalId || '00 1234567 A 00',
+        username: paymentData.customerLastName || 'User',  // Added username
         surname: paymentData.customerLastName || 'User',
         firstName: paymentData.customerFirstName || 'Customer',
         middleName: paymentData.customerMiddleName || '',
         email: paymentData.customerEmail,
         cell: paymentData.customerPhone,
-        countryCode: 'ZH'
+        countryCode: 'ZW'  // Changed from 'ZH' to 'ZW' (Zimbabwe)
       }
     };
 
-    // Get the correct authorization header
-    const authHeader = getAuthHeader();
-    
-    console.log('ContiPay URL:', url);
-    console.log('Authorization Header (first 30 chars):', authHeader.substring(0, 30) + '...');
+    console.log('ContiPay Request URL:', url);
     console.log('ContiPay Request Payload:', JSON.stringify(payload, null, 2));
 
     const response = await fetch(url, {
@@ -74,7 +63,7 @@ export async function initiatePayment(paymentData) {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': authHeader
+        'Authorization': getAuthHeader()
       },
       body: JSON.stringify(payload)
     });
@@ -87,6 +76,7 @@ export async function initiatePayment(paymentData) {
       throw new Error(data.message || data.error || `Payment initiation failed (${response.status})`);
     }
 
+    // Store payment record
     await storePaymentRecord({
       transactionId: data.contiPayRef || reference,
       reference: reference,
