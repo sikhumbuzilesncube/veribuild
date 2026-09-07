@@ -1,14 +1,25 @@
 /**
  * ContiPay Payment Integration
  * For VeriBuild - A Product of GateKeeperAI
+ * Using correct Basic Authentication format: Basic base64(authKey:authSecret)
  */
 
 const CONTIPAY_CONFIG = {
   baseUrl: process.env.CONTIPAY_BASE_URL || 'https://api-uat.contipay.net',
   merchantId: process.env.CONTIPAY_MERCHANT_ID || '952',
-  apiKey: process.env.CONTIPAY_API_KEY || 'VjIzb2lIK1o0VjZyRXdPUXZHNHoyZz09',
-  secretKey: process.env.CONTIPAY_SECRET_KEY || '764cc5e8-3d34-45ea-b9f0-66df7fff19fe',
+  authKey: process.env.CONTIPAY_API_KEY || 'VjIzb2lIK1o0VjZyRXdPUXZHNHoyZz09',
+  authSecret: process.env.CONTIPAY_SECRET_KEY || '764cc5e8-3d34-45ea-b9f0-66df7fff19fe',
 };
+
+// Build the authorization header correctly
+function getAuthHeader() {
+  // Combine authKey and authSecret with colon
+  const credentials = `${CONTIPAY_CONFIG.authKey}:${CONTIPAY_CONFIG.authSecret}`;
+  // Encode in Base64
+  const encodedCredentials = Buffer.from(credentials).toString('base64');
+  // Return the full Authorization header
+  return `Basic ${encodedCredentials}`;
+}
 
 export async function initiatePayment(paymentData) {
   try {
@@ -26,14 +37,9 @@ export async function initiatePayment(paymentData) {
 
     const reference = generateReference();
 
-    // FIX: Build the URL correctly - ensure no double slashes
-    // Remove trailing slash from baseUrl if present
+    // Build the URL correctly - WITHOUT trailing slash
     const cleanBaseUrl = CONTIPAY_CONFIG.baseUrl.replace(/\/$/, '');
-    // The endpoint is /acquire/payment
     const url = `${cleanBaseUrl}/acquire/payment`;
-
-    console.log('Clean Base URL:', cleanBaseUrl);
-    console.log('Full URL:', url);
 
     const payload = {
       webhookUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/contipay/webhook`,
@@ -56,6 +62,11 @@ export async function initiatePayment(paymentData) {
       }
     };
 
+    // Get the correct authorization header
+    const authHeader = getAuthHeader();
+    
+    console.log('ContiPay URL:', url);
+    console.log('Authorization Header (first 30 chars):', authHeader.substring(0, 30) + '...');
     console.log('ContiPay Request Payload:', JSON.stringify(payload, null, 2));
 
     const response = await fetch(url, {
@@ -63,16 +74,17 @@ export async function initiatePayment(paymentData) {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${CONTIPAY_CONFIG.apiKey}`
+        'Authorization': authHeader
       },
       body: JSON.stringify(payload)
     });
 
     const data = await response.json();
-    console.log('ContiPay Response:', data);
+    console.log('ContiPay Response Status:', response.status);
+    console.log('ContiPay Response Data:', data);
 
     if (!response.ok) {
-      throw new Error(data.message || data.error || 'Payment initiation failed');
+      throw new Error(data.message || data.error || `Payment initiation failed (${response.status})`);
     }
 
     await storePaymentRecord({
