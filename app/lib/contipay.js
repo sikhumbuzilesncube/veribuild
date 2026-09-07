@@ -26,9 +26,14 @@ export async function initiatePayment(paymentData) {
 
     const reference = generateReference();
 
-    // Build the URL correctly - WITHOUT trailing slash
-    const baseUrl = CONTIPAY_CONFIG.baseUrl.replace(/\/$/, '');
-    const url = `${baseUrl}/acquire/payment`;
+    // FIX: Build the URL correctly - ensure no double slashes
+    // Remove trailing slash from baseUrl if present
+    const cleanBaseUrl = CONTIPAY_CONFIG.baseUrl.replace(/\/$/, '');
+    // The endpoint is /acquire/payment
+    const url = `${cleanBaseUrl}/acquire/payment`;
+
+    console.log('Clean Base URL:', cleanBaseUrl);
+    console.log('Full URL:', url);
 
     const payload = {
       webhookUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/contipay/webhook`,
@@ -39,20 +44,19 @@ export async function initiatePayment(paymentData) {
       currencyCode: paymentData.currency || 'USD',
       successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success?reference=${reference}`,
       cancelUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/cancel?reference=${reference}`,
-      paymentMethod: paymentData.paymentMethod, // Include the selected payment method
+      paymentMethod: paymentData.paymentMethod,
       customers: {
         nationalId: paymentData.nationalId || '00 1234567 A 00',
         surname: paymentData.customerLastName || 'User',
         firstName: paymentData.customerFirstName || 'Customer',
         middleName: paymentData.customerMiddleName || '',
         email: paymentData.customerEmail,
-        cell: paymentData.customerPhone, // Phone number from user input
+        cell: paymentData.customerPhone,
         countryCode: 'ZH'
       }
     };
 
-    console.log('ContiPay URL:', url);
-    console.log('ContiPay Request:', JSON.stringify(payload, null, 2));
+    console.log('ContiPay Request Payload:', JSON.stringify(payload, null, 2));
 
     const response = await fetch(url, {
       method: 'PUT',
