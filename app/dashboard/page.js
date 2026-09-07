@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import InstallBanner from '@/components/InstallBanner';
+
 
 export default function Dashboard() {
   const router = useRouter();
@@ -107,7 +107,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ===== INSTALL BANNER ===== */}
-      <InstallBanner />
+      
 
       {/* ===== MOBILE HEADER ===== */}
       <div className="md:hidden bg-[#2C3E50] text-white p-4 flex justify-between items-center sticky top-0 z-50">
