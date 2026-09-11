@@ -7,31 +7,51 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Plausible ranges for residential / small commercial projects in Zimbabwe
 const LIMITS = {
-  floorArea: { min: 20, max: 500 },   // m2
-  wallLength: { min: 15, max: 400 },  // m
+  floorArea: { min: 20, max: 500 },
+  wallLength: { min: 15, max: 400 },
   rooms: { min: 1, max: 40 },
   doors: { min: 1, max: 80 },
   windows: { min: 1, max: 80 },
 };
 
 export async function readPlan(projectId, fileUrl) {
+  const result = {
+    success: false,
+    readMethod: 'none',
+    error: null,
+    data: null,
+    notes: '',
+  };
+
   try {
     if (!projectId || !fileUrl) {
-      return { success: false, error: 'Missing projectId or fileUrl' };
+      result.error = 'Missing projectId or fileUrl';
+      result.notes = 'Missing required parameters';
+      await writeStatus(projectId, result);
+      return result;
     }
 
     const lowerUrl = String(fileUrl).toLowerCase();
+
+    // Only attempt PDF text extraction. Images are not supported yet.
     if (!lowerUrl.endsWith('.pdf')) {
-      return {
-        success: false,
-        error: 'Non-PDF plan uploaded. Manual entry required.',
-        data: null,
-      };
+      result.error = 'Non-PDF plan uploaded. Manual entry required.';
+      result.notes = 'Automatic reading is only available for PDF plans at this time.';
+      result.readMethod = 'unsupported-file-type';
+      await writeStatus(projectId, result);
+      return result;
     }
 
     const response = await fetch(fileUrl);
+    if (!response.ok) {
+      result.error = 'Failed to fetch the uploaded file';
+      result.notes = `File fetch returned status ${response.status}`;
+      result.readMethod = 'fetch-failed';
+      await writeStatus(projectId, result);
+      return result;
+    }
+
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
@@ -39,44 +59,53 @@ export async function readPlan(projectId, fileUrl) {
     try {
       pdfData = await pdf(buffer);
     } catch (pdfErr) {
-      console.error('PDF parse error:', pdfErr);
-      return {
-        success: false,
-        error: 'Unable to extract text from PDF. Plan may be scanned or image-based.',
-        data: null,
-      };
+      console.error('pdf-parse error:', pdfErr);
+      result.error = 'Unable to extract text from PDF. Plan may be scanned or image-based.';
+      result.notes = 'The PDF does not contain extractable text. Manual entry required.';
+      result.readMethod = 'raster-pdf';
+      await writeStatus(projectId, result);
+      return result;
     }
 
     const text = pdfData.text || '';
-    const cleanedUpdate = {};
+    const meaningfulText = text.replace(/[\s\d\W]/g, '').length;
+
+    // If the extracted text is essentially empty, the PDF is a raster image
+    // (scanned, or exported from CAD without a text layer).
+    if (meaningfulText < 50) {
+      result.error = 'PDF contains no readable text. Plan may be scanned or image-based.';
+      result.notes = 'This type of plan requires manual entry. Automatic reading of scanned plans is planned for a future update.';
+      result.readMethod = 'raster-pdf';
+      await writeStatus(projectId, result);
+      return result;
+    }
 
     // ----------------------------------------------------------
-    // Window code extraction
+    // Real text was extracted. Attempt measurement parsing.
     // ----------------------------------------------------------
+    const cleaned = {};
+
+    // Window codes
     const windowPattern = /\b(PTT?\d{2,4}|PSS?\d{2,4}|HS\d{2,4}|NCT[0-9xS]+|TD\d+[0-9S]*|SL\d+[0-9S]*|NE[1x7]*\d*|NS\d{1,3}[A-Z]?|N\d{1,3})\b/gi;
     const windowMatches = text.match(windowPattern) || [];
     const windowCodes = [...new Set(windowMatches.map((w) => w.toUpperCase()))];
 
     if (windowCodes.length >= LIMITS.windows.min && windowCodes.length <= LIMITS.windows.max) {
-      cleanedUpdate.windows = windowCodes.length;
-      cleanedUpdate.window_details = windowCodes.join(', ');
+      cleaned.windows = windowCodes.length;
+      cleaned.window_details = windowCodes.join(', ');
     }
 
-    // ----------------------------------------------------------
-    // Door code extraction
-    // ----------------------------------------------------------
+    // Door codes
     const doorPattern = /\b(D[1-9]|DD|FD\d|PD\d|SD\d{4})\b/gi;
     const doorMatches = text.match(doorPattern) || [];
     const doorCodes = [...new Set(doorMatches.map((d) => d.toUpperCase()))];
 
     if (doorCodes.length >= LIMITS.doors.min && doorCodes.length <= LIMITS.doors.max) {
-      cleanedUpdate.doors = doorCodes.length;
-      cleanedUpdate.door_details = doorCodes.join(', ');
+      cleaned.doors = doorCodes.length;
+      cleaned.door_details = doorCodes.join(', ');
     }
 
-    // ----------------------------------------------------------
-    // Room label extraction
-    // ----------------------------------------------------------
+    // Room labels
     const roomKeywords = [
       'lounge', 'kitchen', 'garage', 'bedroom', 'bathroom',
       'toilet', 'dining', 'study', 'office', 'store', 'passage',
@@ -90,13 +119,11 @@ export async function readPlan(projectId, fileUrl) {
     }
 
     if (foundRooms.length >= LIMITS.rooms.min && foundRooms.length <= LIMITS.rooms.max) {
-      cleanedUpdate.rooms = foundRooms.length;
-      cleanedUpdate.room_labels = foundRooms.join(', ');
+      cleaned.rooms = foundRooms.length;
+      cleaned.room_labels = foundRooms.join(', ');
     }
 
-    // ----------------------------------------------------------
-    // Dimension extraction (reject implausible values)
-    // ----------------------------------------------------------
+    // Dimensions
     const dimPattern = /(\d+\.?\d*)\s*[xX\u00d7]\s*(\d+\.?\d*)/g;
     const dims = [];
     let m;
@@ -114,51 +141,79 @@ export async function readPlan(projectId, fileUrl) {
       area = Math.round(area * 10) / 10;
     }
 
-    // Reject implausible floor areas
     if (area >= LIMITS.floorArea.min && area <= LIMITS.floorArea.max) {
-      cleanedUpdate.floor_area = area;
-
-      // Estimate wall length from area
+      cleaned.floor_area = area;
       const wallLength = Math.round(4 * Math.sqrt(area) * 1.2 * 10) / 10;
       if (wallLength >= LIMITS.wallLength.min && wallLength <= LIMITS.wallLength.max) {
-        cleanedUpdate.wall_length = wallLength;
+        cleaned.wall_length = wallLength;
       }
     }
 
-    // Always update notes and status
-    cleanedUpdate.notes = `Extracted from PDF: ${windowCodes.length} window codes, ${doorCodes.length} door codes, ${foundRooms.length} room labels, ${dims.length} dimensions, area ${area || 'rejected'} m2`;
-    cleanedUpdate.status = 'processing';
+    // ----------------------------------------------------------
+    // Determine outcome
+    // ----------------------------------------------------------
+    const fieldsExtracted = Object.keys(cleaned).length;
 
-    if (Object.keys(cleanedUpdate).length <= 2) {
-      // Only notes and status, no real extraction
-      return {
-        success: false,
-        error: 'No reliable measurements extracted. Manual entry required.',
-        data: null,
-      };
+    if (fieldsExtracted === 0) {
+      result.error = 'Text was found in the PDF but no measurements could be identified.';
+      result.notes = 'The plan may use non-standard notation. Manual entry required.';
+      result.readMethod = 'text-without-measurements';
+      await writeStatus(projectId, result);
+      return result;
     }
+
+    // At least some fields were extracted. Write them.
+    cleaned.notes = `Extracted from PDF: ${windowCodes.length} window codes, ${doorCodes.length} door codes, ${foundRooms.length} room labels, ${dims.length} dimensions, area ${area || 'not computed'} m2`;
+    cleaned.status = 'processing';
 
     const { error: updateError } = await supabase
       .from('projects')
-      .update(cleanedUpdate)
+      .update(cleaned)
       .eq('id', projectId);
 
     if (updateError) {
-      console.error('Update error:', updateError);
-      return { success: false, error: updateError.message };
+      result.error = 'Failed to save extracted measurements';
+      result.notes = updateError.message;
+      result.readMethod = 'save-failed';
+      return result;
     }
 
-    return {
-      success: true,
-      data: cleanedUpdate,
-      windowsFound: windowCodes.length,
-      doorsFound: doorCodes.length,
-      roomsFound: foundRooms,
-      dimensionsFound: dims.length,
-      areaExtracted: area || 0,
-    };
+    result.success = true;
+    result.readMethod = 'text-extraction';
+    result.data = cleaned;
+    result.notes = cleaned.notes;
+    result.windowsFound = windowCodes.length;
+    result.doorsFound = doorCodes.length;
+    result.roomsFound = foundRooms;
+    result.dimensionsFound = dims.length;
+    result.areaExtracted = area || 0;
+    return result;
   } catch (error) {
     console.error('readPlan error:', error);
-    return { success: false, error: error.message };
+    result.error = error.message || 'Unknown error';
+    result.notes = 'Unexpected error during plan reading.';
+    result.readMethod = 'error';
+    await writeStatus(projectId, result);
+    return result;
   }
-              }
+}
+
+// Writes a status note to the project row so the verify page can detect
+// that no automatic reading happened and prompt for manual entry.
+async function writeStatus(projectId, result) {
+  if (!projectId) return;
+
+  const note = result.notes || result.error || 'Plan reading did not produce measurements.';
+
+  try {
+    await supabase
+      .from('projects')
+      .update({
+        notes: note,
+        status: 'processing',
+      })
+      .eq('id', projectId);
+  } catch (err) {
+    console.error('Failed to write read status:', err);
+  }
+}
