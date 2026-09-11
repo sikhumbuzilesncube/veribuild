@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { generateFullBOQ } from '@/lib/boq/engine';
+import { round2 } from '@/lib/boq/utils';
 
 export default function BOQPage() {
   const router = useRouter();
@@ -115,13 +116,14 @@ export default function BOQPage() {
 
         for (const item of boqItems) {
           if (item.section === 'F') continue;
+          if (item.isHeader) continue;
 
           const material = storeMaterials.find(
             (m) => m.name.toLowerCase() === item.name.toLowerCase()
           );
           if (!material) continue;
 
-          const total = Math.round(item.qty * material.price_usd * 100) / 100;
+          const total = round2(item.qty * material.price_usd);
           storeTotal += total;
           matched.push({
             code: item.code,
@@ -133,7 +135,7 @@ export default function BOQPage() {
           });
         }
 
-        return { ...store, materials: matched, total: storeTotal };
+        return { ...store, materials: matched, total: round2(storeTotal) };
       });
 
       storesWithPrices.sort((a, b) => a.total - b.total);
@@ -175,6 +177,29 @@ export default function BOQPage() {
   }
 
   // --------------------------------------------------------
+  // Roll up sub-line amounts into their parent header
+  // --------------------------------------------------------
+  function rollUpHeaderAmounts(sectionItems) {
+    const itemMap = new Map(sectionItems.map((it) => [it.code, { ...it }]));
+
+    // For each header, sum amounts of children (codes starting with header code + ".")
+    for (const [code, item] of itemMap) {
+      if (!item.isHeader) continue;
+
+      let rollup = 0;
+      for (const [childCode, child] of itemMap) {
+        if (childCode === code) continue;
+        if (childCode.startsWith(code + '.')) {
+          rollup += child.amount || 0;
+        }
+      }
+      item.rolledUpAmount = round2(rollup);
+    }
+
+    return Array.from(itemMap.values());
+  }
+
+  // --------------------------------------------------------
   // CSV export
   // --------------------------------------------------------
   function downloadCSV() {
@@ -202,16 +227,28 @@ export default function BOQPage() {
         '',
         '',
       ]);
-      for (const item of section.items) {
+
+      const rolled = rollUpHeaderAmounts(section.items);
+      for (const item of rolled) {
+        const isHeader = item.isHeader;
+        const rateCell = isHeader ? '' : item.rate != null ? item.rate.toFixed(2) : '';
+        const amountCell =
+          item.amount != null
+            ? item.amount.toFixed(2)
+            : item.rolledUpAmount != null
+            ? item.rolledUpAmount.toFixed(2)
+            : '';
+
         rows.push([
           item.code,
           item.description,
           item.unit,
           item.qty,
-          item.rate != null ? item.rate.toFixed(2) : '',
-          item.amount != null ? item.amount.toFixed(2) : '',
+          rateCell,
+          amountCell,
         ]);
       }
+
       rows.push([
         '',
         `Subtotal ${section.letter}`,
@@ -223,7 +260,14 @@ export default function BOQPage() {
       rows.push([]);
     }
 
-    rows.push(['', 'Subtotal all sections', '', '', '', boq.summary.subtotal.toFixed(2)]);
+    rows.push([
+      '',
+      'Subtotal all sections',
+      '',
+      '',
+      '',
+      boq.summary.subtotal.toFixed(2),
+    ]);
     rows.push([
       '',
       `Contingency (${(boq.summary.contingencyRate * 100).toFixed(0)}%)`,
@@ -276,7 +320,7 @@ export default function BOQPage() {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
         <div className="text-center max-w-md">
-          <div className="text-6xl mb-4 text-gray-400">BOQ</div>
+          <div className="text-6xl mb-4 text-gray-300 font-bold">BOQ</div>
           <h2 className="text-2xl font-bold text-[#2C3E50] mb-2">
             {error || 'Unable to load project'}
           </h2>
@@ -362,67 +406,120 @@ export default function BOQPage() {
         </div>
 
         {/* BOQ sections */}
-        {boq.sections.map((section) => (
-          <div
-            key={section.letter}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 overflow-hidden"
-          >
-            <div className="bg-[#2C3E50] text-white px-4 sm:px-6 py-3">
-              <h2 className="text-base sm:text-lg font-bold uppercase tracking-wide">
-                Section {section.letter} — {section.title}
-              </h2>
-            </div>
+        {boq.sections.map((section) => {
+          const rolled = rollUpHeaderAmounts(section.items);
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-100 text-gray-600">
-                  <tr>
-                    <th className="text-left px-3 py-2 w-16 font-semibold">Item</th>
-                    <th className="text-left px-3 py-2 font-semibold">Description</th>
-                    <th className="text-left px-3 py-2 w-16 font-semibold">Unit</th>
-                    <th className="text-right px-3 py-2 w-20 font-semibold">Qty</th>
-                    <th className="text-right px-3 py-2 w-24 font-semibold">Rate</th>
-                    <th className="text-right px-3 py-2 w-28 font-semibold">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {section.items.map((item) => (
-                    <tr
-                      key={item.code}
-                      className="border-b border-gray-100 hover:bg-gray-50"
-                    >
-                      <td className="px-3 py-2 text-gray-500 font-mono text-xs">
-                        {item.code}
+          return (
+            <div
+              key={section.letter}
+              className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 overflow-hidden"
+            >
+              <div className="bg-[#2C3E50] text-white px-4 sm:px-6 py-3">
+                <h2 className="text-base sm:text-lg font-bold uppercase tracking-wide">
+                  Section {section.letter} — {section.title}
+                </h2>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-100 text-gray-600">
+                    <tr>
+                      <th className="text-left px-3 py-2 w-20 font-semibold">Item</th>
+                      <th className="text-left px-3 py-2 font-semibold">Description</th>
+                      <th className="text-left px-3 py-2 w-16 font-semibold">Unit</th>
+                      <th className="text-right px-3 py-2 w-20 font-semibold">Qty</th>
+                      <th className="text-right px-3 py-2 w-24 font-semibold">Rate</th>
+                      <th className="text-right px-3 py-2 w-28 font-semibold">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rolled.map((item) => {
+                      const isHeader = item.isHeader;
+                      const isSubLine = !!item.parentCode;
+                      const isLabour = !!item.labour;
+
+                      const displayAmount =
+                        item.amount != null
+                          ? item.amount
+                          : item.rolledUpAmount != null
+                          ? item.rolledUpAmount
+                          : null;
+
+                      return (
+                        <tr
+                          key={item.code}
+                          className={
+                            isHeader
+                              ? 'bg-gray-50 border-b border-gray-200'
+                              : 'border-b border-gray-100 hover:bg-gray-50'
+                          }
+                        >
+                          <td
+                            className={`px-3 py-2 font-mono text-xs ${
+                              isHeader ? 'font-semibold text-[#2C3E50]' : 'text-gray-500'
+                            }`}
+                          >
+                            {item.code}
+                          </td>
+                          <td
+                            className={`px-3 py-2 ${
+                              isHeader
+                                ? 'font-semibold text-[#2C3E50]'
+                                : isSubLine
+                                ? 'pl-8 text-gray-700'
+                                : 'text-gray-800'
+                            }`}
+                          >
+                            {item.description}
+                          </td>
+                          <td className="px-3 py-2 text-gray-600 text-xs">{item.unit}</td>
+                          <td className="px-3 py-2 text-right text-gray-800 text-xs">
+                            {item.qty}
+                          </td>
+                          <td className="px-3 py-2 text-right text-gray-600 text-xs">
+                            {isHeader
+                              ? ''
+                              : item.rate != null && item.rate > 0
+                              ? `$${item.rate.toFixed(2)}`
+                              : isLabour
+                              ? '—'
+                              : ''}
+                          </td>
+                          <td
+                            className={`px-3 py-2 text-right text-xs ${
+                              isHeader
+                                ? 'font-semibold text-[#2C3E50]'
+                                : 'font-medium text-[#2C3E50]'
+                            }`}
+                          >
+                            {displayAmount != null
+                              ? `$${displayAmount.toFixed(2)}`
+                              : isLabour
+                              ? 'see Section F'
+                              : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-gray-50">
+                      <td
+                        colSpan="5"
+                        className="px-3 py-3 text-right font-semibold text-gray-700"
+                      >
+                        Subtotal {section.letter}
                       </td>
-                      <td className="px-3 py-2 text-gray-800">{item.description}</td>
-                      <td className="px-3 py-2 text-gray-600">{item.unit}</td>
-                      <td className="px-3 py-2 text-right text-gray-800">{item.qty}</td>
-                      <td className="px-3 py-2 text-right text-gray-600">
-                        {item.rate != null ? `$${item.rate.toFixed(2)}` : '—'}
-                      </td>
-                      <td className="px-3 py-2 text-right font-medium text-[#2C3E50]">
-                        {item.amount != null ? `$${item.amount.toFixed(2)}` : '—'}
+                      <td className="px-3 py-3 text-right font-bold text-[#2C3E50]">
+                        ${section.subtotal.toFixed(2)}
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-gray-50">
-                    <td
-                      colSpan="5"
-                      className="px-3 py-3 text-right font-semibold text-gray-700"
-                    >
-                      Subtotal {section.letter}
-                    </td>
-                    <td className="px-3 py-3 text-right font-bold text-[#2C3E50]">
-                      ${section.subtotal.toFixed(2)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
+                  </tfoot>
+                </table>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* Summary */}
         <div className="bg-white rounded-lg shadow-sm border-2 border-[#2C3E50] mb-6 overflow-hidden">
@@ -461,7 +558,8 @@ export default function BOQPage() {
 
             {boq.summary.cityMultiplier !== 1.0 && (
               <p className="text-xs text-gray-500 mt-3">
-                Prices adjusted by regional factor {boq.summary.cityMultiplier.toFixed(2)}.
+                Prices adjusted by regional factor{' '}
+                {boq.summary.cityMultiplier.toFixed(2)}.
               </p>
             )}
           </div>
@@ -624,4 +722,4 @@ export default function BOQPage() {
       </div>
     </div>
   );
-                                         }
+}
