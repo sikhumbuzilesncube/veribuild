@@ -6,6 +6,18 @@ import { supabase } from '@/lib/supabase';
 
 const IMPORTANT_FIELDS = ['floor_area', 'rooms', 'wall_length', 'doors', 'windows'];
 
+// Soil types common in Zimbabwe with default foundation depths
+const SOIL_TYPES = [
+  { value: 'stable_red',   label: 'Stable red soil / sandy loam',        defaultDepth: 0.6 },
+  { value: 'black_cotton', label: 'Black cotton / expansive clay',       defaultDepth: 1.0 },
+  { value: 'sandy',        label: 'Sandy soil',                          defaultDepth: 0.8 },
+  { value: 'soft_clay',    label: 'Soft clay / waterlogged',             defaultDepth: 1.5 },
+  { value: 'rock',         label: 'Rock / very hard ground',             defaultDepth: 0.5 },
+  { value: 'sloping',      label: 'Sloping site (stepped foundation)',   defaultDepth: 1.2 },
+  { value: 'not_sure',     label: 'Not sure / standard assumption',      defaultDepth: 0.6 },
+  { value: 'other',        label: 'Other / custom',                      defaultDepth: null },
+];
+
 export default function VerifyPage() {
   const router = useRouter();
   const params = useParams();
@@ -25,6 +37,7 @@ export default function VerifyPage() {
     wall_height: '2.7',
     wall_thickness: '230',
     foundation_type: 'strip',
+    soil_type: 'not_sure',
     foundation_depth: '0.6',
     foundation_width: '0.4',
     slab_type: 'ground',
@@ -69,6 +82,9 @@ export default function VerifyPage() {
 
       setProject(data);
 
+      const soilType = data.soil_type || 'not_sure';
+      const soilDefault = SOIL_TYPES.find((s) => s.value === soilType)?.defaultDepth;
+
       const detected = {
         floor_area: data.floor_area || '85',
         rooms: data.rooms || '4',
@@ -77,7 +93,8 @@ export default function VerifyPage() {
         wall_height: data.wall_height || '2.7',
         wall_thickness: '230',
         foundation_type: data.foundation_type || 'strip',
-        foundation_depth: data.foundation_depth || '0.6',
+        soil_type: soilType,
+        foundation_depth: data.foundation_depth || (soilDefault ?? 0.6),
         foundation_width: data.foundation_width || '0.4',
         slab_type: data.slab_type || 'ground',
         slab_thickness: data.slab_thickness || '0.15',
@@ -111,11 +128,27 @@ export default function VerifyPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleSoilTypeChange = (e) => {
+    const soilType = e.target.value;
+    const soil = SOIL_TYPES.find((s) => s.value === soilType);
+
+    // Auto-fill depth only if a numeric default exists
+    if (soil && soil.defaultDepth !== null) {
+      setFormData({
+        ...formData,
+        soil_type: soilType,
+        foundation_depth: soil.defaultDepth.toFixed(1),
+      });
+    } else {
+      setFormData({ ...formData, soil_type: soilType });
+    }
+  };
+
   function trackCorrections(userData, aiData) {
     const corrections = [];
     const fieldsToTrack = [
       'windows', 'doors', 'floor_area', 'rooms', 'room_labels',
-      'wall_length', 'foundation_type', 'slab_type',
+      'wall_length', 'foundation_type', 'soil_type', 'slab_type',
       'red_wall_length', 'green_concrete_area', 'yellow_timber_length',
     ];
 
@@ -127,8 +160,6 @@ export default function VerifyPage() {
           field,
           ai_value: String(aiValue).trim(),
           user_value: String(userValue).trim(),
-          is_correction: aiValue !== '' && userValue !== '',
-          is_addition: aiValue === '' && userValue !== '',
         });
       }
     }
@@ -147,6 +178,13 @@ export default function VerifyPage() {
       return;
     }
 
+    // Special case: soil_type = 'other' requires a depth entered manually
+    if (formData.soil_type === 'other' && !formData.foundation_depth) {
+      setError('Foundation depth is required when soil type is set to "Other / custom"');
+      setSaving(false);
+      return;
+    }
+
     try {
       const updateData = {
         floor_area: parseFloat(formData.floor_area),
@@ -155,6 +193,7 @@ export default function VerifyPage() {
         wall_length: parseFloat(formData.wall_length),
         wall_height: parseFloat(formData.wall_height) || 2.7,
         foundation_type: formData.foundation_type || 'strip',
+        soil_type: formData.soil_type || 'not_sure',
         foundation_depth: parseFloat(formData.foundation_depth) || 0.6,
         foundation_width: parseFloat(formData.foundation_width) || 0.4,
         slab_type: formData.slab_type || 'ground',
@@ -228,7 +267,7 @@ export default function VerifyPage() {
           <div className="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-semibold mb-3">
             Analysis complete
           </div>
-          <div className="text-sm text-gray-500 mb-2">Step 2 of 3: Verify & correct</div>
+          <div className="text-sm text-gray-500 mb-2">Step 2 of 3: Verify &amp; correct</div>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] mb-2">
             Verify Project Data
           </h1>
@@ -240,7 +279,6 @@ export default function VerifyPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
 
-          {/* Building information */}
           <FieldGroup title="Building Information">
             <div className="grid md:grid-cols-2 gap-4">
               <Field
@@ -291,7 +329,6 @@ export default function VerifyPage() {
             </div>
           </FieldGroup>
 
-          {/* Walls */}
           <FieldGroup title="Walls">
             <div className="grid md:grid-cols-3 gap-4">
               <Field
@@ -326,7 +363,6 @@ export default function VerifyPage() {
             </div>
           </FieldGroup>
 
-          {/* Foundation and slab */}
           <FieldGroup title="Foundation & Slab">
             <div className="grid md:grid-cols-3 gap-4">
               <Field
@@ -343,12 +379,22 @@ export default function VerifyPage() {
                 original={originalData.foundation_type}
               />
               <Field
+                label="Soil Type"
+                name="soil_type"
+                value={formData.soil_type}
+                onChange={handleSoilTypeChange}
+                type="select"
+                options={SOIL_TYPES}
+                original={originalData.soil_type}
+              />
+              <Field
                 label="Foundation Depth (m)"
                 name="foundation_depth"
                 value={formData.foundation_depth}
                 onChange={handleChange}
                 type="number"
                 step="0.1"
+                placeholder={formData.soil_type === 'other' ? 'Required for custom' : ''}
               />
               <Field
                 label="Foundation Width (m)"
@@ -393,9 +439,12 @@ export default function VerifyPage() {
                 ]}
               />
             </div>
+            <p className="text-xs text-gray-500 mt-3">
+              Depth is auto-set from soil type. Adjust manually if you have a geotechnical report.
+              The default 0.6m is a standard assumption for stable ground in Zimbabwe.
+            </p>
           </FieldGroup>
 
-          {/* Roof */}
           <FieldGroup title="Roof">
             <div className="grid md:grid-cols-2 gap-4">
               <Field
@@ -430,8 +479,7 @@ export default function VerifyPage() {
             </div>
           </FieldGroup>
 
-          {/* Openings */}
-          <FieldGroup title="Doors & Windows">
+          <FieldGroup title="Doors &amp; Windows">
             <div className="grid md:grid-cols-2 gap-4">
               <Field
                 label="Number of Doors"
@@ -472,7 +520,6 @@ export default function VerifyPage() {
             </div>
           </FieldGroup>
 
-          {/* Services */}
           <FieldGroup title="Services">
             <div className="grid md:grid-cols-2 gap-4">
               <Field
@@ -492,7 +539,6 @@ export default function VerifyPage() {
             </div>
           </FieldGroup>
 
-          {/* Coloured plan elements */}
           <FieldGroup title="Measured Elements from Plan">
             <div className="grid md:grid-cols-3 gap-4">
               <Field
@@ -573,9 +619,6 @@ export default function VerifyPage() {
   );
 }
 
-// --------------------------------------------------------
-// Helper components
-// --------------------------------------------------------
 function FieldGroup({ title, children }) {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
@@ -650,4 +693,4 @@ function Field({
       )}
     </div>
   );
-}
+    }
