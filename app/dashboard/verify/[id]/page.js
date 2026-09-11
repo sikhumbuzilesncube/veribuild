@@ -6,16 +6,15 @@ import { supabase } from '@/lib/supabase';
 
 const IMPORTANT_FIELDS = ['floor_area', 'rooms', 'wall_length', 'doors', 'windows'];
 
-// Soil types common in Zimbabwe with default foundation depths
 const SOIL_TYPES = [
-  { value: 'stable_red',   label: 'Stable red soil / sandy loam',        defaultDepth: 0.6 },
-  { value: 'black_cotton', label: 'Black cotton / expansive clay',       defaultDepth: 1.0 },
-  { value: 'sandy',        label: 'Sandy soil',                          defaultDepth: 0.8 },
-  { value: 'soft_clay',    label: 'Soft clay / waterlogged',             defaultDepth: 1.5 },
-  { value: 'rock',         label: 'Rock / very hard ground',             defaultDepth: 0.5 },
-  { value: 'sloping',      label: 'Sloping site (stepped foundation)',   defaultDepth: 1.2 },
-  { value: 'not_sure',     label: 'Not sure / standard assumption',      defaultDepth: 0.6 },
-  { value: 'other',        label: 'Other / custom',                      defaultDepth: null },
+  { value: 'stable_red',   label: 'Stable red soil / sandy loam',      defaultDepth: 0.6 },
+  { value: 'black_cotton', label: 'Black cotton / expansive clay',     defaultDepth: 1.0 },
+  { value: 'sandy',        label: 'Sandy soil',                        defaultDepth: 0.8 },
+  { value: 'soft_clay',    label: 'Soft clay / waterlogged',           defaultDepth: 1.5 },
+  { value: 'rock',         label: 'Rock / very hard ground',           defaultDepth: 0.5 },
+  { value: 'sloping',      label: 'Sloping site (stepped foundation)', defaultDepth: 1.2 },
+  { value: 'not_sure',     label: 'Not sure / standard assumption',    defaultDepth: 0.6 },
+  { value: 'other',        label: 'Other / custom',                    defaultDepth: null },
 ];
 
 export default function VerifyPage() {
@@ -28,6 +27,8 @@ export default function VerifyPage() {
   const [error, setError] = useState('');
   const [project, setProject] = useState(null);
   const [originalData, setOriginalData] = useState({});
+  const [planWasRead, setPlanWasRead] = useState(false);
+  const [readNote, setReadNote] = useState('');
 
   const [formData, setFormData] = useState({
     floor_area: '',
@@ -82,14 +83,23 @@ export default function VerifyPage() {
 
       setProject(data);
 
+      // Determine if the plan was actually read by checking the notes field.
+      // readPlan writes 'Extracted from PDF: ...' when it succeeds.
+      const notes = data.notes || '';
+      const wasRead = notes.startsWith('Extracted from PDF:');
+      setPlanWasRead(wasRead);
+      setReadNote(notes);
+
       const soilType = data.soil_type || 'not_sure';
       const soilDefault = SOIL_TYPES.find((s) => s.value === soilType)?.defaultDepth;
 
+      // Only pre-fill numeric fields if the plan was actually read.
+      // Otherwise leave blank so the user knows to enter values.
       const detected = {
-        floor_area: data.floor_area || '85',
-        rooms: data.rooms || '4',
+        floor_area: data.floor_area || '',
+        rooms: data.rooms || '',
         room_labels: data.room_labels || '',
-        wall_length: data.wall_length || '63',
+        wall_length: data.wall_length || '',
         wall_height: data.wall_height || '2.7',
         wall_thickness: '230',
         foundation_type: data.foundation_type || 'strip',
@@ -102,9 +112,9 @@ export default function VerifyPage() {
         storeys: '1',
         roof_type: 'ibr',
         roof_pitch: '22.5',
-        doors: data.doors || '4',
+        doors: data.doors || '',
         door_details: data.door_details || '',
-        windows: data.windows || '2',
+        windows: data.windows || '',
         window_details: data.window_details || '',
         electrical_points: data.electrical_points || '8',
         plumbing_points: data.plumbing_points || '3',
@@ -132,7 +142,6 @@ export default function VerifyPage() {
     const soilType = e.target.value;
     const soil = SOIL_TYPES.find((s) => s.value === soilType);
 
-    // Auto-fill depth only if a numeric default exists
     if (soil && soil.defaultDepth !== null) {
       setFormData({
         ...formData,
@@ -178,7 +187,6 @@ export default function VerifyPage() {
       return;
     }
 
-    // Special case: soil_type = 'other' requires a depth entered manually
     if (formData.soil_type === 'other' && !formData.foundation_depth) {
       setError('Foundation depth is required when soil type is set to "Other / custom"');
       setSaving(false);
@@ -264,18 +272,47 @@ export default function VerifyPage() {
       <div className="max-w-4xl mx-auto">
 
         <div className="mb-6">
-          <div className="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-semibold mb-3">
-            Analysis complete
-          </div>
+          {planWasRead ? (
+            <div className="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-semibold mb-3">
+              Analysis complete
+            </div>
+          ) : (
+            <div className="inline-block bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-semibold mb-3">
+              Manual entry required
+            </div>
+          )}
           <div className="text-sm text-gray-500 mb-2">Step 2 of 3: Verify &amp; correct</div>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] mb-2">
             Verify Project Data
           </h1>
           <p className="text-gray-600 text-sm">
-            Review the detected information below. Fields marked with an asterisk are required.
+            Review the information below. Fields marked with an asterisk are required.
             Any changes you make will help improve future plan readings.
           </p>
         </div>
+
+        {!planWasRead && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+            <div className="font-semibold mb-1">Plan could not be read automatically</div>
+            <p>
+              The uploaded plan does not contain extractable text. This is common for
+              scanned or image-based PDFs. Please enter the measurements manually below.
+            </p>
+            {readNote && (
+              <p className="mt-2 text-xs text-yellow-700 italic">{readNote}</p>
+            )}
+            <p className="mt-2 text-xs">
+              Automatic reading of scanned plans is planned for a future update.
+            </p>
+          </div>
+        )}
+
+        {planWasRead && readNote && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
+            <div className="font-semibold mb-1">Extraction summary</div>
+            <p>{readNote}</p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
 
@@ -289,7 +326,6 @@ export default function VerifyPage() {
                 type="number"
                 step="0.1"
                 required
-                original={originalData.floor_area}
               />
               <Field
                 label="Number of Rooms"
@@ -298,7 +334,6 @@ export default function VerifyPage() {
                 onChange={handleChange}
                 type="number"
                 required
-                original={originalData.rooms}
               />
               <div className="md:col-span-2">
                 <Field
@@ -307,7 +342,6 @@ export default function VerifyPage() {
                   value={formData.room_labels}
                   onChange={handleChange}
                   placeholder="Lounge, Kitchen, Garage, Bedroom 1, Bedroom 2, Bathroom"
-                  original={originalData.room_labels}
                 />
               </div>
               <Field
@@ -339,7 +373,6 @@ export default function VerifyPage() {
                 type="number"
                 step="0.1"
                 required
-                original={originalData.wall_length}
               />
               <Field
                 label="Wall Height (m)"
@@ -376,7 +409,6 @@ export default function VerifyPage() {
                   { value: 'raft', label: 'Raft Foundation' },
                   { value: 'pad', label: 'Pad Foundation' },
                 ]}
-                original={originalData.foundation_type}
               />
               <Field
                 label="Soil Type"
@@ -385,7 +417,6 @@ export default function VerifyPage() {
                 onChange={handleSoilTypeChange}
                 type="select"
                 options={SOIL_TYPES}
-                original={originalData.soil_type}
               />
               <Field
                 label="Foundation Depth (m)"
@@ -415,7 +446,6 @@ export default function VerifyPage() {
                   { value: 'suspended', label: 'Suspended Slab' },
                   { value: 'raft', label: 'Raft Slab' },
                 ]}
-                original={originalData.slab_type}
               />
               <Field
                 label="Slab Thickness (m)"
@@ -488,7 +518,6 @@ export default function VerifyPage() {
                 onChange={handleChange}
                 type="number"
                 required
-                original={originalData.doors}
               />
               <Field
                 label="Number of Windows"
@@ -497,7 +526,6 @@ export default function VerifyPage() {
                 onChange={handleChange}
                 type="number"
                 required
-                original={originalData.windows}
               />
               <div className="md:col-span-2">
                 <Field
@@ -548,7 +576,6 @@ export default function VerifyPage() {
                 onChange={handleChange}
                 type="number"
                 step="0.1"
-                original={originalData.red_wall_length}
               />
               <Field
                 label="Concrete (green line) - m²"
@@ -557,7 +584,6 @@ export default function VerifyPage() {
                 onChange={handleChange}
                 type="number"
                 step="0.1"
-                original={originalData.green_concrete_area}
               />
               <Field
                 label="Timber (yellow line) - m"
@@ -566,7 +592,6 @@ export default function VerifyPage() {
                 onChange={handleChange}
                 type="number"
                 step="0.1"
-                original={originalData.yellow_timber_length}
               />
               <Field
                 label="Sewer (brown line) - m"
@@ -641,19 +666,9 @@ function Field({
   required,
   placeholder,
   options,
-  original,
 }) {
-  const isCorrected =
-    original !== undefined &&
-    String(value).trim() !== String(original).trim() &&
-    original !== '';
-
   const inputClass = `w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition text-sm ${
-    required && !value
-      ? 'border-red-400 bg-red-50'
-      : isCorrected
-      ? 'border-yellow-400 bg-yellow-50'
-      : 'border-gray-300'
+    required && !value ? 'border-red-400 bg-red-50' : 'border-gray-300'
   }`;
 
   return (
@@ -685,11 +700,6 @@ function Field({
           placeholder={placeholder}
           className={inputClass}
         />
-      )}
-      {isCorrected && (
-        <p className="text-xs text-yellow-700 mt-1">
-          Changed from detected value: {original}
-        </p>
       )}
     </div>
   );
