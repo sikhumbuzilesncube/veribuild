@@ -41,7 +41,6 @@ export default function BOQPage() {
 
       setProject(projectData);
 
-      // Generate the full BOQ using the new engine
       let generated;
       try {
         generated = generateFullBOQ(projectData, {
@@ -56,7 +55,6 @@ export default function BOQPage() {
         return;
       }
 
-      // Save the total cost back to the project
       setSaving(true);
       try {
         const { error: updateError } = await supabase
@@ -74,7 +72,6 @@ export default function BOQPage() {
       }
       setSaving(false);
 
-      // Fetch store and marketplace data
       await fetchHardwareStores(generated.items);
       const constructionData = await fetchConstructionCompanies();
       setConstructionCompanies(constructionData);
@@ -84,12 +81,8 @@ export default function BOQPage() {
       setLoading(false);
     }
 
-    loadProjectAndBOQ();
+    loadBOQ();
   }, [projectId, router]);
-
-  async function loadProjectAndBOQ() {
-    // placeholder to satisfy strict lint; the real work is above
-  }
 
   // --------------------------------------------------------
   // Hardware store price matching
@@ -121,7 +114,6 @@ export default function BOQPage() {
         let storeTotal = 0;
 
         for (const item of boqItems) {
-          // Skip labour lines for hardware comparison
           if (item.section === 'F') continue;
 
           const material = storeMaterials.find(
@@ -190,14 +182,7 @@ export default function BOQPage() {
 
     const rows = [];
     rows.push(['Item', 'Description', 'Unit', 'Qty', 'Rate (USD)', 'Amount (USD)']);
-    rows.push([
-      '',
-      `Project: ${project.project_name}`,
-      '',
-      '',
-      '',
-      '',
-    ]);
+    rows.push(['', `Project: ${project.project_name}`, '', '', '', '']);
     rows.push([
       '',
       `Date: ${new Date().toISOString().split('T')[0]}`,
@@ -209,7 +194,14 @@ export default function BOQPage() {
     rows.push([]);
 
     for (const section of boq.sections) {
-      rows.push([`SECTION ${section.letter}`, section.title.toUpperCase(), '', '', '', '']);
+      rows.push([
+        `SECTION ${section.letter}`,
+        section.title.toUpperCase(),
+        '',
+        '',
+        '',
+        '',
+      ]);
       for (const item of section.items) {
         rows.push([
           item.code,
@@ -247,7 +239,9 @@ export default function BOQPage() {
         r
           .map((cell) => {
             const s = String(cell ?? '');
-            return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
+            return s.includes(',') || s.includes('"')
+              ? `"${s.replace(/"/g, '""')}"`
+              : s;
           })
           .join(',')
       )
@@ -414,7 +408,10 @@ export default function BOQPage() {
                 </tbody>
                 <tfoot>
                   <tr className="bg-gray-50">
-                    <td colSpan="5" className="px-3 py-3 text-right font-semibold text-gray-700">
+                    <td
+                      colSpan="5"
+                      className="px-3 py-3 text-right font-semibold text-gray-700"
+                    >
                       Subtotal {section.letter}
                     </td>
                     <td className="px-3 py-3 text-right font-bold text-[#2C3E50]">
@@ -487,7 +484,8 @@ export default function BOQPage() {
                     <div>
                       <h3 className="font-bold text-[#2C3E50]">{store.store_name}</h3>
                       <p className="text-xs text-gray-500">
-                        {store.location || 'Location not set'} · {store.phone || 'No phone'}
+                        {store.location || 'Location not set'} ·{' '}
+                        {store.phone || 'No phone'}
                       </p>
                     </div>
                     <div className="text-right">
@@ -515,7 +513,9 @@ export default function BOQPage() {
                               <td className="px-3 py-2">{m.name}</td>
                               <td className="px-3 py-2 text-right">{m.qty}</td>
                               <td className="px-3 py-2">{m.unit}</td>
-                              <td className="px-3 py-2 text-right">${m.price.toFixed(2)}</td>
+                              <td className="px-3 py-2 text-right">
+                                ${m.price.toFixed(2)}
+                              </td>
                               <td className="px-3 py-2 text-right font-medium">
                                 ${m.total.toFixed(2)}
                               </td>
@@ -526,7 +526,7 @@ export default function BOQPage() {
                     </div>
                   ) : (
                     <p className="p-4 text-xs text-gray-400">
-                      No matching items found in this store's inventory.
+                      No matching items found in this store&apos;s inventory.
                     </p>
                   )}
                 </div>
@@ -547,7 +547,10 @@ export default function BOQPage() {
             </h2>
             <div className="grid md:grid-cols-2 gap-4">
               {constructionCompanies.map((company) => (
-                <div key={company.id} className="border border-gray-200 rounded-lg p-4">
+                <div
+                  key={company.id}
+                  className="border border-gray-200 rounded-lg p-4"
+                >
                   <h3 className="font-bold text-[#2C3E50]">{company.company_name}</h3>
                   <p className="text-sm text-gray-600 mt-1">
                     {company.ad_text || 'No description available'}
@@ -566,12 +569,13 @@ export default function BOQPage() {
         {/* Workers */}
         {workers && workers.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
-            <h2 className="text-lg font-bold text-[#2C3E50] mb-4">
-              Available Workers
-            </h2>
+            <h2 className="text-lg font-bold text-[#2C3E50] mb-4">Available Workers</h2>
             <div className="grid md:grid-cols-2 gap-4">
               {workers.map((worker) => (
-                <div key={worker.id} className="border border-gray-200 rounded-lg p-4">
+                <div
+                  key={worker.id}
+                  className="border border-gray-200 rounded-lg p-4"
+                >
                   <div className="flex justify-between">
                     <div>
                       <h3 className="font-bold text-[#2C3E50]">{worker.full_name}</h3>
@@ -586,7 +590,8 @@ export default function BOQPage() {
                     </div>
                   </div>
                   <div className="mt-2 text-xs text-gray-500">
-                    {worker.location || 'Location not set'} · {worker.years_experience || 0} years
+                    {worker.location || 'Location not set'} ·{' '}
+                    {worker.years_experience || 0} years
                   </div>
                 </div>
               ))}
@@ -619,4 +624,4 @@ export default function BOQPage() {
       </div>
     </div>
   );
-    }
+                                         }
