@@ -7,15 +7,22 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// Plausible ranges for residential / small commercial projects in Zimbabwe
+const LIMITS = {
+  floorArea: { min: 20, max: 500 },   // m2
+  wallLength: { min: 15, max: 400 },  // m
+  rooms: { min: 1, max: 40 },
+  doors: { min: 1, max: 80 },
+  windows: { min: 1, max: 80 },
+};
+
 export async function readPlan(projectId, fileUrl) {
   try {
     if (!projectId || !fileUrl) {
       return { success: false, error: 'Missing projectId or fileUrl' };
     }
 
-    // Only attempt PDF text extraction. Image files (JPEG, PNG) are skipped
-    // because they require OCR, which is deferred to a later phase.
-    const lowerUrl = fileUrl.toLowerCase();
+    const lowerUrl = String(fileUrl).toLowerCase();
     if (!lowerUrl.endsWith('.pdf')) {
       return {
         success: false,
@@ -28,7 +35,6 @@ export async function readPlan(projectId, fileUrl) {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Real PDF text extraction
     let pdfData;
     try {
       pdfData = await pdf(buffer);
@@ -42,18 +48,35 @@ export async function readPlan(projectId, fileUrl) {
     }
 
     const text = pdfData.text || '';
+    const cleanedUpdate = {};
 
-    // Extract window codes
+    // ----------------------------------------------------------
+    // Window code extraction
+    // ----------------------------------------------------------
     const windowPattern = /\b(PTT?\d{2,4}|PSS?\d{2,4}|HS\d{2,4}|NCT[0-9xS]+|TD\d+[0-9S]*|SL\d+[0-9S]*|NE[1x7]*\d*|NS\d{1,3}[A-Z]?|N\d{1,3})\b/gi;
     const windowMatches = text.match(windowPattern) || [];
     const windowCodes = [...new Set(windowMatches.map((w) => w.toUpperCase()))];
 
-    // Extract door codes
+    if (windowCodes.length >= LIMITS.windows.min && windowCodes.length <= LIMITS.windows.max) {
+      cleanedUpdate.windows = windowCodes.length;
+      cleanedUpdate.window_details = windowCodes.join(', ');
+    }
+
+    // ----------------------------------------------------------
+    // Door code extraction
+    // ----------------------------------------------------------
     const doorPattern = /\b(D[1-9]|DD|FD\d|PD\d|SD\d{4})\b/gi;
     const doorMatches = text.match(doorPattern) || [];
     const doorCodes = [...new Set(doorMatches.map((d) => d.toUpperCase()))];
 
-    // Extract room names
+    if (doorCodes.length >= LIMITS.doors.min && doorCodes.length <= LIMITS.doors.max) {
+      cleanedUpdate.doors = doorCodes.length;
+      cleanedUpdate.door_details = doorCodes.join(', ');
+    }
+
+    // ----------------------------------------------------------
+    // Room label extraction
+    // ----------------------------------------------------------
     const roomKeywords = [
       'lounge', 'kitchen', 'garage', 'bedroom', 'bathroom',
       'toilet', 'dining', 'study', 'office', 'store', 'passage',
@@ -66,14 +89,21 @@ export async function readPlan(projectId, fileUrl) {
       }
     }
 
-    // Extract dimensions in metres
-    const dimPattern = /(\d+\.?\d*)\s*[xX×]\s*(\d+\.?\d*)/g;
+    if (foundRooms.length >= LIMITS.rooms.min && foundRooms.length <= LIMITS.rooms.max) {
+      cleanedUpdate.rooms = foundRooms.length;
+      cleanedUpdate.room_labels = foundRooms.join(', ');
+    }
+
+    // ----------------------------------------------------------
+    // Dimension extraction (reject implausible values)
+    // ----------------------------------------------------------
+    const dimPattern = /(\d+\.?\d*)\s*[xX\u00d7]\s*(\d+\.?\d*)/g;
     const dims = [];
     let m;
     while ((m = dimPattern.exec(text)) !== null) {
       const w = parseFloat(m[1]);
       const l = parseFloat(m[2]);
-      if (w > 0.5 && w < 50 && l > 0.5 && l < 50) {
+      if (w >= 0.5 && w <= 50 && l >= 0.5 && l <= 50) {
         dims.push({ w, l });
       }
     }
@@ -84,24 +114,28 @@ export async function readPlan(projectId, fileUrl) {
       area = Math.round(area * 10) / 10;
     }
 
-    // Only write fields that were actually detected.
-    // Fields left undefined retain whatever the user will enter manually.
-    const updateData = {
-      windows: windowCodes.length > 0 ? windowCodes.length : undefined,
-      doors: doorCodes.length > 0 ? doorCodes.length : undefined,
-      floor_area: area > 0 ? area : undefined,
-      wall_length: area > 0 ? Math.round(4 * Math.sqrt(area) * 1.2 * 10) / 10 : undefined,
-      room_labels: foundRooms.length > 0 ? foundRooms.join(', ') : undefined,
-      window_details: windowCodes.length > 0 ? windowCodes.join(', ') : undefined,
-      door_details: doorCodes.length > 0 ? doorCodes.join(', ') : undefined,
-      notes: `Extracted from PDF: ${windowCodes.length} window codes, ${doorCodes.length} door codes, ${foundRooms.length} room labels, ${dims.length} dimensions`,
-      status: 'processing',
-    };
+    // Reject implausible floor areas
+    if (area >= LIMITS.floorArea.min && area <= LIMITS.floorArea.max) {
+      cleanedUpdate.floor_area = area;
 
-    // Strip undefined keys so we don't overwrite user data with nulls
-    const cleanedUpdate = {};
-    for (const [key, value] of Object.entries(updateData)) {
-      if (value !== undefined) cleanedUpdate[key] = value;
+      // Estimate wall length from area
+      const wallLength = Math.round(4 * Math.sqrt(area) * 1.2 * 10) / 10;
+      if (wallLength >= LIMITS.wallLength.min && wallLength <= LIMITS.wallLength.max) {
+        cleanedUpdate.wall_length = wallLength;
+      }
+    }
+
+    // Always update notes and status
+    cleanedUpdate.notes = `Extracted from PDF: ${windowCodes.length} window codes, ${doorCodes.length} door codes, ${foundRooms.length} room labels, ${dims.length} dimensions, area ${area || 'rejected'} m2`;
+    cleanedUpdate.status = 'processing';
+
+    if (Object.keys(cleanedUpdate).length <= 2) {
+      // Only notes and status, no real extraction
+      return {
+        success: false,
+        error: 'No reliable measurements extracted. Manual entry required.',
+        data: null,
+      };
     }
 
     const { error: updateError } = await supabase
@@ -120,13 +154,11 @@ export async function readPlan(projectId, fileUrl) {
       windowsFound: windowCodes.length,
       doorsFound: doorCodes.length,
       roomsFound: foundRooms,
-      windowCodes,
-      doorCodes,
       dimensionsFound: dims.length,
-      message: `Extracted ${windowCodes.length} window codes, ${doorCodes.length} door codes, ${foundRooms.length} room labels`,
+      areaExtracted: area || 0,
     };
   } catch (error) {
     console.error('readPlan error:', error);
     return { success: false, error: error.message };
   }
-  }
+              }
