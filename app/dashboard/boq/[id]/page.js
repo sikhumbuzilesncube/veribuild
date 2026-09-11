@@ -85,9 +85,6 @@ export default function BOQPage() {
     loadBOQ();
   }, [projectId, router]);
 
-  // --------------------------------------------------------
-  // Hardware store price matching
-  // --------------------------------------------------------
   async function fetchHardwareStores(boqItems) {
     try {
       const { data: activeStores } = await supabase
@@ -177,26 +174,24 @@ export default function BOQPage() {
   }
 
   // --------------------------------------------------------
-  // Roll up sub-line amounts into their parent header
+  // Roll up child amounts into parent header rows
   // --------------------------------------------------------
   function rollUpHeaderAmounts(sectionItems) {
-    const itemMap = new Map(sectionItems.map((it) => [it.code, { ...it }]));
+    const cloned = sectionItems.map((it) => ({ ...it }));
 
-    // For each header, sum amounts of children (codes starting with header code + ".")
-    for (const [code, item] of itemMap) {
-      if (!item.isHeader) continue;
-
+    for (const parent of cloned) {
+      if (!parent.isHeader) continue;
       let rollup = 0;
-      for (const [childCode, child] of itemMap) {
-        if (childCode === code) continue;
-        if (childCode.startsWith(code + '.')) {
+      for (const child of cloned) {
+        if (child.code === parent.code) continue;
+        if (child.code.startsWith(parent.code + '.')) {
           rollup += child.amount || 0;
         }
       }
-      item.rolledUpAmount = round2(rollup);
+      parent.rolledUpAmount = round2(rollup);
     }
 
-    return Array.from(itemMap.values());
+    return cloned;
   }
 
   // --------------------------------------------------------
@@ -231,13 +226,22 @@ export default function BOQPage() {
       const rolled = rollUpHeaderAmounts(section.items);
       for (const item of rolled) {
         const isHeader = item.isHeader;
-        const rateCell = isHeader ? '' : item.rate != null ? item.rate.toFixed(2) : '';
-        const amountCell =
-          item.amount != null
-            ? item.amount.toFixed(2)
-            : item.rolledUpAmount != null
-            ? item.rolledUpAmount.toFixed(2)
-            : '';
+        const isLabour = item.labour;
+
+        const rateCell = isHeader
+          ? ''
+          : item.rate != null && item.rate > 0
+          ? item.rate.toFixed(2)
+          : '';
+
+        let amountCell = '';
+        if (isHeader && item.rolledUpAmount != null) {
+          amountCell = item.rolledUpAmount.toFixed(2);
+        } else if (isLabour) {
+          amountCell = 'see Section F';
+        } else if (item.amount != null) {
+          amountCell = item.amount.toFixed(2);
+        }
 
         rows.push([
           item.code,
@@ -260,14 +264,7 @@ export default function BOQPage() {
       rows.push([]);
     }
 
-    rows.push([
-      '',
-      'Subtotal all sections',
-      '',
-      '',
-      '',
-      boq.summary.subtotal.toFixed(2),
-    ]);
+    rows.push(['', 'Subtotal all sections', '', '', '', boq.summary.subtotal.toFixed(2)]);
     rows.push([
       '',
       `Contingency (${(boq.summary.contingencyRate * 100).toFixed(0)}%)`,
@@ -436,14 +433,7 @@ export default function BOQPage() {
                     {rolled.map((item) => {
                       const isHeader = item.isHeader;
                       const isSubLine = !!item.parentCode;
-                      const isLabour = !!item.labour;
-
-                      const displayAmount =
-                        item.amount != null
-                          ? item.amount
-                          : item.rolledUpAmount != null
-                          ? item.rolledUpAmount
-                          : null;
+                      const isLabour = item.labour;
 
                       return (
                         <tr
@@ -456,7 +446,9 @@ export default function BOQPage() {
                         >
                           <td
                             className={`px-3 py-2 font-mono text-xs ${
-                              isHeader ? 'font-semibold text-[#2C3E50]' : 'text-gray-500'
+                              isHeader
+                                ? 'font-semibold text-[#2C3E50]'
+                                : 'text-gray-500'
                             }`}
                           >
                             {item.code}
@@ -471,18 +463,25 @@ export default function BOQPage() {
                             }`}
                           >
                             {item.description}
+                            {isLabour && item.gangDays != null && (
+                              <span className="block text-xs text-gray-500 mt-0.5">
+                                {item.gangDays} gang-days (crew of {item.gangSize})
+                              </span>
+                            )}
                           </td>
-                          <td className="px-3 py-2 text-gray-600 text-xs">{item.unit}</td>
+                          <td className="px-3 py-2 text-gray-600 text-xs">
+                            {item.unit}
+                          </td>
                           <td className="px-3 py-2 text-right text-gray-800 text-xs">
                             {item.qty}
                           </td>
                           <td className="px-3 py-2 text-right text-gray-600 text-xs">
                             {isHeader
                               ? ''
+                              : isLabour
+                              ? ''
                               : item.rate != null && item.rate > 0
                               ? `$${item.rate.toFixed(2)}`
-                              : isLabour
-                              ? '—'
                               : ''}
                           </td>
                           <td
@@ -492,10 +491,14 @@ export default function BOQPage() {
                                 : 'font-medium text-[#2C3E50]'
                             }`}
                           >
-                            {displayAmount != null
-                              ? `$${displayAmount.toFixed(2)}`
+                            {isHeader
+                              ? item.rolledUpAmount != null
+                                ? `$${item.rolledUpAmount.toFixed(2)}`
+                                : '—'
                               : isLabour
                               ? 'see Section F'
+                              : item.amount != null
+                              ? `$${item.amount.toFixed(2)}`
                               : '—'}
                           </td>
                         </tr>
