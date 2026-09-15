@@ -1,52 +1,72 @@
 import './globals.css';
 import { Inter } from 'next/font/google';
+import ServiceWorkerRegister from '@/components/ServiceWorkerRegister';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+});
 
 export const metadata = {
-  title: 'VeriBuild - AI-Powered BOQ Generator',
-  description: 'Generate professional BOQs from floor plans in 3 minutes',
+  metadataBase: new URL('https://veribuild.vercel.app'),
+  title: {
+    default: 'VeriBuild — Professional BOQs from floor plans in 3 minutes',
+    template: '%s · VeriBuild',
+  },
+  description:
+    'Upload your floor plan and get a professional BOQ in 3 minutes — with real material prices from Zimbabwean hardware stores and labour cost estimates.',
+  applicationName: 'VeriBuild',
   manifest: '/manifest.json',
-  themeColor: '#F47B20',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'VeriBuild',
   },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
+  openGraph: {
+    type: 'website',
+    locale: 'en_ZW',
+    url: 'https://veribuild.vercel.app',
+    siteName: 'VeriBuild',
+    title: 'VeriBuild — Professional BOQs from floor plans in 3 minutes',
+    description:
+      'Real material prices from Zimbabwean hardware stores, plus labour cost estimates. Built for Zimbabwe.',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'VeriBuild — BOQ generation for Zimbabwe',
+      },
+    ],
   },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'VeriBuild — Professional BOQs from floor plans',
+    description:
+      'Real material prices from Zimbabwean hardware stores, plus labour cost estimates.',
+    images: ['/og-image.png'],
+  },
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/icons/icon-192x192.png',
+  },
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#F47B20',
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="manifest" href="/manifest.json" />
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js')
-                    .then(function(registration) {
-                      console.log('Service Worker registered:', registration);
-                    })
-                    .catch(function(error) {
-                      console.log('Service Worker registration failed:', error);
-                    });
-                });
-              }
-            `,
-          }}
-        />
-      </head>
-      <body className={inter.className}>{children}</body>
+    <html lang="en" className={inter.variable}>
+      <body className="font-sans antialiased">
+        {children}
+        <ServiceWorkerRegister />
+      </body>
     </html>
   );
     }
