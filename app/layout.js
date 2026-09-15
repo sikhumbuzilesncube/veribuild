@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata = {
-  metadataBase: new URL('https://veribuild.vercel.app'),
+  metadataBase: new URL('https://veribuild.gatekeeper.co.zw'),
   title: {
     default: 'VeriBuild — Professional BOQs from floor plans in 3 minutes',
     template: '%s · VeriBuild',
@@ -26,7 +26,7 @@ export const metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_ZW',
-    url: 'https://veribuild.vercel.app',
+    url: 'https://veribuild.gatekeeper.co.zw',
     siteName: 'VeriBuild',
     title: 'VeriBuild — Professional BOQs from floor plans in 3 minutes',
     description:
@@ -69,4 +69,4 @@ export default function RootLayout({ children }) {
       </body>
     </html>
   );
-}
+    }
