@@ -67,15 +67,15 @@ export default function Home() {
   }, [showSample]);
 
   return (
-    <div className="min-h-screen bg-white font-sans antialiased text-[#2C3E50]">
+    <div className="min-h-screen bg-white font-sans antialiased text-slate-700">
 
       {/* ===== HEADER ===== */}
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled ? 'bg-white/95 backdrop-blur border-b border-gray-100 py-3' : 'bg-transparent py-5'
       }`}>
-        <div className="max-w-6xl mx-auto px-6 flex justify-between items-center">
+        <div className="max-w-content mx-auto px-6 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-lg">V</div>
+            <div className="w-9 h-9 bg-brand-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">V</div>
             <div className="leading-none">
               <h1 className="text-xl font-bold tracking-tight">VeriBuild</h1>
               <p className="text-[9px] text-gray-400 tracking-widest uppercase mt-0.5">By GatekeeperAI</p>
@@ -83,17 +83,17 @@ export default function Home() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-8">
-            <a href="#how-it-works" className="text-gray-600 hover:text-[#F47B20] transition text-sm font-medium">How It Works</a>
-            <a href="#who" className="text-gray-600 hover:text-[#F47B20] transition text-sm font-medium">Who It's For</a>
-            <a href="#pricing" className="text-gray-600 hover:text-[#F47B20] transition text-sm font-medium">Pricing</a>
-            <Link href="/about" className="text-gray-600 hover:text-[#F47B20] transition text-sm font-medium">About</Link>
+            <a href="#how-it-works" className="text-gray-600 hover:text-brand-500 transition text-sm font-medium">How It Works</a>
+            <a href="#who" className="text-gray-600 hover:text-brand-500 transition text-sm font-medium">Who It&apos;s For</a>
+            <a href="#pricing" className="text-gray-600 hover:text-brand-500 transition text-sm font-medium">Pricing</a>
+            <Link href="/about" className="text-gray-600 hover:text-brand-500 transition text-sm font-medium">About</Link>
           </nav>
 
           <div className="flex items-center gap-4">
-            <Link href="/login" className="hidden sm:inline text-[#2C3E50] hover:text-[#F47B20] transition font-medium text-sm">
+            <Link href="/login" className="hidden sm:inline text-slate-700 hover:text-brand-500 transition font-medium text-sm">
               Log In
             </Link>
-            <Link href="/register" className="bg-[#F47B20] text-white px-5 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm">
+            <Link href="/register" className="bg-brand-500 text-white px-5 py-2 rounded-lg font-semibold hover:bg-brand-600 transition text-sm">
               Create Account
             </Link>
           </div>
@@ -102,27 +102,27 @@ export default function Home() {
 
       {/* ===== HERO ===== */}
       <section className="relative pt-32 md:pt-40 pb-20 md:pb-28 px-6 bg-white">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-content mx-auto">
           <div className="grid md:grid-cols-2 gap-14 items-center">
             <div>
-              <span className="inline-flex items-center gap-2 bg-[#F47B20]/10 text-[#F47B20] px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6">
-                <span className="w-1.5 h-1.5 bg-[#F47B20] rounded-full" />
+              <span className="inline-flex items-center gap-2 bg-brand-500/10 text-brand-500 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6">
+                <span className="w-1.5 h-1.5 bg-brand-500 rounded-full" />
                 Built for Zimbabwe
               </span>
-              <h1 className="text-4xl md:text-5xl lg:text-[3.5rem] font-bold leading-[1.05] tracking-tight">
-                Know your build cost <span className="text-[#F47B20]">before</span> you break ground.
+              <h1 className="text-4xl md:text-5xl lg:text-[3.5rem] font-bold leading-[1.05] tracking-tight text-slate-700">
+                Know your build cost <span className="text-brand-500">before</span> you break ground.
               </h1>
               <p className="text-lg text-gray-600 mt-6 max-w-lg leading-relaxed">
                 Upload your floor plan. In three minutes, get a professional BOQ with real material prices from Zimbabwean hardware stores, plus labour cost estimates.
               </p>
 
               <div className="flex flex-wrap gap-3 mt-8">
-                <Link href="/register" className="bg-[#F47B20] text-white px-7 py-3.5 rounded-xl font-semibold hover:bg-[#E06B10] transition shadow-sm">
+                <Link href="/register" className="bg-brand-500 text-white px-7 py-3.5 rounded-xl font-semibold hover:bg-brand-600 transition shadow-card">
                   Generate my first BOQ
                 </Link>
                 <button
                   onClick={() => setShowSample(true)}
-                  className="border border-gray-300 text-[#2C3E50] px-7 py-3.5 rounded-xl font-semibold hover:border-[#2C3E50] hover:bg-gray-50 transition"
+                  className="border border-gray-300 text-slate-700 px-7 py-3.5 rounded-xl font-semibold hover:border-slate-700 hover:bg-gray-50 transition"
                 >
                   See a sample
                 </button>
@@ -130,11 +130,11 @@ export default function Home() {
 
               <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-10 pt-8 border-t border-gray-100 text-sm">
                 <div className="flex items-center gap-2 text-gray-700">
-                  <IconShield className="w-4 h-4 text-[#F47B20]" />
+                  <IconShield className="w-4 h-4 text-brand-500" />
                   <span>Payments via <strong className="font-semibold">ContiPay</strong></span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-700">
-                  <IconWifi className="w-4 h-4 text-[#F47B20]" />
+                  <IconWifi className="w-4 h-4 text-brand-500" />
                   <span>Works offline on low data</span>
                 </div>
               </div>
@@ -142,13 +142,13 @@ export default function Home() {
 
             {/* BOQ Preview card */}
             <div className="relative">
-              <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/60 border border-gray-100 overflow-hidden">
+              <div className="bg-white rounded-2xl shadow-card-hover border border-gray-100 overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                   <div>
                     <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold">Sample BOQ</p>
-                    <p className="text-sm font-bold text-[#2C3E50] mt-0.5">3-Bed House · Borrowdale</p>
+                    <p className="text-sm font-bold text-slate-700 mt-0.5">3-Bed House · Borrowdale</p>
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#F47B20] bg-[#F47B20]/10 px-2 py-1 rounded">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-brand-500 bg-brand-500/10 px-2 py-1 rounded">
                     Live pricing
                   </span>
                 </div>
@@ -161,16 +161,16 @@ export default function Home() {
                   ].map(([label, value]) => (
                     <div key={label} className="flex justify-between border-b border-gray-100 pb-2.5">
                       <span className="text-gray-600">{label}</span>
-                      <span className="text-[#2C3E50] font-semibold tabular-nums">{value}</span>
+                      <span className="text-slate-700 font-semibold tabular-nums">{value}</span>
                     </div>
                   ))}
                   <div className="flex justify-between border-b border-gray-100 pb-2.5">
                     <span className="text-gray-600">Labour (skilled + general)</span>
-                    <span className="text-[#2C3E50] font-semibold tabular-nums">$3,200.00</span>
+                    <span className="text-slate-700 font-semibold tabular-nums">$3,200.00</span>
                   </div>
-                  <div className="flex justify-between pt-3 mt-1 border-t-2 border-[#F47B20]">
-                    <span className="font-bold">Project total</span>
-                    <span className="font-bold text-[#F47B20] text-lg tabular-nums">$29,286.63</span>
+                  <div className="flex justify-between pt-3 mt-1 border-t-2 border-brand-500">
+                    <span className="font-bold text-slate-700">Project total</span>
+                    <span className="font-bold text-brand-500 text-lg tabular-nums">$29,286.63</span>
                   </div>
                   <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2 mt-2">
                     Best supplier: Builders Warehouse — save $490
@@ -184,9 +184,9 @@ export default function Home() {
 
       {/* ===== WHO IT'S FOR ===== */}
       <section id="who" className="py-20 md:py-28 px-6 bg-gray-50 border-y border-gray-100">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-content mx-auto">
           <div className="max-w-2xl mb-14">
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Built for everyone in the build.</h2>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-700">Built for everyone in the build.</h2>
             <p className="text-gray-600 mt-3 text-lg">One platform, four account types — each with tools made for the job.</p>
           </div>
 
@@ -200,12 +200,12 @@ export default function Home() {
               <Link
                 key={item.title}
                 href={item.href}
-                className="group bg-white rounded-xl p-6 border border-gray-200 hover:border-[#F47B20] hover:shadow-md transition"
+                className="group bg-white rounded-xl p-6 border border-gray-200 hover:border-brand-500 hover:shadow-card-hover transition"
               >
-                <div className="w-11 h-11 mb-4 rounded-lg bg-gray-100 group-hover:bg-[#F47B20] flex items-center justify-center text-[#2C3E50] group-hover:text-white transition font-bold">
+                <div className="w-11 h-11 mb-4 rounded-lg bg-gray-100 group-hover:bg-brand-500 flex items-center justify-center text-slate-700 group-hover:text-white transition font-bold">
                   {item.letter}
                 </div>
-                <h3 className="font-bold text-[#2C3E50] group-hover:text-[#F47B20] transition">{item.title}</h3>
+                <h3 className="font-bold text-slate-700 group-hover:text-brand-500 transition">{item.title}</h3>
                 <p className="text-sm text-gray-500 mt-1 leading-snug">{item.desc}</p>
               </Link>
             ))}
@@ -215,9 +215,9 @@ export default function Home() {
 
       {/* ===== HOW IT WORKS ===== */}
       <section id="how-it-works" className="py-20 md:py-28 px-6 bg-white">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-content mx-auto">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">From floor plan to full BOQ in 3 minutes.</h2>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-700">From floor plan to full BOQ in 3 minutes.</h2>
             <p className="text-gray-600 mt-3 text-lg">No quantity surveyor required. No spreadsheets. Just your plan.</p>
           </div>
 
@@ -244,12 +244,12 @@ export default function Home() {
             ].map((step) => (
               <div key={step.n} className="relative">
                 <div className="flex items-baseline gap-3 mb-4">
-                  <span className="text-sm font-bold text-[#F47B20] tabular-nums">{step.n}</span>
-                  <div className="w-10 h-10 rounded-lg bg-[#F47B20]/10 text-[#F47B20] flex items-center justify-center">
+                  <span className="text-sm font-bold text-brand-500 tabular-nums">{step.n}</span>
+                  <div className="w-10 h-10 rounded-lg bg-brand-500/10 text-brand-500 flex items-center justify-center">
                     {step.icon}
                   </div>
                 </div>
-                <h3 className="text-lg font-bold mb-2">{step.title}</h3>
+                <h3 className="text-lg font-bold mb-2 text-slate-700">{step.title}</h3>
                 <p className="text-gray-600 text-sm leading-relaxed">{step.body}</p>
               </div>
             ))}
@@ -258,8 +258,8 @@ export default function Home() {
       </section>
 
       {/* ===== TRUST / STATS ===== */}
-      <section className="py-16 px-6 bg-[#2C3E50] text-white">
-        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+      <section className="py-16 px-6 bg-slate-700 text-white">
+        <div className="max-w-content mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {[
             ['500+', 'Projects priced'],
             ['50+', 'Partner hardware stores'],
@@ -267,7 +267,7 @@ export default function Home() {
             ['3 min', 'Average BOQ time'],
           ].map(([stat, label]) => (
             <div key={label}>
-              <p className="text-3xl md:text-4xl font-bold text-[#F47B20] tabular-nums">{stat}</p>
+              <p className="text-3xl md:text-4xl font-bold text-brand-500 tabular-nums">{stat}</p>
               <p className="text-sm text-gray-300 mt-2">{label}</p>
             </div>
           ))}
@@ -278,21 +278,21 @@ export default function Home() {
       <section id="pricing" className="py-20 md:py-28 px-6 bg-gray-50">
         <div className="max-w-4xl mx-auto">
           <div className="text-center max-w-2xl mx-auto mb-14">
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Simple, honest pricing.</h2>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-700">Simple, honest pricing.</h2>
             <p className="text-gray-600 mt-3 text-lg">Pay per BOQ. No subscriptions. No hidden fees.</p>
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-card">
             <div className="grid md:grid-cols-5">
               {/* Left: Price */}
-              <div className="md:col-span-2 p-8 md:p-10 bg-[#2C3E50] text-white">
-                <span className="inline-block bg-[#F47B20] text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded">
+              <div className="md:col-span-2 p-8 md:p-10 bg-slate-700 text-white">
+                <span className="inline-block bg-brand-500 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded">
                   Ordinary Plan
                 </span>
                 <div className="mt-6">
                   <p className="text-sm text-gray-400 uppercase tracking-wider font-semibold">Starting from</p>
                   <p className="mt-2 flex items-baseline">
-                    <span className="text-6xl font-bold text-[#F47B20]">$10</span>
+                    <span className="text-6xl font-bold text-brand-500">$10</span>
                     <span className="text-gray-400 ml-3 text-base">/ BOQ</span>
                   </p>
                 </div>
@@ -301,7 +301,7 @@ export default function Home() {
                 </p>
                 <Link
                   href="/register"
-                  className="mt-8 inline-flex items-center justify-center w-full bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition"
+                  className="mt-8 inline-flex items-center justify-center w-full bg-brand-500 text-white py-3 rounded-lg font-semibold hover:bg-brand-600 transition"
                 >
                   Generate my BOQ
                 </Link>
@@ -317,23 +317,23 @@ export default function Home() {
                 </p>
                 <ul className="space-y-5">
                   <li className="flex items-start gap-3">
-                    <IconCheck className="w-5 h-5 text-[#F47B20] mt-0.5 flex-shrink-0" />
+                    <IconCheck className="w-5 h-5 text-brand-500 mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="font-semibold text-[#2C3E50]">Full BOQ from your floor plan</p>
+                      <p className="font-semibold text-slate-700">Full BOQ from your floor plan</p>
                       <p className="text-sm text-gray-600 mt-0.5">Every material, quantified and listed.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
-                    <IconCheck className="w-5 h-5 text-[#F47B20] mt-0.5 flex-shrink-0" />
+                    <IconCheck className="w-5 h-5 text-brand-500 mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="font-semibold text-[#2C3E50]">Material cost comparison</p>
+                      <p className="font-semibold text-slate-700">Material cost comparison</p>
                       <p className="text-sm text-gray-600 mt-0.5">Live prices from multiple local hardware stores, side by side. See where you save.</p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
-                    <IconCheck className="w-5 h-5 text-[#F47B20] mt-0.5 flex-shrink-0" />
+                    <IconCheck className="w-5 h-5 text-brand-500 mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="font-semibold text-[#2C3E50]">Labour cost estimates</p>
+                      <p className="font-semibold text-slate-700">Labour cost estimates</p>
                       <p className="text-sm text-gray-600 mt-0.5">Realistic labour breakdown by trade — so your budget reflects the whole build, not just materials.</p>
                     </div>
                   </li>
@@ -341,15 +341,15 @@ export default function Home() {
 
                 <div className="mt-8 pt-6 border-t border-gray-100 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-gray-500">
                   <span className="flex items-center gap-1.5">
-                    <IconCheck className="w-3.5 h-3.5 text-[#F47B20]" />
+                    <IconCheck className="w-3.5 h-3.5 text-brand-500" />
                     PDF &amp; JPEG exports
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <IconCheck className="w-3.5 h-3.5 text-[#F47B20]" />
+                    <IconCheck className="w-3.5 h-3.5 text-brand-500" />
                     Results in under 3 minutes
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <IconCheck className="w-3.5 h-3.5 text-[#F47B20]" />
+                    <IconCheck className="w-3.5 h-3.5 text-brand-500" />
                     Works offline
                   </span>
                 </div>
@@ -358,7 +358,7 @@ export default function Home() {
           </div>
 
           <p className="text-center text-sm text-gray-500 mt-8">
-            Larger or commercial project? <Link href="/contact" className="text-[#F47B20] font-semibold hover:underline">Talk to us</Link> for a custom quote.
+            Larger or commercial project? <Link href="/contact" className="text-brand-500 font-semibold hover:underline">Talk to us</Link> for a custom quote.
           </p>
         </div>
       </section>
@@ -366,13 +366,13 @@ export default function Home() {
       {/* ===== FINAL CTA ===== */}
       <section className="py-20 md:py-24 px-6 bg-white">
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Ready to price your build?</h2>
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-700">Ready to price your build?</h2>
           <p className="text-gray-600 mt-4 text-lg">Upload a plan. Get a BOQ. Build with confidence.</p>
           <div className="flex flex-wrap gap-3 justify-center mt-8">
-            <Link href="/register" className="bg-[#F47B20] text-white px-8 py-3.5 rounded-xl font-semibold hover:bg-[#E06B10] transition shadow-sm">
+            <Link href="/register" className="bg-brand-500 text-white px-8 py-3.5 rounded-xl font-semibold hover:bg-brand-600 transition shadow-card">
               Create free account
             </Link>
-            <Link href="/pricing" className="border border-gray-300 text-[#2C3E50] px-8 py-3.5 rounded-xl font-semibold hover:border-[#2C3E50] hover:bg-gray-50 transition">
+            <Link href="/pricing" className="border border-gray-300 text-slate-700 px-8 py-3.5 rounded-xl font-semibold hover:border-slate-700 hover:bg-gray-50 transition">
               See full pricing
             </Link>
           </div>
@@ -392,13 +392,13 @@ export default function Home() {
             <div className="flex justify-between items-start mb-6">
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold">Sample output</p>
-                <h3 className="text-2xl font-bold mt-1">3-Bedroom Residential House</h3>
+                <h3 className="text-2xl font-bold mt-1 text-slate-700">3-Bedroom Residential House</h3>
                 <p className="text-sm text-gray-500 mt-0.5">Harare, Zimbabwe</p>
               </div>
               <button
                 onClick={() => setShowSample(false)}
                 aria-label="Close"
-                className="text-gray-400 hover:text-[#2C3E50] transition p-1"
+                className="text-gray-400 hover:text-slate-700 transition p-1"
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -408,7 +408,7 @@ export default function Home() {
 
             <div className="rounded-xl border border-gray-200 overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-[#2C3E50] text-white">
+                <thead className="bg-slate-700 text-white">
                   <tr>
                     <th className="p-3 text-left font-medium">Item</th>
                     <th className="p-3 text-right font-medium">Qty</th>
@@ -416,7 +416,7 @@ export default function Home() {
                     <th className="p-3 text-right font-medium">Price</th>
                   </tr>
                 </thead>
-                <tbody className="text-[#2C3E50]">
+                <tbody className="text-slate-700">
                   {[
                     ['Cement 50kg', '45', 'bags', '$540'],
                     ['Standard brick', '450', 'pcs', '$180'],
@@ -436,9 +436,9 @@ export default function Home() {
                     <td className="p-3 text-right text-gray-500">—</td>
                     <td className="p-3 text-right tabular-nums font-medium">$3,200</td>
                   </tr>
-                  <tr className="bg-[#F47B20]/5 font-bold">
+                  <tr className="bg-brand-500/5 font-bold">
                     <td className="p-3" colSpan={3}>Estimated total</td>
-                    <td className="p-3 text-right text-[#F47B20] tabular-nums">$8,050</td>
+                    <td className="p-3 text-right text-brand-500 tabular-nums">$8,050</td>
                   </tr>
                 </tbody>
               </table>
@@ -454,13 +454,13 @@ export default function Home() {
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
                 href="/register"
-                className="bg-[#F47B20] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition"
+                className="bg-brand-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-600 transition"
               >
                 Generate my own BOQ
               </Link>
               <button
                 onClick={() => setShowSample(false)}
-                className="text-gray-500 hover:text-[#2C3E50] px-4 py-3 font-medium"
+                className="text-gray-500 hover:text-slate-700 px-4 py-3 font-medium"
               >
                 Close
               </button>
@@ -470,11 +470,11 @@ export default function Home() {
       )}
 
       {/* ===== FOOTER ===== */}
-      <footer className="bg-[#2C3E50] text-white pt-16 pb-8 px-6">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-4 gap-10">
+      <footer className="bg-slate-700 text-white pt-16 pb-8 px-6">
+        <div className="max-w-content mx-auto grid md:grid-cols-4 gap-10">
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-8 h-8 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-sm">V</div>
+              <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">V</div>
               <h3 className="text-lg font-bold">VeriBuild</h3>
             </div>
             <p className="text-gray-400 text-sm leading-relaxed">
@@ -506,22 +506,22 @@ export default function Home() {
             <h4 className="font-semibold mb-4 text-xs uppercase tracking-wider text-gray-400">Contact</h4>
             <ul className="space-y-3 text-sm text-gray-300">
               <li className="flex items-center gap-2">
-                <IconMapPin className="w-4 h-4 text-[#F47B20] flex-shrink-0" />
+                <IconMapPin className="w-4 h-4 text-brand-500 flex-shrink-0" />
                 Harare, Zimbabwe
               </li>
               <li className="flex items-center gap-2">
-                <IconMail className="w-4 h-4 text-[#F47B20] flex-shrink-0" />
+                <IconMail className="w-4 h-4 text-brand-500 flex-shrink-0" />
                 <a href="mailto:info@veribuild.co.zw" className="hover:text-white transition">info@veribuild.co.zw</a>
               </li>
               <li className="flex items-center gap-2">
-                <IconPhone className="w-4 h-4 text-[#F47B20] flex-shrink-0" />
+                <IconPhone className="w-4 h-4 text-brand-500 flex-shrink-0" />
                 <a href="tel:+263777803517" className="hover:text-white transition">+263 78 123 4567</a>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-400">
+        <div className="max-w-content mx-auto mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-400">
           <p>© 2026 VeriBuild · A product of GatekeeperAI</p>
           <p>Proudly built in Zimbabwe</p>
         </div>
