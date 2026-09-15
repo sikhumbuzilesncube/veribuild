@@ -515,7 +515,7 @@ export default function Home() {
               </li>
               <li className="flex items-center gap-2">
                 <IconPhone className="w-4 h-4 text-brand-500 flex-shrink-0" />
-                <a href="tel:+263777803517" className="hover:text-white transition">+263 78 123 4567</a>
+                <a href="tel:+263781234567" className="hover:text-white transition">+263 78 123 4567</a>
               </li>
             </ul>
           </div>
