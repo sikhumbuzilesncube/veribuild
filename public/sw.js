@@ -1,73 +1,124 @@
 // ============================================================
-// SERVICE WORKER - VeriBuild PWA
+// SERVICE WORKER — VeriBuild PWA
 // ============================================================
 
-const CACHE_NAME = 'veribuild-v1';
-const STATIC_ASSETS = [
+const CACHE_VERSION = 'v2'; // bump this when you deploy breaking changes
+const CACHE_NAME = `veribuild-${CACHE_VERSION}`;
+const OFFLINE_URL = '/offline';
+
+// Precache only what's essential for the app shell
+const PRECACHE_URLS = [
   '/',
-  '/offline',
+  OFFLINE_URL,
   '/manifest.json',
-  '/favicon.ico',
 ];
 
-// Install event - cache static assets
+// ============================================================
+// INSTALL — precache the app shell
+// ============================================================
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+      // Use individual adds so one failure doesn't kill the install
+      return Promise.all(
+        PRECACHE_URLS.map((url) =>
+          cache.add(url).catch((err) => {
+            console.warn('[SW] Failed to precache:', url, err);
+          })
+        )
+      );
     })
   );
   self.skipWaiting();
 });
 
-// Activate event - clean old caches
+// ============================================================
+// ACTIVATE — clean up old caches
+// ============================================================
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
+    caches.keys().then((names) =>
+      Promise.all(
+        names
           .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
-      );
-    })
+          .map((name) => {
+            console.log('[SW] Deleting old cache:', name);
+            return caches.delete(name);
+          })
+      )
+    )
   );
   self.clients.claim();
 });
 
-// Fetch event - serve from cache or network
+// ============================================================
+// FETCH — smart caching
+// ============================================================
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  const { request } = event;
+  const url = new URL(request.url);
 
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') {
-    return;
-  }
+  // Only handle GET
+  if (request.method !== 'GET') return;
 
-  // Skip API requests
-  if (url.pathname.startsWith('/api/')) {
-    return;
-  }
+  // Skip cross-origin requests
+  if (url.origin !== self.location.origin) return;
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      // Return cached response if available
-      if (cachedResponse) {
-        return cachedResponse;
-      }
+  // Skip API routes entirely
+  if (url.pathname.startsWith('/api/')) return;
 
-      // Otherwise fetch from network
-      return fetch(event.request)
+  // Skip Next.js internals and hot reload in dev
+  if (url.pathname.startsWith('/_next/')) return;
+
+  // Skip uploads / large files
+  if (url.pathname.startsWith('/uploads/')) return;
+
+  // Strategy:
+  // - HTML documents: network-first (so updates show up immediately)
+  // - Static assets (images, fonts, css, js): cache-first (fast + offline-friendly)
+  const isHTML =
+    request.headers.get('accept')?.includes('text/html') ?? false;
+
+  if (isHTML) {
+    event.respondWith(
+      fetch(request)
         .then((response) => {
-          // Cache the response for future
-          const responseClone = response.clone();
+          const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
+            cache.put(request, clone);
           });
           return response;
         })
         .catch(() => {
-          // Offline fallback
-          return caches.match('/offline');
+          // Offline — try cache, then offline page
+          return caches.match(request).then((cached) => {
+            return cached || caches.match(OFFLINE_URL);
+          });
+        })
+    );
+    return;
+  }
+
+  // Static assets: cache-first
+  event.respondWith(
+    caches.match(request).then((cached) => {
+      if (cached) return cached;
+
+      return fetch(request)
+        .then((response) => {
+          // Don't cache non-successful or opaque responses
+          if (!response || response.status !== 200 || response.type !== 'basic') {
+            return response;
+          }
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, clone);
+          });
+          return response;
+        })
+        .catch(() => {
+          // Offline and not cached — return offline page for navigations
+          return caches.match(OFFLINE_URL);
         });
     })
   );
