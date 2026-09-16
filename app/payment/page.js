@@ -8,8 +8,6 @@ export default function PaymentPage() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedMethod, setSelectedMethod] = useState('EC');
-  const [phoneNumber, setPhoneNumber] = useState('');
   
   const plan = searchParams.get('plan') || 'monthly';
   const userType = searchParams.get('type') || 'hardware';
@@ -17,17 +15,6 @@ export default function PaymentPage() {
   
   const testEmail = 'test@example.com';
   const testName = 'Test User';
-
-  // Payment methods from ContiPay documentation
-  const paymentMethods = [
-    { id: 'EC', name: 'EcoCash', testNumbers: ['071234567 (Success)', '071234568 (Failed)'] },
-    { id: 'TC', name: 'TeleCash', testNumbers: ['0731234567 (Success)', '0731234568 (Failed)'] },
-    { id: 'OM', name: 'OneMoney', testNumbers: ['0711234567 (Success)', '0711234568 (Failed)'] },
-    { id: 'MN', name: 'MTN Mobile', testNumbers: ['0761234567 (Success)', '0761234568 (Failed)'] },
-    { id: 'AT', name: 'Airtel Money', testNumbers: ['0751234567 (Success)', '0751234568 (Failed)'] },
-    { id: 'MP', name: 'M-Pesa', testNumbers: ['0721234567 (Success)', '0721234568 (Failed)'] },
-    { id: 'IB', name: 'InnBucks', testNumbers: ['Ends with 7 (Success)', 'Ends with 8 (Failed)'] },
-  ];
 
   const planDetails = {
     hardware: { name: 'Hardware Store', price: 15, duration: 'monthly' },
@@ -38,12 +25,6 @@ export default function PaymentPage() {
   const selectedPlan = planDetails[userType] || planDetails.hardware;
 
   const handlePayment = async () => {
-    // Validate phone number
-    if (!phoneNumber || phoneNumber.length < 10) {
-      setError('Please enter a valid phone number');
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
@@ -54,22 +35,16 @@ export default function PaymentPage() {
         customerEmail: testEmail,
         customerFirstName: testName.split(' ')[0] || 'Test',
         customerLastName: testName.split(' ')[1] || 'User',
-        customerPhone: phoneNumber,
-        nationalId: '00 1234567 A 00',
         planType: userType,
         planName: selectedPlan.name,
         planDuration: selectedPlan.duration,
-        userId: 'test-user-123',
-        paymentMethod: selectedMethod // Include the selected payment method
+        userId: 'test-user-123'
       };
 
-      console.log('Initiating payment with data:', paymentData);
-
-      const response = await fetch('/api/contipay', {
-        method: 'PUT',
+      const response = await fetch('/api/pesepay', {
+        method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(paymentData),
       });
@@ -78,6 +53,11 @@ export default function PaymentPage() {
 
       if (!response.ok) {
         throw new Error(data.error || 'Payment initiation failed');
+      }
+
+      // Store reference for later use
+      if (data.reference) {
+        localStorage.setItem('pesepay_reference', data.reference);
       }
 
       if (data.redirectUrl) {
@@ -92,9 +72,6 @@ export default function PaymentPage() {
       setLoading(false);
     }
   };
-
-  // Get test numbers for selected method
-  const selectedMethodData = paymentMethods.find(m => m.id === selectedMethod);
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -130,54 +107,11 @@ export default function PaymentPage() {
             </div>
           </div>
 
-          {/* Payment Method Selection */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Payment Method
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {paymentMethods.map((method) => (
-                <button
-                  key={method.id}
-                  onClick={() => setSelectedMethod(method.id)}
-                  className={`p-3 border rounded-lg text-sm font-medium transition-colors ${
-                    selectedMethod === method.id
-                      ? 'border-orange-500 bg-orange-50 text-orange-700'
-                      : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50'
-                  }`}
-                >
-                  {method.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Phone Number Input */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number
-            </label>
-            <input
-              type="tel"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="e.g. 071234567"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            />
-            {selectedMethodData && (
-              <p className="text-xs text-gray-500 mt-1">
-                Test numbers: {selectedMethodData.testNumbers.join(', ')}
-              </p>
-            )}
-          </div>
-
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
             <div className="flex items-start">
               <span className="text-yellow-600 text-sm font-medium mr-2">ⓘ</span>
               <p className="text-xs text-yellow-700">
-                <strong>Test Mode:</strong> Enter test phone numbers from the list above.
-                <br />
-                <span className="text-xs">You will be redirected to ContiPay for verification.</span>
+                <strong>Test Mode:</strong> You will be redirected to PesePay to choose your payment method and complete the payment.
               </p>
             </div>
           </div>
@@ -223,7 +157,7 @@ export default function PaymentPage() {
               </div>
               <div className="flex items-center space-x-1">
                 <span className="text-sm" style={{ color: '#E65A00' }}>◆</span>
-                <span className="text-xs text-gray-500">ContiPay</span>
+                <span className="text-xs text-gray-500">PesePay</span>
               </div>
             </div>
           </div>
@@ -231,4 +165,4 @@ export default function PaymentPage() {
       </div>
     </div>
   );
-    }
+}
