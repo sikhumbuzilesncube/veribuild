@@ -83,7 +83,7 @@ export default function Home() {
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-transparent" />
               </div>
 
-              <div className="absolute -bottom-2 md:-bottom-6 -left-2 md:-left-8 right-6 md:right-12 bg-white rounded-xl shadow-card-hover border border-gray-100 overflow-hidden">
+              <div className="absolute -bottom-2 md:-bottom-6 -left-2 md:-left-8 right-16 md:right-8 bg-white rounded-xl shadow-card-hover border border-gray-100 overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                   <div className="min-w-0">
                     <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
