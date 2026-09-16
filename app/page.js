@@ -115,41 +115,54 @@ export default function Home() {
       </section>
 
       {/* ===== WHO IT'S FOR ===== */}
-      <section id="who" className="py-20 md:py-28 px-6 bg-gray-50 border-y border-gray-100">
-        <div className="max-w-content mx-auto">
-          <div className="max-w-2xl mb-14">
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-700">
-              Built for everyone in the build.
-            </h2>
-            <p className="text-gray-600 mt-3 text-lg">
-              One platform, four account types — each with tools made for the job.
+<section id="who" className="py-16 md:py-24 px-6 bg-gray-50 border-y border-gray-100">
+  <div className="max-w-content mx-auto">
+    <div className="max-w-2xl mb-10 md:mb-12">
+      <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-700">
+        Built for everyone in the build.
+      </h2>
+      <p className="text-gray-600 mt-3 text-base md:text-lg">
+        One platform, four account types — each with tools made for the job.
+      </p>
+    </div>
+
+    <div className="grid sm:grid-cols-2 gap-3 md:gap-4">
+      {[
+        { letter: 'H', title: 'Homeowner', desc: 'Planning a build or renovation', href: '/register' },
+        { letter: 'S', title: 'Hardware Store', desc: 'List prices, reach more builders', href: '/hardware/register' },
+        { letter: 'C', title: 'Construction Co.', desc: 'Get featured on client BOQs', href: '/construction/register' },
+        { letter: 'W', title: 'Skilled Worker', desc: 'Get matched to real jobs', href: '/workers/register' },
+      ].map((item) => (
+        <Link
+          key={item.title}
+          href={item.href}
+          className="group flex items-center gap-4 bg-white rounded-xl p-4 md:p-5 border border-gray-200 hover:border-brand-500 hover:shadow-card-hover transition"
+        >
+          <div className="w-12 h-12 rounded-lg bg-gray-100 group-hover:bg-brand-500 flex items-center justify-center text-slate-700 group-hover:text-white transition font-bold text-lg flex-shrink-0">
+            {item.letter}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-bold text-slate-700 group-hover:text-brand-500 transition text-base">
+              {item.title}
+            </h3>
+            <p className="text-sm text-gray-500 leading-snug truncate">
+              {item.desc}
             </p>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { letter: 'H', title: 'Homeowner', desc: 'Planning a build or renovation', href: '/register' },
-              { letter: 'S', title: 'Hardware Store', desc: 'List prices, reach more builders', href: '/hardware/register' },
-              { letter: 'C', title: 'Construction Co.', desc: 'Get featured on client BOQs', href: '/construction/register' },
-              { letter: 'W', title: 'Skilled Worker', desc: 'Get matched to real jobs', href: '/workers/register' },
-            ].map((item) => (
-              <Link
-                key={item.title}
-                href={item.href}
-                className="group bg-white rounded-xl p-6 border border-gray-200 hover:border-brand-500 hover:shadow-card-hover transition"
-              >
-                <div className="w-11 h-11 mb-4 rounded-lg bg-gray-100 group-hover:bg-brand-500 flex items-center justify-center text-slate-700 group-hover:text-white transition font-bold">
-                  {item.letter}
-                </div>
-                <h3 className="font-bold text-slate-700 group-hover:text-brand-500 transition">
-                  {item.title}
-                </h3>
-                <p className="text-sm text-gray-500 mt-1 leading-snug">{item.desc}</p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+          <svg
+            className="w-5 h-5 text-gray-300 group-hover:text-brand-500 group-hover:translate-x-0.5 transition flex-shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
+      ))}
+    </div>
+  </div>
+</section>
 
       {/* ===== HOW IT WORKS ===== */}
 <section id="how-it-works" className="py-20 md:py-28 px-6 bg-white">
