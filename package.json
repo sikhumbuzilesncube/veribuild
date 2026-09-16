@@ -1,7 +1,6 @@
 {
   "name": "veribuild",
   "version": "1.0.0",
-  "description": "AI-powered BOQ generator for Zimbabwe",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,22 +9,18 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.0",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
-    "next": "14.0.4",
-    "pdf-parse": "^1.1.1",
-    "react": "^18",
-    "react-dom": "^18",
-    "tesseract.js": "^5.0.3"
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "crypto-js": "^4.2.0",
+    "next": "14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "autoprefixer": "^10.0.1",
-    "postcss": "^8",
-    "tailwindcss": "^3.3.0",
-    "typescript": "^5"
+    "autoprefixer": "^10.4.19",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.5",
+    "postcss": "^8.4.39",
+    "tailwindcss": "^3.4.6"
   }
 }
