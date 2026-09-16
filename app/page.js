@@ -152,52 +152,68 @@ export default function Home() {
       </section>
 
       {/* ===== HOW IT WORKS ===== */}
-      <section id="how-it-works" className="py-20 md:py-28 px-6 bg-white">
-        <div className="max-w-content mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-700">
-              From floor plan to full BOQ in 3 minutes.
-            </h2>
-            <p className="text-gray-600 mt-3 text-lg">
-              No quantity surveyor required. No spreadsheets. Just your plan.
-            </p>
+<section id="how-it-works" className="py-20 md:py-28 px-6 bg-white">
+  <div className="max-w-content mx-auto">
+    <div className="text-center max-w-2xl mx-auto mb-16">
+      <span className="inline-block text-xs font-bold uppercase tracking-wider text-brand-500 mb-3">
+        How it works
+      </span>
+      <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-700">
+        From floor plan to full BOQ in 3 minutes.
+      </h2>
+      <p className="text-gray-600 mt-3 text-lg">
+        No quantity surveyor required. No spreadsheets. Just your plan.
+      </p>
+    </div>
+
+    <div className="grid md:grid-cols-3 gap-6 md:gap-8">
+      {[
+        {
+          n: '01',
+          icon: <IconUpload className="w-7 h-7" />,
+          title: 'Upload your plan',
+          body: 'Drop in a PDF, JPEG, or PNG. Hand-drawn sketches and scanned plans work too.',
+        },
+        {
+          n: '02',
+          icon: <IconSparkle className="w-7 h-7" />,
+          title: 'We read every detail',
+          body: 'Rooms, dimensions, doors, windows, electrical points — extracted automatically.',
+        },
+        {
+          n: '03',
+          icon: <IconDocument className="w-7 h-7" />,
+          title: 'Get your BOQ',
+          body: 'Priced against live local hardware stock. Compare suppliers. See labour costs. Build.',
+        },
+      ].map((step, i) => (
+        <div
+          key={step.n}
+          className="relative bg-gray-50 rounded-2xl p-6 md:p-8 border border-gray-100"
+        >
+          {/* Connector line on desktop */}
+          {i < 2 && (
+            <div className="hidden md:block absolute top-12 -right-4 w-8 border-t-2 border-dashed border-brand-500/30" />
+          )}
+
+          {/* Number + icon row */}
+          <div className="flex items-center gap-4 mb-5">
+            <div className="w-14 h-14 rounded-xl bg-brand-500 flex items-center justify-center text-white flex-shrink-0">
+              {step.icon}
+            </div>
+            <span className="text-4xl font-bold text-brand-500/20 tabular-nums leading-none">
+              {step.n}
+            </span>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 md:gap-6 relative">
-            {[
-              {
-                n: '01',
-                icon: <IconUpload className="w-6 h-6" />,
-                title: 'Upload your plan',
-                body: 'Drop in a PDF, JPEG, or PNG. Hand-drawn sketches and scanned plans work too.',
-              },
-              {
-                n: '02',
-                icon: <IconSparkle className="w-6 h-6" />,
-                title: 'We read every detail',
-                body: 'Rooms, dimensions, doors, windows, electrical points — extracted automatically.',
-              },
-              {
-                n: '03',
-                icon: <IconDocument className="w-6 h-6" />,
-                title: 'Get your BOQ',
-                body: 'Priced against live local hardware stock. Compare suppliers. See labour costs. Build.',
-              },
-            ].map((step) => (
-              <div key={step.n} className="relative">
-                <div className="flex items-baseline gap-3 mb-4">
-                  <span className="text-sm font-bold text-brand-500 tabular-nums">{step.n}</span>
-                  <div className="w-10 h-10 rounded-lg bg-brand-500/10 text-brand-500 flex items-center justify-center">
-                    {step.icon}
-                  </div>
-                </div>
-                <h3 className="text-lg font-bold mb-2 text-slate-700">{step.title}</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">{step.body}</p>
-              </div>
-            ))}
-          </div>
+          <h3 className="text-lg font-bold mb-2 text-slate-700">{step.title}</h3>
+          <p className="text-gray-600 text-sm leading-relaxed">{step.body}</p>
         </div>
-      </section>
+      ))}
+    </div>
+  </div>
+</section>
+      
 
       {/* ===== TRUST / STATS ===== */}
       <section className="py-16 px-6 bg-slate-700 text-white">
