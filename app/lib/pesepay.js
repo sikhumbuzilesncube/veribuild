@@ -1,6 +1,10 @@
 /**
  * PesePay Payment Integration
  * For VeriBuild - A Product of GateKeeperAI
+ * 
+ * IMPORTANT: PesePay uses CryptoJS's default salted encryption format.
+ * The encrypted payload MUST start with "Salted__" (Base64 encoded).
+ * Do NOT specify an IV — let CryptoJS handle it automatically.
  */
 
 import CryptoJS from 'crypto-js';
@@ -12,32 +16,30 @@ const PESEPAY_CONFIG = {
 };
 
 /**
- * Encrypt a payload using AES-256-CBC
+ * Encrypt a payload using CryptoJS default salted AES format
+ * PesePay expects the "Salted__" prefix in the encrypted string.
  */
 function encryptPayload(data) {
   const key = CryptoJS.enc.Utf8.parse(PESEPAY_CONFIG.encryptionKey);
-  const iv = CryptoJS.enc.Utf8.parse(PESEPAY_CONFIG.encryptionKey.substring(0, 16));
   
+  // Do NOT pass IV — let CryptoJS generate salt + IV automatically
   const encrypted = CryptoJS.AES.encrypt(
     JSON.stringify(data),
-    key,
-    { iv: iv }
+    key
   ).toString();
   
   return encrypted;
 }
 
 /**
- * Decrypt a payload using AES-256-CBC
+ * Decrypt a payload using CryptoJS default salted AES format
  */
 function decryptPayload(encryptedString) {
   const key = CryptoJS.enc.Utf8.parse(PESEPAY_CONFIG.encryptionKey);
-  const iv = CryptoJS.enc.Utf8.parse(PESEPAY_CONFIG.encryptionKey.substring(0, 16));
   
   const decryptedBytes = CryptoJS.AES.decrypt(
     encryptedString,
-    key,
-    { iv: iv }
+    key
   );
   
   const decryptedString = decryptedBytes.toString(CryptoJS.enc.Utf8);
@@ -71,7 +73,6 @@ export async function initiatePayment(paymentData) {
     const cleanBaseUrl = PESEPAY_CONFIG.baseUrl.replace(/\/$/, '');
     const url = `${cleanBaseUrl}/payments-engine/v1/payments/initiate`;
 
-    // Build the payment body (plain text, will be encrypted)
     const paymentBody = {
       amountDetails: {
         amount: parseFloat(paymentData.amount),
@@ -84,13 +85,12 @@ export async function initiatePayment(paymentData) {
 
     console.log('PesePay Payment Body (plain):', JSON.stringify(paymentBody, null, 2));
 
-    // Encrypt the payload
     const encryptedPayload = encryptPayload(paymentBody);
     const finalPayload = { payload: encryptedPayload };
 
+    console.log('PesePay Encrypted Payload Preview:', encryptedPayload.substring(0, 30) + '...');
     console.log('PesePay URL:', url);
 
-    // Send request
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -107,11 +107,9 @@ export async function initiatePayment(paymentData) {
       throw new Error(data.message || data.error || `Payment initiation failed (${response.status})`);
     }
 
-    // Decrypt the response
     const transaction = decryptPayload(data.payload);
     console.log('PesePay Response (decrypted):', JSON.stringify(transaction, null, 2));
 
-    // Store payment record
     await storePaymentRecord({
       transactionId: transaction.referenceNumber,
       reference: reference,
@@ -170,7 +168,6 @@ export async function checkPaymentStatus(referenceNumber) {
       throw new Error(data.message || data.error || `Status check failed (${response.status})`);
     }
 
-    // Decrypt the response
     const transaction = decryptPayload(data.payload);
     console.log('PesePay Status (decrypted):', JSON.stringify(transaction, null, 2));
 
