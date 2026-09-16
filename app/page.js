@@ -85,35 +85,109 @@ export default function Home() {
                     Live pricing
                   </span>
                 </div>
-                <div className="p-6 space-y-3 text-sm">
-                  {[
-                    ['Foundation excavation', '$249.48'],
-                    ['Concrete mix (20MPa)', '$1,349.46'],
-                    ['Cement 50kg · 45 bags', '$540.00'],
-                    ['Standard bricks · 450 pcs', '$180.00'],
-                  ].map(([label, value]) => (
-                    <div key={label} className="flex justify-between border-b border-gray-100 pb-2.5">
-                      <span className="text-gray-600">{label}</span>
-                      <span className="text-slate-700 font-semibold tabular-nums">{value}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between border-b border-gray-100 pb-2.5">
-                    <span className="text-gray-600">Labour (skilled + general)</span>
-                    <span className="text-slate-700 font-semibold tabular-nums">$3,200.00</span>
-                  </div>
-                  <div className="flex justify-between pt-3 mt-1 border-t-2 border-brand-500">
-                    <span className="font-bold text-slate-700">Project total</span>
-                    <span className="font-bold text-brand-500 text-lg tabular-nums">$29,286.63</span>
-                  </div>
-                  <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2 mt-2">
-                    Best supplier: Builders Warehouse — save $490
-                  </p>
-                </div>
+{/* ===== HERO ===== */}
+<section className="relative pt-32 md:pt-40 pb-16 md:pb-24 px-6 bg-white overflow-hidden">
+  {/* Subtle background accent */}
+  <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-brand-500/5 rounded-full blur-3xl -translate-y-1/3 translate-x-1/4 pointer-events-none" />
+
+  <div className="max-w-content mx-auto relative">
+    <div className="grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
+      {/* LEFT: Copy */}
+      <div>
+        <span className="inline-flex items-center gap-2 bg-brand-500/10 text-brand-500 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6">
+          <span className="w-1.5 h-1.5 bg-brand-500 rounded-full" />
+          Built for Zimbabwe
+        </span>
+        <h1 className="text-4xl md:text-5xl lg:text-[3.5rem] font-bold leading-[1.05] tracking-tight text-slate-700">
+          Know your build cost <span className="text-brand-500">before</span> you break ground.
+        </h1>
+        <p className="text-lg text-gray-600 mt-6 max-w-lg leading-relaxed">
+          Upload your floor plan. In three minutes, get a professional BOQ with real material
+          prices from Zimbabwean hardware stores, plus labour cost estimates.
+        </p>
+
+        <div className="flex flex-wrap gap-3 mt-8">
+          <Link
+            href="/register"
+            className="bg-brand-500 text-white px-7 py-3.5 rounded-xl font-semibold hover:bg-brand-600 transition shadow-card"
+          >
+            Generate my first BOQ
+          </Link>
+          <button
+            onClick={() => setShowSample(true)}
+            className="border border-gray-300 text-slate-700 px-7 py-3.5 rounded-xl font-semibold hover:border-slate-700 hover:bg-gray-50 transition"
+          >
+            See a sample
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-10 pt-8 border-t border-gray-100 text-sm">
+          <div className="flex items-center gap-2 text-gray-700">
+            <IconShield className="w-4 h-4 text-brand-500" />
+            <span>
+              Payments via <strong className="font-semibold">ContiPay</strong>
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-gray-700">
+            <IconWifi className="w-4 h-4 text-brand-500" />
+            <span>Works offline on low data</span>
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT: Photo with floating BOQ card */}
+      <div className="relative pb-8 md:pb-0">
+        {/* Photo */}
+        <div className="relative aspect-[4/5] rounded-2xl overflow-hidden shadow-card-hover">
+          <Image
+            src="/hero.webp"
+            alt="Zimbabwean construction site with a builder reviewing plans"
+            fill
+            priority
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-cover"
+          />
+          {/* Warm overlay for readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-transparent" />
+        </div>
+
+        {/* Floating BOQ card — overlaps the photo bottom-left */}
+        <div className="absolute -bottom-2 md:-bottom-6 -left-2 md:-left-8 right-6 md:right-12 bg-white rounded-xl shadow-card-hover border border-gray-100 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+                Sample BOQ
+              </p>
+              <p className="text-xs font-bold text-slate-700 mt-0.5 truncate">
+                3-Bed House · Borrowdale
+              </p>
+            </div>
+            <span className="text-[9px] font-bold uppercase tracking-wider text-brand-500 bg-brand-500/10 px-1.5 py-0.5 rounded flex-shrink-0">
+              Live
+            </span>
+          </div>
+          <div className="px-4 py-3 space-y-1.5 text-xs">
+            {[
+              ['Foundation excavation', '$249.48'],
+              ['Concrete mix (20MPa)', '$1,349.46'],
+            ].map(([label, value]) => (
+              <div key={label} className="flex justify-between">
+                <span className="text-gray-500 truncate pr-2">{label}</span>
+                <span className="text-slate-700 font-semibold tabular-nums flex-shrink-0">
+                  {value}
+                </span>
               </div>
+            ))}
+            <div className="flex justify-between pt-2 mt-1 border-t border-brand-500/20">
+              <span className="font-bold text-slate-700">Total</span>
+              <span className="font-bold text-brand-500 tabular-nums">$29,286</span>
             </div>
           </div>
         </div>
-      </section>
+      </div>
+    </div>
+  </div>
+</section>
 
       {/* ===== WHO IT'S FOR ===== */}
 <section id="who" className="py-16 md:py-24 px-6 bg-gray-50 border-y border-gray-100">
