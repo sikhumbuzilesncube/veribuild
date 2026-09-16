@@ -85,7 +85,7 @@ export default function Header() {
           </nav>
 
           {/* Right side: CTA + mobile menu toggle */}
-          <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
             <Link
               href="/login"
               className="hidden sm:inline text-slate-700 hover:text-brand-500 transition font-medium text-sm"
