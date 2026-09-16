@@ -1,10 +1,6 @@
 /**
  * PesePay Payment Integration
  * For VeriBuild - A Product of GateKeeperAI
- * 
- * IMPORTANT: PesePay uses CryptoJS's default salted encryption format.
- * The encrypted payload MUST start with "Salted__" (Base64 encoded).
- * Do NOT specify an IV — let CryptoJS handle it automatically.
  */
 
 import CryptoJS from 'crypto-js';
@@ -15,56 +11,46 @@ const PESEPAY_CONFIG = {
   encryptionKey: process.env.PESEPAY_ENCRYPTION_KEY || '0e6a6429cc0445fb8195ffbff0cdaf1c',
 };
 
-/**
- * Encrypt a payload using CryptoJS default salted AES format
- * PesePay expects the "Salted__" prefix in the encrypted string.
- */
 function encryptPayload(data) {
   const key = CryptoJS.enc.Utf8.parse(PESEPAY_CONFIG.encryptionKey);
-  
-  // Do NOT pass IV — let CryptoJS generate salt + IV automatically
   const encrypted = CryptoJS.AES.encrypt(
     JSON.stringify(data),
     key
   ).toString();
-  
   return encrypted;
 }
 
-/**
- * Decrypt a payload using CryptoJS default salted AES format
- */
 function decryptPayload(encryptedString) {
+  if (!encryptedString) {
+    throw new Error('No encrypted string provided for decryption');
+  }
+  
   const key = CryptoJS.enc.Utf8.parse(PESEPAY_CONFIG.encryptionKey);
-  
-  const decryptedBytes = CryptoJS.AES.decrypt(
-    encryptedString,
-    key
-  );
-  
+  const decryptedBytes = CryptoJS.AES.decrypt(encryptedString, key);
   const decryptedString = decryptedBytes.toString(CryptoJS.enc.Utf8);
   
   if (!decryptedString) {
-    throw new Error('Decryption failed - empty result');
+    throw new Error('Decryption failed - empty result. Check encryption key.');
   }
   
-  return JSON.parse(decryptedString);
+  try {
+    return JSON.parse(decryptedString);
+  } catch (e) {
+    throw new Error('Decryption returned invalid JSON: ' + decryptedString.substring(0, 100));
+  }
 }
 
-/**
- * Generate a unique reference number
- */
 function generateReference() {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 8);
   return `VB-${timestamp}-${random}`.toUpperCase();
 }
 
-/**
- * Initiate a payment with PesePay
- */
 export async function initiatePayment(paymentData) {
   try {
+    console.log('=== PESEPAY INITIATE START ===');
+    console.log('Payment data received:', JSON.stringify(paymentData, null, 2));
+    
     if (!paymentData.amount || !paymentData.customerEmail) {
       throw new Error('Amount and customer email are required');
     }
@@ -83,13 +69,16 @@ export async function initiatePayment(paymentData) {
       returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success?reference=${reference}`
     };
 
-    console.log('PesePay Payment Body (plain):', JSON.stringify(paymentBody, null, 2));
+    console.log('Payment body (plain):', JSON.stringify(paymentBody, null, 2));
 
     const encryptedPayload = encryptPayload(paymentBody);
+    console.log('Encrypted payload preview:', encryptedPayload.substring(0, 50) + '...');
+    console.log('Encrypted payload length:', encryptedPayload.length);
+
     const finalPayload = { payload: encryptedPayload };
 
-    console.log('PesePay Encrypted Payload Preview:', encryptedPayload.substring(0, 30) + '...');
-    console.log('PesePay URL:', url);
+    console.log('Sending request to:', url);
+    console.log('Integration key preview:', PESEPAY_CONFIG.integrationKey.substring(0, 15) + '...');
 
     const response = await fetch(url, {
       method: 'POST',
@@ -100,28 +89,56 @@ export async function initiatePayment(paymentData) {
       body: JSON.stringify(finalPayload)
     });
 
-    const data = await response.json();
-    console.log('PesePay Response (encrypted):', data);
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
+
+    const responseText = await response.text();
+    console.log('Raw response text:', responseText);
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      throw new Error('Invalid JSON response from PesePay: ' + responseText.substring(0, 200));
+    }
+
+    console.log('Parsed response:', JSON.stringify(data, null, 2));
 
     if (!response.ok) {
       throw new Error(data.message || data.error || `Payment initiation failed (${response.status})`);
     }
 
-    const transaction = decryptPayload(data.payload);
-    console.log('PesePay Response (decrypted):', JSON.stringify(transaction, null, 2));
+    // Check if payload exists in response
+    if (!data.payload) {
+      console.error('No payload field in response!');
+      console.error('Response data:', data);
+      throw new Error('PesePay response missing payload. Response: ' + JSON.stringify(data));
+    }
 
-    await storePaymentRecord({
-      transactionId: transaction.referenceNumber,
-      reference: reference,
-      amount: paymentBody.amountDetails.amount,
-      currency: paymentBody.amountDetails.currencyCode,
-      planType: paymentData.planType,
-      planName: paymentData.planName,
-      userId: paymentData.userId,
-      customerEmail: paymentData.customerEmail,
-      status: 'pending',
-      pollUrl: transaction.pollUrl
-    });
+    console.log('Response has payload, decrypting...');
+
+    const transaction = decryptPayload(data.payload);
+    console.log('Decrypted transaction:', JSON.stringify(transaction, null, 2));
+
+    // Store payment record
+    try {
+      await storePaymentRecord({
+        transactionId: transaction.referenceNumber,
+        reference: reference,
+        amount: paymentBody.amountDetails.amount,
+        currency: paymentBody.amountDetails.currencyCode,
+        planType: paymentData.planType,
+        planName: paymentData.planName,
+        userId: paymentData.userId,
+        customerEmail: paymentData.customerEmail,
+        status: 'pending',
+        pollUrl: transaction.pollUrl
+      });
+    } catch (dbError) {
+      console.error('Database storage error (non-blocking):', dbError);
+    }
+
+    console.log('=== PESEPAY INITIATE SUCCESS ===');
 
     return {
       success: true,
@@ -134,14 +151,13 @@ export async function initiatePayment(paymentData) {
     };
 
   } catch (error) {
-    console.error('PesePay Error:', error);
+    console.error('=== PESEPAY INITIATE ERROR ===');
+    console.error('Error:', error.message);
+    console.error('Stack:', error.stack);
     throw error;
   }
 }
 
-/**
- * Check payment status with PesePay
- */
 export async function checkPaymentStatus(referenceNumber) {
   try {
     if (!referenceNumber) {
@@ -162,10 +178,14 @@ export async function checkPaymentStatus(referenceNumber) {
     });
 
     const data = await response.json();
-    console.log('PesePay Status Response (encrypted):', data);
+    console.log('PesePay Status Response:', JSON.stringify(data, null, 2));
 
     if (!response.ok) {
       throw new Error(data.message || data.error || `Status check failed (${response.status})`);
+    }
+
+    if (!data.payload) {
+      throw new Error('PesePay status response missing payload');
     }
 
     const transaction = decryptPayload(data.payload);
@@ -187,9 +207,6 @@ export async function checkPaymentStatus(referenceNumber) {
   }
 }
 
-/**
- * Store payment record in Supabase
- */
 async function storePaymentRecord(paymentData) {
   try {
     const { createClient } = await import('@supabase/supabase-js');
@@ -220,6 +237,8 @@ async function storePaymentRecord(paymentData) {
 
       if (error) {
         console.error('Error storing payment record:', error);
+      } else {
+        console.log('Payment record stored in database');
       }
     }
   } catch (error) {
