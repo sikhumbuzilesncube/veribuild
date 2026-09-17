@@ -97,10 +97,14 @@ export default function Home() {
                     Live
                   </span>
                 </div>
-                <div className="px-4 py-3 space-y-1.5 text-xs">
+                <div className="px-4 py-3 space-y-1 text-xs">
                   {[
-                    ['Foundation excavation', '$249.48'],
-                    ['Concrete mix (20MPa)', '$1,349.46'],
+                    ['A. Substructure', '$4,944.32'],
+                    ['B. Superstructure', '$9,474.93'],
+                    ['C. Roof', '$9,020.30'],
+                    ['D. Finishes', '$4,758.78'],
+                    ['E. Services', '$1,100.00'],
+                    ['F. Labour', '$2,055.40'],
                   ].map(([label, value]) => (
                     <div key={label} className="flex justify-between">
                       <span className="text-gray-500 truncate pr-2">{label}</span>
@@ -109,9 +113,17 @@ export default function Home() {
                       </span>
                     </div>
                   ))}
+                  <div className="flex justify-between pt-2 mt-2 border-t border-gray-200">
+                    <span className="text-gray-500">Subtotal</span>
+                    <span className="text-slate-700 font-semibold tabular-nums">$31,353.73</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Contingency (5%)</span>
+                    <span className="text-slate-700 font-semibold tabular-nums">$1,567.69</span>
+                  </div>
                   <div className="flex justify-between pt-2 mt-1 border-t border-brand-500/20">
-                    <span className="font-bold text-slate-700">Total</span>
-                    <span className="font-bold text-brand-500 tabular-nums">$29,286</span>
+                    <span className="font-bold text-slate-700">GRAND TOTAL</span>
+                    <span className="font-bold text-brand-500 tabular-nums">$32,921.42</span>
                   </div>
                 </div>
               </div>
@@ -323,7 +335,7 @@ export default function Home() {
                 <div className="mt-8 pt-6 border-t border-gray-100 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-gray-500">
                   <span className="flex items-center gap-1.5">
                     <IconCheck className="w-3.5 h-3.5 text-brand-500" />
-                    PDF &amp; JPEG exports
+                    PDF &amp; CSV exports
                   </span>
                   <span className="flex items-center gap-1.5">
                     <IconCheck className="w-3.5 h-3.5 text-brand-500" />
