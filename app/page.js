@@ -58,83 +58,162 @@ export default function Home() {
                   onClick={() => setShowSample(true)}
                   className="border border-gray-300 text-slate-700 px-7 py-3.5 rounded-xl font-semibold hover:border-slate-700 hover:bg-gray-50 transition"
                 >
-                  See a sample
-                </button>
-              </div>
+      {/* ===== HERO ===== */}
+<section className="relative min-h-[88vh] md:min-h-screen flex items-center px-6 pt-32 pb-20 md:pt-36 md:pb-24 overflow-hidden">
+  {/* Background photo */}
+  <Image
+    src="/hero.webp"
+    alt="Zimbabwean construction site with a builder reviewing plans"
+    fill
+    priority
+    sizes="100vw"
+    className="object-cover"
+  />
 
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-10 pt-8 border-t border-gray-100 text-sm">
-                <div className="flex items-center gap-2 text-gray-700">
-                  <IconShield className="w-4 h-4 text-brand-500" />
-                  <span>Payments via ContiPay</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-700">
-                  <IconWifi className="w-4 h-4 text-brand-500" />
-                  <span>Works offline on low data</span>
-                </div>
-              </div>
-            </div>
+  {/* Dark overlay for readability */}
+  <div className="absolute inset-0 bg-gradient-to-br from-slate-900/85 via-slate-900/70 to-slate-900/40" />
 
-            <div className="relative pb-8 md:pb-0">
-              <div className="relative aspect-[4/5] rounded-2xl overflow-hidden shadow-card-hover">
-                <Image
-                  src="/hero.webp"
-                  alt="Zimbabwean construction site with a builder reviewing plans"
-                  fill
-                  priority
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  className="object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-transparent" />
-              </div>
+  {/* Content */}
+  <div className="relative max-w-content mx-auto w-full">
+    <div className="max-w-3xl">
+      <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 text-white px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-8">
+        <span className="w-1.5 h-1.5 bg-brand-500 rounded-full" />
+        Built for Zimbabwe
+      </span>
 
-              <div className="absolute -bottom-2 md:-bottom-6 -left-2 md:-left-8 right-16 md:right-8 bg-white rounded-xl shadow-card-hover border border-gray-100 overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                  <div className="min-w-0">
-                    <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
-                      Sample BOQ
-                    </p>
-                    <p className="text-xs font-bold text-slate-700 mt-0.5 truncate">
-                      3-Bed House · Borrowdale
-                    </p>
-                  </div>
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-brand-500 bg-brand-500/10 px-1.5 py-0.5 rounded flex-shrink-0">
-                    Live
-                  </span>
-                </div>
-                <div className="px-4 py-3 space-y-1 text-xs">
-                  {[
-                    ['A. Substructure', '$4,944.32'],
-                    ['B. Superstructure', '$9,474.93'],
-                    ['C. Roof', '$9,020.30'],
-                    ['D. Finishes', '$4,758.78'],
-                    ['E. Services', '$1,100.00'],
-                    ['F. Labour', '$2,055.40'],
-                  ].map(([label, value]) => (
-                    <div key={label} className="flex justify-between">
-                      <span className="text-gray-500 truncate pr-2">{label}</span>
-                      <span className="text-slate-700 font-semibold tabular-nums flex-shrink-0">
-                        {value}
-                      </span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between pt-2 mt-2 border-t border-gray-200">
-                    <span className="text-gray-500">Subtotal</span>
-                    <span className="text-slate-700 font-semibold tabular-nums">$31,353.73</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Contingency (5%)</span>
-                    <span className="text-slate-700 font-semibold tabular-nums">$1,567.69</span>
-                  </div>
-                  <div className="flex justify-between pt-2 mt-1 border-t border-brand-500/20">
-                    <span className="font-bold text-slate-700">GRAND TOTAL</span>
-                    <span className="font-bold text-brand-500 tabular-nums">$32,921.42</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+      <h1 className="text-5xl md:text-6xl lg:text-7xl xl:text-[5.5rem] font-bold leading-[0.95] tracking-tighter text-white">
+        BOQs in minutes.
+        <br />
+        Not <span className="text-brand-500">weeks</span>.
+      </h1>
+
+      <p className="text-lg md:text-xl text-gray-200 mt-8 max-w-2xl leading-relaxed">
+        VeriBuild generates a professional BOQ from your floor plan in 3 minutes — with
+        real material prices from Zimbabwean hardware stores and labour cost estimates.
+      </p>
+
+      <div className="flex flex-wrap gap-3 mt-10">
+        <Link
+          href="/register"
+          className="bg-brand-500 text-white px-7 py-3.5 rounded-xl font-semibold hover:bg-brand-600 transition shadow-lg shadow-brand-500/30"
+        >
+          Generate my first BOQ
+        </Link>
+        <button
+          onClick={() => setShowSample(true)}
+          className="bg-white/10 backdrop-blur border border-white/20 text-white px-7 py-3.5 rounded-xl font-semibold hover:bg-white/20 transition"
+        >
+          See a sample
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-12 pt-8 border-t border-white/15 text-sm text-gray-200">
+        <div className="flex items-center gap-2">
+          <IconShield className="w-4 h-4 text-brand-500" />
+          <span>Payments via ContiPay</span>
         </div>
-      </section>
+        <div className="flex items-center gap-2">
+          <IconWifi className="w-4 h-4 text-brand-500" />
+          <span>Works offline on low data</span>
+        </div>
+        <div className="hidden md:flex items-center gap-2">
+          <IconCheck className="w-4 h-4 text-brand-500" />
+          <span>Trusted across Zimbabwe</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {/* Floating BOQ card — bottom-right, desktop only */}
+  <div className="hidden lg:block absolute bottom-16 right-8 xl:right-16 w-80 z-10">
+    <div className="bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+        <div className="min-w-0">
+          <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+            Sample BOQ
+          </p>
+          <p className="text-xs font-bold text-slate-700 mt-0.5 truncate">
+            3-Bed House · Borrowdale
+          </p>
+        </div>
+        <span className="text-[9px] font-bold uppercase tracking-wider text-brand-500 bg-brand-500/10 px-1.5 py-0.5 rounded flex-shrink-0">
+          Live
+        </span>
+      </div>
+      <div className="px-4 py-3 space-y-1 text-xs">
+        {[
+          ['A. Substructure', '$4,944.32'],
+          ['B. Superstructure', '$9,474.93'],
+          ['C. Roof', '$9,020.30'],
+          ['D. Finishes', '$4,758.78'],
+        ].map(([label, value]) => (
+          <div key={label} className="flex justify-between">
+            <span className="text-gray-500 truncate pr-2">{label}</span>
+            <span className="text-slate-700 font-semibold tabular-nums flex-shrink-0">
+              {value}
+            </span>
+          </div>
+        ))}
+        <div className="flex justify-between pt-2 mt-2 border-t border-gray-200">
+          <span className="text-gray-500">Subtotal</span>
+          <span className="text-slate-700 font-semibold tabular-nums">$31,353.73</span>
+        </div>
+        <div className="flex justify-between pt-2 mt-1 border-t border-brand-500/20">
+          <span className="font-bold text-slate-700">GRAND TOTAL</span>
+          <span className="font-bold text-brand-500 tabular-nums">$32,921.42</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {/* Mobile BOQ card — shown only on small screens, below the fold content */}
+  <div className="lg:hidden relative max-w-content mx-auto w-full mt-12 z-10">
+    <div className="bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+        <div className="min-w-0">
+          <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+            Sample BOQ
+          </p>
+          <p className="text-xs font-bold text-slate-700 mt-0.5 truncate">
+            3-Bed House · Borrowdale
+          </p>
+        </div>
+        <span className="text-[9px] font-bold uppercase tracking-wider text-brand-500 bg-brand-500/10 px-1.5 py-0.5 rounded flex-shrink-0">
+          Live
+        </span>
+      </div>
+      <div className="px-4 py-3 space-y-1 text-xs">
+        {[
+          ['A. Substructure', '$4,944.32'],
+          ['B. Superstructure', '$9,474.93'],
+          ['C. Roof', '$9,020.30'],
+          ['D. Finishes', '$4,758.78'],
+          ['E. Services', '$1,100.00'],
+          ['F. Labour', '$2,055.40'],
+        ].map(([label, value]) => (
+          <div key={label} className="flex justify-between">
+            <span className="text-gray-500 truncate pr-2">{label}</span>
+            <span className="text-slate-700 font-semibold tabular-nums flex-shrink-0">
+              {value}
+            </span>
+          </div>
+        ))}
+        <div className="flex justify-between pt-2 mt-2 border-t border-gray-200">
+          <span className="text-gray-500">Subtotal</span>
+          <span className="text-slate-700 font-semibold tabular-nums">$31,353.73</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-500">Contingency (5%)</span>
+          <span className="text-slate-700 font-semibold tabular-nums">$1,567.69</span>
+        </div>
+        <div className="flex justify-between pt-2 mt-1 border-t border-brand-500/20">
+          <span className="font-bold text-slate-700">GRAND TOTAL</span>
+          <span className="font-bold text-brand-500 tabular-nums">$32,921.42</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
       {/* ===== WHO IT'S FOR (LEAN STRIP) ===== */}
       <section id="who" className="py-12 md:py-16 px-6 bg-gray-50 border-y border-gray-100">
