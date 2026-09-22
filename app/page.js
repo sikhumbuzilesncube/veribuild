@@ -23,24 +23,24 @@ export default function Home() {
       <Header />
 
       {/* ===== HERO ===== */}
-      <section className="relative min-h-[88vh] md:min-h-screen flex items-center px-6 pt-32 pb-20 md:pt-36 md:pb-24 overflow-hidden">
+      <section className="relative overflow-hidden">
         {/* Background photo */}
-        <Image
-          src="/hero.webp"
-          alt="Zimbabwean construction site with a builder reviewing plans"
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover"
-        />
-
-        {/* Dark overlay for readability */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/85 via-slate-900/70 to-slate-900/40" />
+        <div className="absolute inset-0">
+          <Image
+            src="/hero.webp"
+            alt="Zimbabwean construction site with a builder reviewing plans"
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900/85 via-slate-900/70 to-slate-900/40" />
+        </div>
 
         {/* Content */}
-        <div className="relative max-w-content mx-auto w-full">
+        <div className="relative max-w-content mx-auto px-6 pt-32 md:pt-40 pb-16 md:pb-24">
           <div className="max-w-3xl">
-            <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 text-white px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-8">
+            <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 text-white px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6 md:mb-8">
               <span className="w-1.5 h-1.5 bg-brand-500 rounded-full" />
               Built for Zimbabwe
             </span>
@@ -51,12 +51,12 @@ export default function Home() {
               Not <span className="text-brand-500">weeks</span>.
             </h1>
 
-            <p className="text-lg md:text-xl text-gray-200 mt-8 max-w-2xl leading-relaxed">
+            <p className="text-lg md:text-xl text-gray-200 mt-6 md:mt-8 max-w-2xl leading-relaxed">
               VeriBuild generates a professional BOQ from your floor plan in 3 minutes — with
               real material prices from Zimbabwean hardware stores and labour cost estimates.
             </p>
 
-            <div className="flex flex-wrap gap-3 mt-10">
+            <div className="flex flex-wrap gap-3 mt-8 md:mt-10">
               <Link
                 href="/register"
                 className="bg-brand-500 text-white px-7 py-3.5 rounded-xl font-semibold hover:bg-brand-600 transition shadow-lg shadow-brand-500/30"
@@ -71,7 +71,7 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-12 pt-8 border-t border-white/15 text-sm text-gray-200">
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-10 md:mt-12 pt-6 md:pt-8 border-t border-white/15 text-sm text-gray-200">
               <div className="flex items-center gap-2">
                 <IconShield className="w-4 h-4 text-brand-500" />
                 <span>Payments via ContiPay</span>
@@ -86,125 +86,103 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Floating BOQ card — bottom-right, desktop only */}
-        <div className="hidden lg:block absolute bottom-16 right-8 xl:right-16 w-80 z-10">
-          <div className="bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
-                  Sample BOQ
-                </p>
-                <p className="text-xs font-bold text-slate-700 mt-0.5 truncate">
-                  3-Bed House · Borrowdale
-                </p>
-              </div>
-              <span className="text-[9px] font-bold uppercase tracking-wider text-brand-500 bg-brand-500/10 px-1.5 py-0.5 rounded flex-shrink-0">
-                Live
-              </span>
-            </div>
-            <div className="px-4 py-3 space-y-1 text-xs">
-              {[
-                ['A. Substructure', '$4,944.32'],
-                ['B. Superstructure', '$9,474.93'],
-                ['C. Roof', '$9,020.30'],
-                ['D. Finishes', '$4,758.78'],
-              ].map(([label, value]) => (
-                <div key={label} className="flex justify-between">
-                  <span className="text-gray-500 truncate pr-2">{label}</span>
-                  <span className="text-slate-700 font-semibold tabular-nums flex-shrink-0">
-                    {value}
-                  </span>
+          {/* BOQ Card — full width on mobile, absolute right on desktop */}
+          <div className="mt-10 md:mt-0 md:absolute md:bottom-24 md:right-6 lg:right-12 xl:right-16 md:w-72 lg:w-80">
+            <div className="bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                <div className="min-w-0">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+                    Sample BOQ
+                  </p>
+                  <p className="text-xs font-bold text-slate-700 mt-0.5 truncate">
+                    3-Bed House · Borrowdale
+                  </p>
                 </div>
-              ))}
-              <div className="flex justify-between pt-2 mt-2 border-t border-gray-200">
-                <span className="text-gray-500">Subtotal</span>
-                <span className="text-slate-700 font-semibold tabular-nums">$31,353.73</span>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-brand-500 bg-brand-500/10 px-1.5 py-0.5 rounded flex-shrink-0">
+                  Live
+                </span>
               </div>
-              <div className="flex justify-between pt-2 mt-1 border-t border-brand-500/20">
-                <span className="font-bold text-slate-700">GRAND TOTAL</span>
-                <span className="font-bold text-brand-500 tabular-nums">$32,921.42</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile BOQ card — shown only on small screens */}
-        <div className="lg:hidden relative max-w-content mx-auto w-full mt-12 z-10">
-          <div className="bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
-                  Sample BOQ
-                </p>
-                <p className="text-xs font-bold text-slate-700 mt-0.5 truncate">
-                  3-Bed House · Borrowdale
-                </p>
-              </div>
-              <span className="text-[9px] font-bold uppercase tracking-wider text-brand-500 bg-brand-500/10 px-1.5 py-0.5 rounded flex-shrink-0">
-                Live
-              </span>
-            </div>
-            <div className="px-4 py-3 space-y-1 text-xs">
-              {[
-                ['A. Substructure', '$4,944.32'],
-                ['B. Superstructure', '$9,474.93'],
-                ['C. Roof', '$9,020.30'],
-                ['D. Finishes', '$4,758.78'],
-                ['E. Services', '$1,100.00'],
-                ['F. Labour', '$2,055.40'],
-              ].map(([label, value]) => (
-                <div key={label} className="flex justify-between">
-                  <span className="text-gray-500 truncate pr-2">{label}</span>
-                  <span className="text-slate-700 font-semibold tabular-nums flex-shrink-0">
-                    {value}
-                  </span>
+              <div className="px-4 py-3 space-y-1 text-xs">
+                {[
+                  ['A. Substructure', '$4,944.32'],
+                  ['B. Superstructure', '$9,474.93'],
+                  ['C. Roof', '$9,020.30'],
+                  ['D. Finishes', '$4,758.78'],
+                  ['E. Services', '$1,100.00'],
+                  ['F. Labour', '$2,055.40'],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex justify-between">
+                    <span className="text-gray-500 truncate pr-2">{label}</span>
+                    <span className="text-slate-700 font-semibold tabular-nums flex-shrink-0">
+                      {value}
+                    </span>
+                  </div>
+                ))}
+                <div className="flex justify-between pt-2 mt-2 border-t border-gray-200">
+                  <span className="text-gray-500">Subtotal</span>
+                  <span className="text-slate-700 font-semibold tabular-nums">$31,353.73</span>
                 </div>
-              ))}
-              <div className="flex justify-between pt-2 mt-2 border-t border-gray-200">
-                <span className="text-gray-500">Subtotal</span>
-                <span className="text-slate-700 font-semibold tabular-nums">$31,353.73</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Contingency (5%)</span>
-                <span className="text-slate-700 font-semibold tabular-nums">$1,567.69</span>
-              </div>
-              <div className="flex justify-between pt-2 mt-1 border-t border-brand-500/20">
-                <span className="font-bold text-slate-700">GRAND TOTAL</span>
-                <span className="font-bold text-brand-500 tabular-nums">$32,921.42</span>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Contingency (5%)</span>
+                  <span className="text-slate-700 font-semibold tabular-nums">$1,567.69</span>
+                </div>
+                <div className="flex justify-between pt-2 mt-1 border-t border-brand-500/20">
+                  <span className="font-bold text-slate-700">GRAND TOTAL</span>
+                  <span className="font-bold text-brand-500 tabular-nums">$32,921.42</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ===== WHO IT'S FOR (LEAN STRIP) ===== */}
-      <section id="who" className="py-12 md:py-16 px-6 bg-gray-50 border-y border-gray-100">
+      {/* ===== WHO IT'S FOR ===== */}
+      <section id="who" className="py-16 md:py-24 px-6 bg-gray-50 border-y border-gray-100">
         <div className="max-w-content mx-auto">
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-6 md:gap-10">
-            <p className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex-shrink-0">
+          <div className="max-w-2xl mb-10">
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-700">
               Built for
+            </h2>
+            <p className="text-gray-600 mt-2">
+              Pick your role. Get the tools you need.
             </p>
-            <div className="flex flex-wrap gap-x-8 gap-y-3">
-              {[
-                { letter: 'H', label: 'Homeowners', href: '/register' },
-                { letter: 'S', label: 'Hardware Stores', href: '/hardware/register' },
-                { letter: 'C', label: 'Construction Companies', href: '/construction/register' },
-                { letter: 'W', label: 'Skilled Workers', href: '/workers/register' },
-              ].map((item) => (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className="group inline-flex items-center gap-3 text-slate-600 hover:text-brand-500 transition"
-                >
-                  <span className="w-8 h-8 rounded-md bg-white border border-gray-200 group-hover:border-brand-500 group-hover:bg-brand-500 group-hover:text-white flex items-center justify-center font-bold text-xs text-slate-700 transition">
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+            {[
+              { letter: 'H', title: 'Homeowners', desc: 'Plan and price your build', href: '/register' },
+              { letter: 'S', title: 'Hardware Stores', desc: 'List prices, reach more builders', href: '/hardware/register' },
+              { letter: 'C', title: 'Construction Companies', desc: 'Get featured on client BOQs', href: '/construction/register' },
+              { letter: 'W', title: 'Skilled Workers', desc: 'Get matched to real jobs', href: '/workers/register' },
+            ].map((item) => (
+              <Link
+                key={item.title}
+                href={item.href}
+                className="group bg-white rounded-xl p-4 md:p-5 border border-gray-200 hover:border-brand-500 hover:shadow-card-hover transition flex flex-col"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-gray-100 group-hover:bg-brand-500 flex items-center justify-center text-slate-700 group-hover:text-white transition font-bold text-sm">
                     {item.letter}
-                  </span>
-                  <span className="font-medium text-sm">{item.label}</span>
-                </Link>
-              ))}
-            </div>
+                  </div>
+                  <svg
+                    className="w-4 h-4 text-gray-300 group-hover:text-brand-500 group-hover:translate-x-0.5 transition"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+                <h3 className="font-bold text-slate-700 group-hover:text-brand-500 transition text-sm md:text-base leading-tight">
+                  {item.title}
+                </h3>
+                <p className="text-xs text-gray-500 mt-1 leading-snug hidden sm:block">
+                  {item.desc}
+                </p>
+              </Link>
+            ))}
           </div>
         </div>
       </section>
