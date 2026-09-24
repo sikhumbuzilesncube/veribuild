@@ -13,6 +13,7 @@
     "@anthropic-ai/sdk": "^0.32.1",
     "@supabase/supabase-js": "^2.39.0",
     "bcryptjs": "^2.4.3",
+    "crypto-js": "^4.2.0",
     "jsonwebtoken": "^9.0.2",
     "next": "14.0.4",
     "pdf-parse": "^1.1.1",
