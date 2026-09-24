@@ -55,6 +55,8 @@ export async function readPlan(projectId, fileUrl) {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
+    console.log('readPlan: file size', buffer.length, 'bytes');
+
     // ----------------------------------------------------------
     // Step 1: try text extraction (fast, free for vector PDFs)
     // ----------------------------------------------------------
@@ -66,32 +68,67 @@ export async function readPlan(projectId, fileUrl) {
       extractedText = pdfData.text || '';
       const meaningfulText = extractedText.replace(/[\s\d\W]/g, '').length;
       textExtractionWorked = meaningfulText >= 50;
+      console.log(
+        'readPlan: text extraction length',
+        extractedText.length,
+        'meaningful chars',
+        meaningfulText
+      );
     } catch (pdfErr) {
-      console.warn('pdf-parse failed, will try vision:', pdfErr.message);
+      console.warn('readPlan: pdf-parse failed, will try vision:', pdfErr.message);
     }
 
     if (textExtractionWorked) {
       const textResult = extractFromText(extractedText);
-      if (textResult.success) {
+
+      // Only accept text extraction if it produced the critical fields.
+      // Floor area and wall length drive the entire BOQ. Doors matter too.
+      // If any of those are missing, the text extraction is incomplete and
+      // we fall through to vision for a full read.
+      const criticalFieldsPresent =
+        textResult.success &&
+        textResult.fields.floor_area !== undefined &&
+        textResult.fields.wall_length !== undefined &&
+        textResult.fields.doors !== undefined;
+
+      if (criticalFieldsPresent) {
+        console.log('readPlan: text extraction succeeded with critical fields');
         return await saveAndReturn(projectId, textResult, 'text-extraction');
       }
-      // Text was readable but no measurements identified.
-      // Fall through to vision for a second attempt.
+
+      console.log(
+        'readPlan: text extraction incomplete. Missing critical fields. Falling through to vision.'
+      );
+    } else {
+      console.log('readPlan: text extraction not usable. Falling through to vision.');
     }
 
     // ----------------------------------------------------------
-    // Step 2: vision path (raster PDFs, or text without measurements)
+    // Step 2: vision path (raster PDFs, or text without critical fields)
     // ----------------------------------------------------------
+    console.log('readPlan: calling Claude vision');
     const visionResult = await readPlanImage(buffer);
+
+    if (visionResult.usage) {
+      console.log(
+        'readPlan: vision usage',
+        visionResult.usage.inputTokens,
+        'in',
+        visionResult.usage.outputTokens,
+        'out',
+        '$' + visionResult.usage.estimatedCostUsd.toFixed(4)
+      );
+    }
 
     if (!visionResult.success) {
       result.error = visionResult.error || 'Vision extraction failed.';
-      result.notes = `Vision attempt did not produce measurements. Manual entry required.`;
+      result.notes = `Automatic reading did not produce measurements. Manual entry required.`;
       result.readMethod = visionResult.readMethod || 'raster-pdf';
       await writeStatus(projectId, result);
       return result;
     }
 
+    console.log('readPlan: vision succeeded');
     return await saveAndReturn(projectId, visionResult, 'vision-extraction');
   } catch (error) {
     console.error('readPlan error:', error);
@@ -124,8 +161,17 @@ function extractFromText(text) {
   const doorCodes = [...new Set(doorMatches.map((d) => d.toUpperCase()))];
 
   const roomKeywords = [
-    'lounge', 'kitchen', 'garage', 'bedroom', 'bathroom',
-    'toilet', 'dining', 'study', 'office', 'store', 'passage',
+    'lounge',
+    'kitchen',
+    'garage',
+    'bedroom',
+    'bathroom',
+    'toilet',
+    'dining',
+    'study',
+    'office',
+    'store',
+    'passage',
   ];
   const foundRooms = [];
   for (const kw of roomKeywords) {
@@ -198,7 +244,7 @@ async function saveAndReturn(projectId, extraction, readMethod) {
     .eq('id', projectId);
 
   if (updateError) {
-    console.error('Failed to save extraction:', updateError);
+    console.error('readPlan: failed to save extraction:', updateError);
     return {
       success: false,
       readMethod: 'save-failed',
@@ -233,6 +279,6 @@ async function writeStatus(projectId, result) {
       .update({ notes: note, status: 'processing' })
       .eq('id', projectId);
   } catch (err) {
-    console.error('Failed to write read status:', err);
+    console.error('readPlan: failed to write status:', err);
   }
-        }
+            }
