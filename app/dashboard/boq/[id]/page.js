@@ -174,29 +174,29 @@ export default function BOQPage() {
   }
 
   // --------------------------------------------------------
-  // Roll up child amounts into parent header rows
+  // Roll up child amounts into parent header rows.
+  // Includes the header's own amount if it has one.
   // --------------------------------------------------------
   function rollUpHeaderAmounts(sectionItems) {
     const cloned = sectionItems.map((it) => ({ ...it }));
 
     for (const parent of cloned) {
       if (!parent.isHeader) continue;
-      let rollup = 0;
+
+      let childrenTotal = 0;
       for (const child of cloned) {
         if (child.code === parent.code) continue;
         if (child.code.startsWith(parent.code + '.')) {
-          rollup += child.amount || 0;
+          childrenTotal += child.amount || 0;
         }
       }
-      parent.rolledUpAmount = round2(rollup);
+
+      parent.rolledUpAmount = round2((parent.amount || 0) + childrenTotal);
     }
 
     return cloned;
   }
 
-  // --------------------------------------------------------
-  // CSV export
-  // --------------------------------------------------------
   function downloadCSV() {
     if (!boq) return;
 
@@ -299,9 +299,6 @@ export default function BOQPage() {
     window.URL.revokeObjectURL(url);
   }
 
-  // --------------------------------------------------------
-  // Loading and error states
-  // --------------------------------------------------------
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -332,14 +329,10 @@ export default function BOQPage() {
     );
   }
 
-  // --------------------------------------------------------
-  // Render
-  // --------------------------------------------------------
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-5xl mx-auto">
 
-        {/* Document header */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8 mb-6">
           <div className="border-b-2 border-[#2C3E50] pb-4 mb-4">
             <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] uppercase tracking-wide">
@@ -402,7 +395,6 @@ export default function BOQPage() {
           )}
         </div>
 
-        {/* BOQ sections */}
         {boq.sections.map((section) => {
           const rolled = rollUpHeaderAmounts(section.items);
 
@@ -524,7 +516,6 @@ export default function BOQPage() {
           );
         })}
 
-        {/* Summary */}
         <div className="bg-white rounded-lg shadow-sm border-2 border-[#2C3E50] mb-6 overflow-hidden">
           <div className="bg-[#2C3E50] text-white px-4 sm:px-6 py-3">
             <h2 className="text-base sm:text-lg font-bold uppercase tracking-wide">
@@ -568,7 +559,6 @@ export default function BOQPage() {
           </div>
         </div>
 
-        {/* Hardware store comparison */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
           <h2 className="text-lg font-bold text-[#2C3E50] mb-1">
             Hardware Store Comparison
@@ -640,7 +630,6 @@ export default function BOQPage() {
           )}
         </div>
 
-        {/* Construction companies */}
         {constructionCompanies && constructionCompanies.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
             <h2 className="text-lg font-bold text-[#2C3E50] mb-4">
@@ -667,7 +656,6 @@ export default function BOQPage() {
           </div>
         )}
 
-        {/* Workers */}
         {workers && workers.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
             <h2 className="text-lg font-bold text-[#2C3E50] mb-4">Available Workers</h2>
@@ -700,7 +688,6 @@ export default function BOQPage() {
           </div>
         )}
 
-        {/* Actions */}
         <div className="flex flex-wrap gap-3 mb-8">
           <button
             onClick={downloadCSV}
