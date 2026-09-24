@@ -84,8 +84,6 @@ export default function VerifyPage() {
 
       setProject(data);
 
-      // Determine whether the plan was read. Matches both text extraction
-      // and vision extraction notes written by app/actions/readPlan.js.
       const notes = data.notes || '';
       const wasRead =
         notes.startsWith('Extracted from PDF:') ||
@@ -93,8 +91,6 @@ export default function VerifyPage() {
       setPlanWasRead(wasRead);
       setReadNote(notes);
 
-      // Extract any plan_notes captured by the vision layer.
-      // These are the plan's own written instructions, not our extraction notes.
       const planNotesMatch = notes.match(/plan_notes="([^"]+)"/);
       if (planNotesMatch && planNotesMatch[1]) {
         setPlanNotes(planNotesMatch[1]);
@@ -301,8 +297,16 @@ export default function VerifyPage() {
 
         {planWasRead && readNote && (
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
-            <div className="font-semibold mb-1">Extraction summary</div>
-            <p className="whitespace-pre-wrap break-words">{readNote}</p>
+            <div className="font-semibold mb-2">Extraction summary</div>
+            {parseReadNote(readNote).map((row, i) => (
+              <div
+                key={i}
+                className="flex justify-between py-0.5 border-b border-blue-100 last:border-0"
+              >
+                <span className="text-blue-900">{row.label}</span>
+                <span className="font-mono text-blue-700">{row.value}</span>
+              </div>
+            ))}
           </div>
         )}
 
@@ -331,8 +335,8 @@ export default function VerifyPage() {
               {planNotes}
             </p>
             <p className="mt-2 text-xs text-gray-500 italic">
-              These are the plan's own written instructions. They are provided for your
-              reference. Apply them manually to the fields below where relevant.
+              These are the plan&apos;s own written instructions. They are provided for
+              your reference. Apply them manually to the fields below where relevant.
             </p>
           </div>
         )}
@@ -665,6 +669,75 @@ export default function VerifyPage() {
       </div>
     </div>
   );
+}
+
+function parseReadNote(note) {
+  if (!note) return [];
+
+  const clean = note
+    .replace(/^Extracted from PDF via vision:\s*/, '')
+    .replace(/^Extracted from PDF text:\s*/, '');
+
+  const parts = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < clean.length; i++) {
+    const ch = clean[i];
+    if (ch === '"') inQuotes = !inQuotes;
+    if (ch === ',' && !inQuotes) {
+      parts.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  if (current.trim()) parts.push(current.trim());
+
+  const rows = [];
+  for (const part of parts) {
+    if (!part) continue;
+
+    if (part.startsWith('plan_notes=')) continue;
+
+    const m = part.match(/^([a-z_]+)=([^\s(]+)\s*\(conf\s*([0-9.]+)\)$/);
+    if (m) {
+      const label = humanise(m[1]);
+      const value = m[2];
+      const conf = parseFloat(m[3]);
+      const pct = Math.round(conf * 100);
+      rows.push({
+        label,
+        value: `${value} (${pct}%)`,
+      });
+      continue;
+    }
+
+    const o = part.match(/^overall=([0-9.]+)$/);
+    if (o) {
+      rows.push({
+        label: 'Overall confidence',
+        value: `${Math.round(parseFloat(o[1]) * 100)}%`,
+      });
+      continue;
+    }
+  }
+
+  return rows;
+}
+
+function humanise(key) {
+  const labels = {
+    floor_area: 'Floor area',
+    wall_length: 'Wall length',
+    rooms: 'Rooms detected',
+    doors: 'Doors detected',
+    windows: 'Windows detected',
+    foundation_depth: 'Foundation depth',
+    wall_thickness: 'Wall thickness',
+    door_codes: 'Door codes',
+    window_codes: 'Window codes',
+  };
+  return labels[key] || key.replace(/_/g, ' ');
 }
 
 function FieldGroup({ title, children }) {
