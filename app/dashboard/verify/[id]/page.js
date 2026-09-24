@@ -29,6 +29,7 @@ export default function VerifyPage() {
   const [originalData, setOriginalData] = useState({});
   const [planWasRead, setPlanWasRead] = useState(false);
   const [readNote, setReadNote] = useState('');
+  const [planNotes, setPlanNotes] = useState('');
 
   const [formData, setFormData] = useState({
     floor_area: '',
@@ -83,18 +84,25 @@ export default function VerifyPage() {
 
       setProject(data);
 
-      // Determine if the plan was actually read by checking the notes field.
-      // readPlan writes 'Extracted from PDF: ...' when it succeeds.
+      // Determine whether the plan was read. Matches both text extraction
+      // and vision extraction notes written by app/actions/readPlan.js.
       const notes = data.notes || '';
-      const wasRead = notes.startsWith('Extracted from PDF:');
+      const wasRead =
+        notes.startsWith('Extracted from PDF:') ||
+        notes.startsWith('Extracted from PDF via vision:');
       setPlanWasRead(wasRead);
       setReadNote(notes);
+
+      // Extract any plan_notes captured by the vision layer.
+      // These are the plan's own written instructions, not our extraction notes.
+      const planNotesMatch = notes.match(/plan_notes="([^"]+)"/);
+      if (planNotesMatch && planNotesMatch[1]) {
+        setPlanNotes(planNotesMatch[1]);
+      }
 
       const soilType = data.soil_type || 'not_sure';
       const soilDefault = SOIL_TYPES.find((s) => s.value === soilType)?.defaultDepth;
 
-      // Only pre-fill numeric fields if the plan was actually read.
-      // Otherwise leave blank so the user knows to enter values.
       const detected = {
         floor_area: data.floor_area || '',
         rooms: data.rooms || '',
@@ -291,6 +299,13 @@ export default function VerifyPage() {
           </p>
         </div>
 
+        {planWasRead && readNote && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
+            <div className="font-semibold mb-1">Extraction summary</div>
+            <p className="whitespace-pre-wrap break-words">{readNote}</p>
+          </div>
+        )}
+
         {!planWasRead && (
           <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
             <div className="font-semibold mb-1">Plan could not be read automatically</div>
@@ -307,10 +322,18 @@ export default function VerifyPage() {
           </div>
         )}
 
-        {planWasRead && readNote && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
-            <div className="font-semibold mb-1">Extraction summary</div>
-            <p>{readNote}</p>
+        {planNotes && (
+          <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <div className="font-semibold text-sm text-gray-700 mb-2">
+              Notes detected on the plan
+            </div>
+            <p className="text-xs text-gray-600 whitespace-pre-wrap break-words">
+              {planNotes}
+            </p>
+            <p className="mt-2 text-xs text-gray-500 italic">
+              These are the plan's own written instructions. They are provided for your
+              reference. Apply them manually to the fields below where relevant.
+            </p>
           </div>
         )}
 
@@ -703,4 +726,4 @@ function Field({
       )}
     </div>
   );
-    }
+}
