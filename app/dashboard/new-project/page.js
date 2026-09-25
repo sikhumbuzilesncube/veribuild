@@ -9,7 +9,7 @@ export default function NewProject() {
   const router = useRouter();
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [file, setFile] = useState(null);
@@ -64,7 +64,7 @@ export default function NewProject() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!file) {
       setError('Please upload a floor plan or take a photo');
       return;
@@ -77,7 +77,7 @@ export default function NewProject() {
 
     setLoading(true);
     setError('');
-    setApiStatus('📤 Uploading...');
+    setApiStatus('Uploading file...');
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -89,10 +89,10 @@ export default function NewProject() {
       const userId = session.user.id;
 
       // STEP 1: Upload file to Supabase Storage
-      setApiStatus('📤 Uploading file...');
+      setApiStatus('Uploading file...');
       const fileExt = file.name.split('.').pop();
       const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
-      
+
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('plans')
         .upload(fileName, file);
@@ -110,7 +110,7 @@ export default function NewProject() {
         .getPublicUrl(fileName);
 
       // STEP 2: Create project in database
-      setApiStatus('📝 Creating project...');
+      setApiStatus('Creating project...');
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .insert([
@@ -135,27 +135,29 @@ export default function NewProject() {
 
       const projectId = projectData[0].id;
 
-      // STEP 3: Call the server action to read the plan
-      setApiStatus('📄 Reading plan with AI...');
+      // STEP 3: Read the plan
+      setApiStatus('Reading plan...');
       try {
-        console.log('📄 Calling readPlan server action...');
+        console.log('Calling readPlan server action...');
         const result = await readPlan(projectId, urlData.publicUrl);
-        console.log('📄 Server action result:', result);
-        
+        console.log('Server action result:', result);
+
         if (result.success) {
-          setApiStatus(`✅ Found: ${result.windowsFound || 0} windows, ${result.doorsFound || 0} doors, ${(result.roomsFound || []).length} rooms`);
-          console.log('📊 Extracted:', result.data);
+          setApiStatus(
+            `Detected: ${result.windowsFound || 0} windows, ${result.doorsFound || 0} doors, ${(result.roomsFound || []).length} rooms`
+          );
+          console.log('Extracted:', result.data);
         } else {
-          setApiStatus('⚠️ Could not read plan automatically - you can enter data manually');
-          console.warn('⚠️ Plan reading issue:', result.error);
+          setApiStatus('Could not read plan automatically. You can enter data manually.');
+          console.warn('Plan reading issue:', result.error);
         }
       } catch (planError) {
-        console.error('❌ Server action error:', planError);
-        setApiStatus('⚠️ Manual verification needed');
+        console.error('Server action error:', planError);
+        setApiStatus('Manual verification needed');
       }
 
       // STEP 4: Redirect to verification
-      setApiStatus('🔄 Redirecting to verification...');
+      setApiStatus('Redirecting to verification...');
       setTimeout(() => {
         router.push(`/dashboard/verify/${projectId}`);
       }, 1500);
@@ -172,7 +174,9 @@ export default function NewProject() {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold text-[#2C3E50] mb-2">New BOQ</h1>
-        <p className="text-gray-600 mb-8">Upload your floor plan and generate a professional BOQ</p>
+        <p className="text-gray-600 mb-8">
+          Upload your floor plan and generate a professional BOQ
+        </p>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -235,7 +239,7 @@ export default function NewProject() {
                       : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                   }`}
                 >
-                  📤 Upload File
+                  Upload File
                 </button>
                 <button
                   type="button"
@@ -246,31 +250,36 @@ export default function NewProject() {
                       : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                   }`}
                 >
-                  📷 Take Photo
+                  Take Photo
                 </button>
               </div>
 
-              <div 
+              <div
                 className={`border-2 border-dashed rounded-xl p-8 text-center transition ${
                   file ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-[#F47B20]'
                 }`}
               >
                 {!file ? (
                   <>
-                    <div className="text-5xl mb-4">
-                      {uploadMethod === 'camera' ? '📷' : '📤'}
+                    <div className="text-5xl mb-4 text-gray-400">
+                      {uploadMethod === 'camera' ? '[ camera ]' : '[ upload ]'}
                     </div>
                     <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                      {uploadMethod === 'camera' 
-                        ? 'Take a photo of your floor plan' 
+                      {uploadMethod === 'camera'
+                        ? 'Take a photo of your floor plan'
                         : 'Click to upload your plan'}
                     </h3>
                     <p className="text-gray-500 text-sm">
-                      {uploadMethod === 'camera' 
-                        ? 'Use your phone camera to capture the plan' 
+                      {uploadMethod === 'camera'
+                        ? 'Use your phone camera to capture the plan'
                         : 'Supported: PDF, JPEG, PNG (Max 20MB)'}
                     </p>
-                    
+                    {uploadMethod === 'camera' && (
+                      <p className="text-xs text-gray-500 mt-2 max-w-md mx-auto">
+                        For best results, take the photo in good light, hold the phone flat above the plan, and ensure the whole plan is in frame.
+                      </p>
+                    )}
+
                     <input
                       type="file"
                       ref={fileInputRef}
@@ -279,7 +288,7 @@ export default function NewProject() {
                       className="hidden"
                       id="file-upload"
                     />
-                    
+
                     <input
                       type="file"
                       ref={cameraInputRef}
@@ -294,16 +303,18 @@ export default function NewProject() {
                       htmlFor={uploadMethod === 'camera' ? 'camera-upload' : 'file-upload'}
                       className="inline-block mt-4 px-6 py-2 bg-[#F47B20] text-white rounded-lg font-semibold cursor-pointer hover:bg-[#E06B10] transition"
                     >
-                      {uploadMethod === 'camera' ? '📷 Open Camera' : '📤 Choose File'}
+                      {uploadMethod === 'camera' ? 'Open Camera' : 'Choose File'}
                     </label>
                   </>
                 ) : (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <span className="text-3xl">📄</span>
+                      <span className="text-3xl">[ doc ]</span>
                       <div className="text-left">
                         <p className="font-medium text-gray-700">{file.name}</p>
-                        <p className="text-sm text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                        <p className="text-sm text-gray-500">
+                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
                       </div>
                     </div>
                     <button
@@ -335,7 +346,7 @@ export default function NewProject() {
               disabled={loading}
               className="w-full bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition disabled:opacity-50 disabled:cursor-not-allowed text-lg"
             >
-              {loading ? 'Processing...' : 'Upload & Generate BOQ →'}
+              {loading ? 'Processing...' : 'Upload & Generate BOQ'}
             </button>
           </form>
         </div>
@@ -345,7 +356,7 @@ export default function NewProject() {
             onClick={() => router.push('/dashboard')}
             className="text-gray-600 hover:text-gray-800 transition"
           >
-            ← Back to Dashboard
+            Back to Dashboard
           </button>
         </div>
       </div>
