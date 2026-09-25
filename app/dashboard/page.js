@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-
 export default function Dashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -24,7 +23,7 @@ export default function Dashboard() {
   useEffect(() => {
     async function loadDashboardData() {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         router.push('/login');
         return;
@@ -32,7 +31,7 @@ export default function Dashboard() {
 
       const user = session.user;
       const metadata = user.user_metadata || {};
-      
+
       setUserName(metadata.full_name || user.email || 'User');
       setUserEmail(user.email || '');
       setUserType(metadata.user_type || 'client');
@@ -49,7 +48,7 @@ export default function Dashboard() {
         return;
       }
 
-      const formattedProjects = (projectsData || []).map(p => ({
+      const formattedProjects = (projectsData || []).map((p) => ({
         id: p.id,
         name: p.project_name || 'Unnamed Project',
         status: p.status || 'draft',
@@ -61,21 +60,29 @@ export default function Dashboard() {
       setProjects(formattedProjects);
 
       const totalProjects = formattedProjects.length;
-      const completedProjects = formattedProjects.filter(p => p.status === 'completed' || p.status === 'Completed').length;
-      const activeProjects = formattedProjects.filter(p => p.status !== 'completed' && p.status !== 'Completed' && p.status !== 'draft').length;
-      
+      const completedProjects = formattedProjects.filter(
+        (p) => p.status === 'completed' || p.status === 'Completed'
+      ).length;
+      const activeProjects = formattedProjects.filter(
+        (p) =>
+          p.status !== 'completed' &&
+          p.status !== 'Completed' &&
+          p.status !== 'draft'
+      ).length;
+
       const completedCosts = formattedProjects
-        .filter(p => p.status === 'completed' || p.status === 'Completed')
-        .map(p => p.cost || 0);
-      
+        .filter((p) => p.status === 'completed' || p.status === 'Completed')
+        .map((p) => p.cost || 0);
+
       const totalCost = completedCosts.reduce((sum, cost) => sum + cost, 0);
-      const averageCost = completedCosts.length > 0 ? Math.round(totalCost / completedCosts.length) : 0;
+      const averageCost =
+        completedCosts.length > 0 ? Math.round(totalCost / completedCosts.length) : 0;
 
       setStats({
         total: totalProjects,
         completed: completedProjects,
         active: activeProjects,
-        averageCost: averageCost,
+        averageCost,
       });
 
       setLoading(false);
@@ -106,9 +113,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* ===== INSTALL BANNER ===== */}
-      
-
       {/* ===== MOBILE HEADER ===== */}
       <div className="md:hidden bg-[#2C3E50] text-white p-4 flex justify-between items-center sticky top-0 z-50">
         <div className="flex items-center gap-2">
@@ -129,34 +133,77 @@ export default function Dashboard() {
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#2C3E50] text-white p-4 border-t border-[#F47B20]/30">
           <nav className="space-y-3">
-            <Link href="/dashboard" className="block py-3 px-4 bg-[#F47B20] rounded-lg font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link
+              href="/dashboard"
+              className="block py-3 px-4 bg-[#F47B20] rounded-lg font-medium"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Dashboard
             </Link>
-            <Link href="/dashboard/new-project" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link
+              href="/dashboard/new-project"
+              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               New BOQ
             </Link>
-            <Link href="/dashboard/projects" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link
+              href="/dashboard/template"
+              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              BOQ Without a Plan
+            </Link>
+            <Link
+              href="/dashboard/projects"
+              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               My Projects
             </Link>
-            <Link href="/dashboard/hardware" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link
+              href="/dashboard/hardware"
+              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Hardware
             </Link>
-            <Link href="/dashboard/construction" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link
+              href="/dashboard/construction"
+              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Construction
             </Link>
-            <Link href="/dashboard/workers" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link
+              href="/dashboard/workers"
+              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Workers
             </Link>
-            <Link href="/dashboard/jobs" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link
+              href="/dashboard/jobs"
+              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Jobs
             </Link>
-            <Link href="/dashboard/settings" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link
+              href="/dashboard/settings"
+              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Settings
             </Link>
-            <Link href="/payment" className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium" onClick={() => setMobileMenuOpen(false)}>
+            <Link
+              href="/payment"
+              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Payments
             </Link>
-            <button 
+            <button
               onClick={async () => {
                 await supabase.auth.signOut();
                 router.push('/login');
@@ -179,34 +226,67 @@ export default function Dashboard() {
         </div>
 
         <nav className="space-y-1">
-          <Link href="/dashboard" className="block py-2.5 px-4 bg-[#F47B20] rounded-lg font-medium text-sm">
+          <Link
+            href="/dashboard"
+            className="block py-2.5 px-4 bg-[#F47B20] rounded-lg font-medium text-sm"
+          >
             Dashboard
           </Link>
-          <Link href="/dashboard/new-project" className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm">
+          <Link
+            href="/dashboard/new-project"
+            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
+          >
             New BOQ
           </Link>
-          <Link href="/dashboard/projects" className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm">
+          <Link
+            href="/dashboard/template"
+            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
+          >
+            BOQ Without a Plan
+          </Link>
+          <Link
+            href="/dashboard/projects"
+            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
+          >
             My Projects
           </Link>
-          <Link href="/dashboard/hardware" className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm">
+          <Link
+            href="/dashboard/hardware"
+            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
+          >
             Hardware
           </Link>
-          <Link href="/dashboard/construction" className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm">
+          <Link
+            href="/dashboard/construction"
+            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
+          >
             Construction
           </Link>
-          <Link href="/dashboard/workers" className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm">
+          <Link
+            href="/dashboard/workers"
+            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
+          >
             Workers
           </Link>
-          <Link href="/dashboard/jobs" className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm">
+          <Link
+            href="/dashboard/jobs"
+            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
+          >
             Jobs
           </Link>
-          <Link href="/dashboard/settings" className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm">
+          <Link
+            href="/dashboard/settings"
+            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
+          >
             Settings
           </Link>
-          <Link href="/payment" className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm">
+          <Link
+            href="/payment"
+            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
+          >
             Payments
           </Link>
-          <button 
+          <button
             onClick={async () => {
               await supabase.auth.signOut();
               router.push('/login');
@@ -223,24 +303,40 @@ export default function Dashboard() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-[#2C3E50]">Dashboard</h1>
-            <p className="text-gray-600 text-sm md:text-base">Welcome back, {userName}!</p>
+            <p className="text-gray-600 text-sm md:text-base">
+              Welcome back, {userName}!
+            </p>
             <p className="text-xs md:text-sm text-gray-400">{userEmail}</p>
             {userType === 'hardware' && (
-              <p className="text-xs md:text-sm text-blue-600 font-semibold">Hardware Store Account</p>
+              <p className="text-xs md:text-sm text-blue-600 font-semibold">
+                Hardware Store Account
+              </p>
             )}
             {userType === 'construction' && (
-              <p className="text-xs md:text-sm text-green-600 font-semibold">Construction Company Account</p>
+              <p className="text-xs md:text-sm text-green-600 font-semibold">
+                Construction Company Account
+              </p>
             )}
             {userType === 'worker' && (
-              <p className="text-xs md:text-sm text-purple-600 font-semibold">Worker Account</p>
+              <p className="text-xs md:text-sm text-purple-600 font-semibold">
+                Worker Account
+              </p>
             )}
           </div>
-          <Link
-            href="/dashboard/new-project"
-            className="bg-[#F47B20] text-white px-4 md:px-6 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition shadow-lg shadow-orange-200 text-sm md:text-base w-full md:w-auto text-center"
-          >
-            + New BOQ
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+            <Link
+              href="/dashboard/new-project"
+              className="bg-[#F47B20] text-white px-4 md:px-6 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition shadow-lg shadow-orange-200 text-sm md:text-base text-center"
+            >
+              + New BOQ
+            </Link>
+            <Link
+              href="/dashboard/template"
+              className="border-2 border-[#F47B20] text-[#F47B20] px-4 md:px-6 py-2 rounded-lg font-semibold hover:bg-[#F47B20] hover:text-white transition text-sm md:text-base text-center"
+            >
+              BOQ Without a Plan
+            </Link>
+          </div>
         </div>
 
         {/* Stats */}
@@ -255,7 +351,9 @@ export default function Dashboard() {
           </div>
           <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
             <p className="text-gray-500 text-xs md:text-sm">Average Cost</p>
-            <p className="text-2xl md:text-3xl font-bold text-[#2C3E50]">${stats.averageCost}</p>
+            <p className="text-2xl md:text-3xl font-bold text-[#2C3E50]">
+              ${stats.averageCost}
+            </p>
           </div>
           <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
             <p className="text-gray-500 text-xs md:text-sm">Active Projects</p>
@@ -265,7 +363,9 @@ export default function Dashboard() {
 
         {/* Recent Projects */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
-          <h2 className="text-base md:text-lg font-bold text-[#2C3E50] mb-4">Recent Projects</h2>
+          <h2 className="text-base md:text-lg font-bold text-[#2C3E50] mb-4">
+            Recent Projects
+          </h2>
           {projects.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm md:text-base">
@@ -282,17 +382,32 @@ export default function Dashboard() {
                 <tbody>
                   {projects.slice(0, 10).map((project) => (
                     <tr key={project.id} className="border-b last:border-0">
-                      <td className="py-3 font-medium text-[#2C3E50] text-sm">{project.name}</td>
-                      <td className="py-3 text-xs text-gray-500 capitalize hidden sm:table-cell">{project.plan_type}</td>
-                      <td className="py-3 text-xs text-gray-600 hidden md:table-cell">{project.date}</td>
+                      <td className="py-3 font-medium text-[#2C3E50] text-sm">
+                        {project.name}
+                      </td>
+                      <td className="py-3 text-xs text-gray-500 capitalize hidden sm:table-cell">
+                        {project.plan_type}
+                      </td>
+                      <td className="py-3 text-xs text-gray-600 hidden md:table-cell">
+                        {project.date}
+                      </td>
                       <td className="py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                            project.status
+                          )}`}
+                        >
                           {project.status}
                         </span>
                       </td>
-                      <td className="py-3 font-bold text-[#2C3E50] text-sm">${project.cost}</td>
+                      <td className="py-3 font-bold text-[#2C3E50] text-sm">
+                        ${project.cost}
+                      </td>
                       <td className="py-3">
-                        <Link href={`/dashboard/boq/${project.id}`} className="text-[#F47B20] hover:underline text-sm">
+                        <Link
+                          href={`/dashboard/boq/${project.id}`}
+                          className="text-[#F47B20] hover:underline text-sm"
+                        >
                           View
                         </Link>
                       </td>
@@ -303,18 +418,29 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="text-center py-8">
-              <div className="text-5xl mb-4">📋</div>
+              <div className="text-5xl mb-4 text-gray-300">[ ]</div>
               <p className="text-gray-500">No projects yet</p>
-              <Link
-                href="/dashboard/new-project"
-                className="inline-block mt-4 bg-[#F47B20] text-white px-6 py-2 rounded-lg hover:bg-[#E06B10] transition"
-              >
-                Create Your First BOQ →
-              </Link>
+              <p className="text-xs text-gray-400 mt-1">
+                Upload a plan or use the template to get started.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4">
+                <Link
+                  href="/dashboard/new-project"
+                  className="bg-[#F47B20] text-white px-6 py-2 rounded-lg hover:bg-[#E06B10] transition"
+                >
+                  Upload a Plan
+                </Link>
+                <Link
+                  href="/dashboard/template"
+                  className="border-2 border-[#F47B20] text-[#F47B20] px-6 py-2 rounded-lg hover:bg-[#F47B20] hover:text-white transition"
+                >
+                  Start from a Template
+                </Link>
+              </div>
             </div>
           )}
         </div>
       </div>
     </div>
   );
-    }
+             }
