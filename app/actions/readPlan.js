@@ -35,9 +35,16 @@ export async function readPlan(projectId, fileUrl) {
 
     const lowerUrl = String(fileUrl).toLowerCase();
 
-    if (!lowerUrl.endsWith('.pdf')) {
-      result.error = 'Non-PDF plan uploaded. Manual entry required.';
-      result.notes = 'Automatic reading is only available for PDF plans at this time.';
+    // Determine media type from extension
+    let mediaType = null;
+    if (lowerUrl.endsWith('.pdf')) mediaType = 'application/pdf';
+    else if (lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg')) mediaType = 'image/jpeg';
+    else if (lowerUrl.endsWith('.png')) mediaType = 'image/png';
+    else if (lowerUrl.endsWith('.webp')) mediaType = 'image/webp';
+
+    if (!mediaType) {
+      result.error = 'Unsupported file type. Upload a PDF, JPG, or PNG.';
+      result.notes = 'Automatic reading supports PDF, JPG, and PNG files only.';
       result.readMethod = 'unsupported-file-type';
       await writeStatus(projectId, result);
       return result;
@@ -55,59 +62,59 @@ export async function readPlan(projectId, fileUrl) {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    console.log('readPlan: file size', buffer.length, 'bytes');
+    console.log('readPlan: media type', mediaType, 'file size', buffer.length, 'bytes');
 
     // ----------------------------------------------------------
-    // Step 1: try text extraction (fast, free for vector PDFs)
+    // PDF path: try text extraction first (fast, free)
     // ----------------------------------------------------------
-    let extractedText = '';
-    let textExtractionWorked = false;
+    if (mediaType === 'application/pdf') {
+      let extractedText = '';
+      let textExtractionWorked = false;
 
-    try {
-      const pdfData = await pdf(buffer);
-      extractedText = pdfData.text || '';
-      const meaningfulText = extractedText.replace(/[\s\d\W]/g, '').length;
-      textExtractionWorked = meaningfulText >= 50;
-      console.log(
-        'readPlan: text extraction length',
-        extractedText.length,
-        'meaningful chars',
-        meaningfulText
-      );
-    } catch (pdfErr) {
-      console.warn('readPlan: pdf-parse failed, will try vision:', pdfErr.message);
-    }
-
-    if (textExtractionWorked) {
-      const textResult = extractFromText(extractedText);
-
-      // Only accept text extraction if it produced the critical fields.
-      // Floor area and wall length drive the entire BOQ. Doors matter too.
-      // If any of those are missing, the text extraction is incomplete and
-      // we fall through to vision for a full read.
-      const criticalFieldsPresent =
-        textResult.success &&
-        textResult.fields.floor_area !== undefined &&
-        textResult.fields.wall_length !== undefined &&
-        textResult.fields.doors !== undefined;
-
-      if (criticalFieldsPresent) {
-        console.log('readPlan: text extraction succeeded with critical fields');
-        return await saveAndReturn(projectId, textResult, 'text-extraction');
+      try {
+        const pdfData = await pdf(buffer);
+        extractedText = pdfData.text || '';
+        const meaningfulText = extractedText.replace(/[\s\d\W]/g, '').length;
+        textExtractionWorked = meaningfulText >= 50;
+        console.log(
+          'readPlan: text extraction length',
+          extractedText.length,
+          'meaningful chars',
+          meaningfulText
+        );
+      } catch (pdfErr) {
+        console.warn('readPlan: pdf-parse failed, will try vision:', pdfErr.message);
       }
 
-      console.log(
-        'readPlan: text extraction incomplete. Missing critical fields. Falling through to vision.'
-      );
+      if (textExtractionWorked) {
+        const textResult = extractFromText(extractedText);
+
+        const criticalFieldsPresent =
+          textResult.success &&
+          textResult.fields.floor_area !== undefined &&
+          textResult.fields.wall_length !== undefined &&
+          textResult.fields.doors !== undefined;
+
+        if (criticalFieldsPresent) {
+          console.log('readPlan: text extraction succeeded with critical fields');
+          return await saveAndReturn(projectId, textResult, 'text-extraction');
+        }
+
+        console.log(
+          'readPlan: text extraction incomplete. Falling through to vision.'
+        );
+      } else {
+        console.log('readPlan: text extraction not usable. Falling through to vision.');
+      }
     } else {
-      console.log('readPlan: text extraction not usable. Falling through to vision.');
+      console.log('readPlan: image upload, skipping text extraction');
     }
 
     // ----------------------------------------------------------
-    // Step 2: vision path (raster PDFs, or text without critical fields)
+    // Vision path: PDF (raster or incomplete) or image
     // ----------------------------------------------------------
-    console.log('readPlan: calling Claude vision');
-    const visionResult = await readPlanImage(buffer);
+    console.log('readPlan: calling Claude vision with', mediaType);
+    const visionResult = await readPlanImage(buffer, mediaType);
 
     if (visionResult.usage) {
       console.log(
@@ -161,17 +168,8 @@ function extractFromText(text) {
   const doorCodes = [...new Set(doorMatches.map((d) => d.toUpperCase()))];
 
   const roomKeywords = [
-    'lounge',
-    'kitchen',
-    'garage',
-    'bedroom',
-    'bathroom',
-    'toilet',
-    'dining',
-    'study',
-    'office',
-    'store',
-    'passage',
+    'lounge', 'kitchen', 'garage', 'bedroom', 'bathroom',
+    'toilet', 'dining', 'study', 'office', 'store', 'passage',
   ];
   const foundRooms = [];
   for (const kw of roomKeywords) {
@@ -281,4 +279,4 @@ async function writeStatus(projectId, result) {
   } catch (err) {
     console.error('readPlan: failed to write status:', err);
   }
-            }
+    }
