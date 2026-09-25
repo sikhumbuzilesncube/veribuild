@@ -32,6 +32,7 @@ export default function VerifyPage() {
   const [planNotes, setPlanNotes] = useState('');
 
   const [formData, setFormData] = useState({
+    project_name: '',
     floor_area: '',
     rooms: '',
     room_labels: '',
@@ -96,10 +97,27 @@ export default function VerifyPage() {
         setPlanNotes(planNotesMatch[1]);
       }
 
+      // Extract suggested project name from notes
+      let suggestedProjectName = null;
+      const projNameMatch = notes.match(/project_name="([^"]+)"/);
+      if (projNameMatch && projNameMatch[1]) {
+        suggestedProjectName = projNameMatch[1].trim();
+      }
+
       const soilType = data.soil_type || 'not_sure';
       const soilDefault = SOIL_TYPES.find((s) => s.value === soilType)?.defaultDepth;
 
+      // Project name resolution:
+      // 1. Use existing project_name from database if set
+      // 2. Otherwise use suggested_project_name from vision extraction
+      // 3. Otherwise empty
+      const projectName =
+        (data.project_name && data.project_name.trim() !== '' && data.project_name !== 'Untitled')
+          ? data.project_name
+          : (suggestedProjectName || '');
+
       const detected = {
+        project_name: projectName,
         floor_area: data.floor_area || '',
         rooms: data.rooms || '',
         room_labels: data.room_labels || '',
@@ -191,6 +209,12 @@ export default function VerifyPage() {
       return;
     }
 
+    if (!formData.project_name || formData.project_name.trim() === '') {
+      setError('Please enter a project name');
+      setSaving(false);
+      return;
+    }
+
     if (formData.soil_type === 'other' && !formData.foundation_depth) {
       setError('Foundation depth is required when soil type is set to "Other / custom"');
       setSaving(false);
@@ -199,6 +223,7 @@ export default function VerifyPage() {
 
     try {
       const updateData = {
+        project_name: formData.project_name.trim(),
         floor_area: parseFloat(formData.floor_area),
         rooms: parseInt(formData.rooms, 10),
         room_labels: formData.room_labels || null,
@@ -320,9 +345,6 @@ export default function VerifyPage() {
             {readNote && (
               <p className="mt-2 text-xs text-yellow-700 italic">{readNote}</p>
             )}
-            <p className="mt-2 text-xs">
-              Automatic reading of scanned plans is planned for a future update.
-            </p>
           </div>
         )}
 
@@ -345,6 +367,16 @@ export default function VerifyPage() {
 
           <FieldGroup title="Building Information">
             <div className="grid md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <Field
+                  label="Project Name"
+                  name="project_name"
+                  value={formData.project_name}
+                  onChange={handleChange}
+                  placeholder="e.g., 3-Bedroom House Mahatshula"
+                  required
+                />
+              </div>
               <Field
                 label="Floor Area (m²)"
                 name="floor_area"
@@ -498,7 +530,6 @@ export default function VerifyPage() {
             </div>
             <p className="text-xs text-gray-500 mt-3">
               Depth is auto-set from soil type. Adjust manually if you have a geotechnical report.
-              The default 0.6m is a standard assumption for stable ground in Zimbabwe.
             </p>
           </FieldGroup>
 
@@ -696,12 +727,13 @@ function parseReadNote(note) {
   const rows = [];
   for (const part of parts) {
     if (!part) continue;
-
     if (part.startsWith('plan_notes=')) continue;
 
     const m = part.match(/^([a-z_]+)=([^\s(]+)\s*\(conf\s*([0-9.]+)\)$/);
     if (m) {
-      const label = humanise(m[1]);
+      const key = m[1];
+      if (key === 'project_name') continue;
+      const label = humanise(key);
       const value = m[2];
       const conf = parseFloat(m[3]);
       const pct = Math.round(conf * 100);
@@ -718,7 +750,6 @@ function parseReadNote(note) {
         label: 'Overall confidence',
         value: `${Math.round(parseFloat(o[1]) * 100)}%`,
       });
-      continue;
     }
   }
 
