@@ -1,14 +1,27 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useRef, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { readPlan } from '@/app/actions/readPlan';
 
-export default function NewProject() {
+export default function NewProjectPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <NewProject />
+    </Suspense>
+  );
+}
+
+function NewProject() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
+
+  const retryProjectId = searchParams.get('retryProject');
+  const isRetry = !!retryProjectId;
+  const modeParam = searchParams.get('mode'); // 'file' or null
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -16,7 +29,7 @@ export default function NewProject() {
   const [projectName, setProjectName] = useState('');
   const [planType, setPlanType] = useState('residential');
   const [cityId, setCityId] = useState(1);
-  const [uploadMethod, setUploadMethod] = useState('file');
+  const [uploadMethod, setUploadMethod] = useState(modeParam === 'file' ? 'file' : 'camera');
   const [apiStatus, setApiStatus] = useState('');
 
   const cities = [
@@ -29,6 +42,26 @@ export default function NewProject() {
     { id: 7, name: 'Chinhoyi' },
     { id: 8, name: 'Marondera' },
   ];
+
+  // On retry, load the existing project so the form is pre-filled
+  useEffect(() => {
+    async function loadRetryProject() {
+      if (!retryProjectId) return;
+
+      const { data, error: fetchError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', retryProjectId)
+        .single();
+
+      if (fetchError || !data) return;
+
+      setProjectName(data.project_name || '');
+      setPlanType(data.plan_type || 'residential');
+      setCityId(data.city_id || 1);
+    }
+    loadRetryProject();
+  }, [retryProjectId]);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -70,7 +103,7 @@ export default function NewProject() {
       return;
     }
 
-    if (!projectName) {
+    if (!projectName && !isRetry) {
       setError('Please enter a project name');
       return;
     }
@@ -93,7 +126,7 @@ export default function NewProject() {
       const fileExt = file.name.split('.').pop();
       const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('plans')
         .upload(fileName, file);
 
@@ -109,47 +142,64 @@ export default function NewProject() {
         .from('plans')
         .getPublicUrl(fileName);
 
-      // STEP 2: Create project in database
-      setApiStatus('Creating project...');
-      const { data: projectData, error: projectError } = await supabase
-        .from('projects')
-        .insert([
-          {
-            user_id: userId,
-            project_name: projectName,
-            city_id: cityId,
-            plan_type: planType,
-            status: 'processing',
+      let projectId;
+
+      if (isRetry) {
+        // Update the existing project's file_url instead of creating a new one
+        setApiStatus('Updating project...');
+        const { error: updateError } = await supabase
+          .from('projects')
+          .update({
             file_url: urlData.publicUrl,
-          },
-        ])
-        .select();
+            status: 'processing',
+            notes: null,
+          })
+          .eq('id', retryProjectId);
 
-      if (projectError) {
-        console.error('Project error:', projectError);
-        setError(`Failed to create project: ${projectError.message}`);
-        setLoading(false);
-        setApiStatus('');
-        return;
+        if (updateError) {
+          setError(`Failed to update project: ${updateError.message}`);
+          setLoading(false);
+          setApiStatus('');
+          return;
+        }
+        projectId = retryProjectId;
+      } else {
+        // STEP 2: Create new project
+        setApiStatus('Creating project...');
+        const { data: projectData, error: projectError } = await supabase
+          .from('projects')
+          .insert([
+            {
+              user_id: userId,
+              project_name: projectName,
+              city_id: cityId,
+              plan_type: planType,
+              status: 'processing',
+              file_url: urlData.publicUrl,
+            },
+          ])
+          .select();
+
+        if (projectError) {
+          setError(`Failed to create project: ${projectError.message}`);
+          setLoading(false);
+          setApiStatus('');
+          return;
+        }
+        projectId = projectData[0].id;
       }
-
-      const projectId = projectData[0].id;
 
       // STEP 3: Read the plan
       setApiStatus('Reading plan...');
       try {
-        console.log('Calling readPlan server action...');
         const result = await readPlan(projectId, urlData.publicUrl);
-        console.log('Server action result:', result);
 
         if (result.success) {
           setApiStatus(
             `Detected: ${result.windowsFound || 0} windows, ${result.doorsFound || 0} doors, ${(result.roomsFound || []).length} rooms`
           );
-          console.log('Extracted:', result.data);
         } else {
           setApiStatus('Could not read plan automatically. You can enter data manually.');
-          console.warn('Plan reading issue:', result.error);
         }
       } catch (planError) {
         console.error('Server action error:', planError);
@@ -173,56 +223,70 @@ export default function NewProject() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold text-[#2C3E50] mb-2">New BOQ</h1>
+        <h1 className="text-3xl font-bold text-[#2C3E50] mb-2">
+          {isRetry ? 'Retake Photo' : 'New BOQ'}
+        </h1>
         <p className="text-gray-600 mb-8">
-          Upload your floor plan and generate a professional BOQ
+          {isRetry
+            ? 'Capture or upload a clearer plan for this project'
+            : 'Upload your floor plan and generate a professional BOQ'}
         </p>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Project Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-                placeholder="e.g., 3-Bedroom House"
-                required
-              />
-            </div>
+            {!isRetry && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Project Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                    placeholder="e.g., 3-Bedroom House"
+                    required
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Plan Type <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={planType}
-                onChange={(e) => setPlanType(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              >
-                <option value="residential">Residential - $10</option>
-                <option value="townhouse">Townhouse - $10</option>
-                <option value="commercial">Commercial - $30</option>
-              </select>
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Plan Type <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={planType}
+                    onChange={(e) => setPlanType(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                  >
+                    <option value="residential">Residential - $10</option>
+                    <option value="townhouse">Townhouse - $10</option>
+                    <option value="commercial">Commercial - $30</option>
+                  </select>
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Project Location <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={cityId}
-                onChange={(e) => setCityId(parseInt(e.target.value))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              >
-                {cities.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Project Location <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={cityId}
+                    onChange={(e) => setCityId(parseInt(e.target.value))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                  >
+                    {cities.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            {isRetry && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                Re-uploading to project: <strong>{projectName}</strong>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -276,7 +340,7 @@ export default function NewProject() {
                     </p>
                     {uploadMethod === 'camera' && (
                       <p className="text-xs text-gray-500 mt-2 max-w-md mx-auto">
-                        For best results, take the photo in good light, hold the phone flat above the plan, and ensure the whole plan is in frame.
+                        For best results, place the plan flat in good light, hold the phone directly above it, and ensure the whole plan fits in the frame.
                       </p>
                     )}
 
@@ -346,7 +410,7 @@ export default function NewProject() {
               disabled={loading}
               className="w-full bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition disabled:opacity-50 disabled:cursor-not-allowed text-lg"
             >
-              {loading ? 'Processing...' : 'Upload & Generate BOQ'}
+              {loading ? 'Processing...' : isRetry ? 'Retake & Read Plan' : 'Upload & Generate BOQ'}
             </button>
           </form>
         </div>
@@ -362,4 +426,4 @@ export default function NewProject() {
       </div>
     </div>
   );
-      }
+        }
