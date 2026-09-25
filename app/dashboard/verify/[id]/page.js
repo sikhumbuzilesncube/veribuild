@@ -191,12 +191,24 @@ export default function VerifyPage() {
   };
 
   const handleSizeSelect = (preset) => {
-    setSelectedSize(preset.value);
+  setSelectedSize(preset.value);
 
-    if (preset.value === 'custom' || preset.floorArea === null) {
-      // Leave fields unchanged for custom
-      return;
-    }
+  if (preset.value === 'custom' || preset.floorArea === null) {
+    // Leave fields unchanged for custom. User will type their own values.
+    return;
+  }
+
+  // Always update when a preset is clicked.
+  const bedroomCount =
+    preset.value === '5bed' ? 5 : parseInt(preset.value.replace('bed', ''), 10);
+
+  setFormData((prev) => ({
+    ...prev,
+    floor_area: preset.floorArea.toFixed(1),
+    wall_length: preset.wallLength.toFixed(1),
+    rooms: String(bedroomCount + 3),
+  }));
+};
 
     // Fill floor_area and estimate wall_length. Only fill empty fields,
     // so we do not overwrite an actual AI-read value.
