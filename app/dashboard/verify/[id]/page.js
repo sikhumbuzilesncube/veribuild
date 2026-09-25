@@ -17,6 +17,17 @@ const SOIL_TYPES = [
   { value: 'other',        label: 'Other / custom',                    defaultDepth: null },
 ];
 
+// Bedroom-based size presets for users who cannot read floor area
+// from the plan. Values are typical Zimbabwe residential areas.
+const SIZE_PRESETS = [
+  { value: '1bed',  label: '1-bedroom',  floorArea: 45,  wallLength: 30.9 },
+  { value: '2bed',  label: '2-bedroom',  floorArea: 65,  wallLength: 37.1 },
+  { value: '3bed',  label: '3-bedroom',  floorArea: 90,  wallLength: 43.6 },
+  { value: '4bed',  label: '4-bedroom',  floorArea: 120, wallLength: 50.4 },
+  { value: '5bed',  label: '5+ bedroom', floorArea: 160, wallLength: 58.2 },
+  { value: 'custom', label: 'Custom size', floorArea: null, wallLength: null },
+];
+
 export default function VerifyPage() {
   const router = useRouter();
   const params = useParams();
@@ -31,6 +42,7 @@ export default function VerifyPage() {
   const [readNote, setReadNote] = useState('');
   const [planNotes, setPlanNotes] = useState('');
   const [isImageUpload, setIsImageUpload] = useState(false);
+  const [selectedSize, setSelectedSize] = useState(null);
 
   const [formData, setFormData] = useState({
     floor_area: '',
@@ -85,7 +97,6 @@ export default function VerifyPage() {
 
       setProject(data);
 
-      // Determine if the source file was a photo
       const fileUrl = String(data.file_url || '').toLowerCase();
       const isImage =
         fileUrl.endsWith('.jpg') ||
@@ -94,7 +105,6 @@ export default function VerifyPage() {
         fileUrl.endsWith('.webp');
       setIsImageUpload(isImage);
 
-      // Determine read quality from the fields present
       const hasFloorArea = Number(data.floor_area) > 0;
       const hasWallLength = Number(data.wall_length) > 0;
       const hasDoors = Number(data.doors) > 0;
@@ -178,6 +188,34 @@ export default function VerifyPage() {
     } else {
       setFormData({ ...formData, soil_type: soilType });
     }
+  };
+
+  const handleSizeSelect = (preset) => {
+    setSelectedSize(preset.value);
+
+    if (preset.value === 'custom' || preset.floorArea === null) {
+      // Leave fields unchanged for custom
+      return;
+    }
+
+    // Fill floor_area and estimate wall_length. Only fill empty fields,
+    // so we do not overwrite an actual AI-read value.
+    const updates = {};
+
+    if (!formData.floor_area) {
+      updates.floor_area = String(preset.floorArea);
+    }
+    if (!formData.wall_length) {
+      updates.wall_length = String(preset.wallLength);
+    }
+    if (!formData.rooms) {
+      // Estimate room count from bedroom count: bedrooms + 3 common rooms
+      const bedroomCount =
+        preset.value === '5bed' ? 5 : parseInt(preset.value.replace('bed', ''), 10);
+      updates.rooms = String(bedroomCount + 3);
+    }
+
+    setFormData({ ...formData, ...updates });
   };
 
   function trackCorrections(userData, aiData) {
@@ -295,9 +333,8 @@ export default function VerifyPage() {
   }
 
   const showRetryPanel = readQuality !== 'complete' && (isImageUpload || readQuality === 'none');
-  const showPhotoRetakeLink = isImageUpload && readQuality === 'complete';
+  const showSizeSelector = readQuality !== 'complete' || !formData.floor_area;
 
-  // Badge configuration
   const badge =
     readQuality === 'complete'
       ? { text: 'Analysis complete', className: 'bg-green-100 text-green-800' }
@@ -386,7 +423,7 @@ export default function VerifyPage() {
                 }}
                 className="bg-[#F47B20] text-white px-4 py-3 rounded-lg font-medium hover:bg-[#E06B10] transition text-sm"
               >
-                Enter data manually
+                Continue with manual entry
               </button>
             </div>
 
@@ -403,6 +440,47 @@ export default function VerifyPage() {
                 </ul>
               </div>
             )}
+          </div>
+        )}
+
+        {showSizeSelector && (
+          <div className="mb-6 p-5 bg-green-50 border border-green-200 rounded-lg">
+            <div className="font-semibold text-green-900 mb-1">
+              How big is the house?
+            </div>
+            <p className="text-sm text-green-800 mb-4">
+              We could not read the total floor area from your plan. Pick the closest size below.
+              You can still edit the exact values further down the page.
+            </p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {SIZE_PRESETS.map((preset) => {
+                const isActive = selectedSize === preset.value;
+                return (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    onClick={() => handleSizeSelect(preset)}
+                    className={`px-3 py-3 rounded-lg border text-sm font-medium transition ${
+                      isActive
+                        ? 'bg-[#2C3E50] text-white border-[#2C3E50]'
+                        : 'bg-white text-[#2C3E50] border-green-300 hover:bg-green-100'
+                    }`}
+                  >
+                    <div>{preset.label}</div>
+                    {preset.floorArea && (
+                      <div className={`text-xs mt-0.5 ${isActive ? 'text-gray-200' : 'text-gray-500'}`}>
+                        about {preset.floorArea} m²
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="text-xs text-green-700 mt-3">
+              These are typical Zimbabwe residential sizes. If you know the exact value, choose Custom and type it below.
+            </p>
           </div>
         )}
 
@@ -434,6 +512,11 @@ export default function VerifyPage() {
                   type="number"
                   step="0.1"
                   required
+                  hint={
+                    selectedSize && selectedSize !== 'custom'
+                      ? 'Estimated from size selection. Edit if you know the exact value.'
+                      : null
+                  }
                 />
                 <Field
                   label="Number of Rooms"
@@ -442,6 +525,11 @@ export default function VerifyPage() {
                   onChange={handleChange}
                   type="number"
                   required
+                  hint={
+                    selectedSize && selectedSize !== 'custom'
+                      ? 'Estimated. Edit if different.'
+                      : null
+                  }
                 />
                 <div className="md:col-span-2">
                   <Field
@@ -481,6 +569,11 @@ export default function VerifyPage() {
                   type="number"
                   step="0.1"
                   required
+                  hint={
+                    selectedSize && selectedSize !== 'custom'
+                      ? 'Estimated from size selection. Edit if you know the exact value.'
+                      : null
+                  }
                 />
                 <Field
                   label="Wall Height (m)"
@@ -745,18 +838,6 @@ export default function VerifyPage() {
           </form>
         </div>
 
-        {showPhotoRetakeLink && (
-          <div className="mt-6 text-center">
-            <button
-              type="button"
-              onClick={() => router.push(`/dashboard/new-project?retryProject=${projectId}`)}
-              className="text-sm text-gray-600 hover:text-gray-800 underline"
-            >
-              Not the right values? Retake the photo
-            </button>
-          </div>
-        )}
-
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
           Corrections to detected values are logged to improve future readings.
         </div>
@@ -854,6 +935,7 @@ function Field({
   required,
   placeholder,
   options,
+  hint,
 }) {
   const inputClass = `w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition text-sm ${
     required && !value ? 'border-red-400 bg-red-50' : 'border-gray-300'
@@ -889,6 +971,7 @@ function Field({
           className={inputClass}
         />
       )}
+      {hint && <p className="text-xs text-blue-600 mt-1">{hint}</p>}
     </div>
   );
    }
