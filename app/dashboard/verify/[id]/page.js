@@ -30,6 +30,7 @@ export default function VerifyPage() {
   const [planWasRead, setPlanWasRead] = useState(false);
   const [readNote, setReadNote] = useState('');
   const [planNotes, setPlanNotes] = useState('');
+  const [isImageUpload, setIsImageUpload] = useState(false);
 
   const [formData, setFormData] = useState({
     floor_area: '',
@@ -83,6 +84,15 @@ export default function VerifyPage() {
       }
 
       setProject(data);
+
+      // Detect file type from the URL to decide if this is a photo upload
+      const fileUrl = String(data.file_url || '').toLowerCase();
+      const isImage =
+        fileUrl.endsWith('.jpg') ||
+        fileUrl.endsWith('.jpeg') ||
+        fileUrl.endsWith('.png') ||
+        fileUrl.endsWith('.webp');
+      setIsImageUpload(isImage);
 
       const notes = data.notes || '';
       const wasRead =
@@ -271,6 +281,8 @@ export default function VerifyPage() {
     );
   }
 
+  const showRetryPanel = !planWasRead && isImageUpload;
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-4xl mx-auto">
@@ -310,7 +322,58 @@ export default function VerifyPage() {
           </div>
         )}
 
-        {!planWasRead && (
+        {showRetryPanel && (
+          <div className="mb-6 p-5 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="font-semibold text-amber-900 mb-2">
+              We couldn&apos;t read this photo automatically
+            </div>
+            <p className="text-sm text-amber-800 mb-4">
+              Photos can be difficult to read when they are blurry, taken at an angle, or
+              have poor lighting. You have three options:
+            </p>
+
+            <div className="grid sm:grid-cols-3 gap-3 mb-4">
+              <button
+                type="button"
+                onClick={() => router.push(`/dashboard/new-project?retryProject=${projectId}`)}
+                className="bg-white border border-amber-300 text-amber-900 px-4 py-3 rounded-lg font-medium hover:bg-amber-100 transition text-sm"
+              >
+                Retake photo
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push(`/dashboard/new-project?retryProject=${projectId}&mode=file`)}
+                className="bg-white border border-amber-300 text-amber-900 px-4 py-3 rounded-lg font-medium hover:bg-amber-100 transition text-sm"
+              >
+                Upload a PDF instead
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const el = document.getElementById('manual-entry');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="bg-[#F47B20] text-white px-4 py-3 rounded-lg font-medium hover:bg-[#E06B10] transition text-sm"
+              >
+                Enter data manually
+              </button>
+            </div>
+
+            <div className="text-xs text-amber-900 bg-amber-100 rounded p-3">
+              <div className="font-semibold mb-1">Tips for a better photo:</div>
+              <ul className="list-disc pl-5 space-y-0.5">
+                <li>Print the plan on A4 or A3 paper if possible. Photos of screens have glare.</li>
+                <li>Place the paper flat on a table in good daylight.</li>
+                <li>Hold the phone directly above the plan, parallel to the paper.</li>
+                <li>Ensure the whole plan fits inside the photo frame.</li>
+                <li>Tap the plan on your phone screen to focus before taking the shot.</li>
+                <li>If you have a scanner app on your phone, use that instead. It removes shadows and straightens the page.</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {!planWasRead && !isImageUpload && (
           <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
             <div className="font-semibold mb-1">Plan could not be read automatically</div>
             <p>
@@ -320,9 +383,6 @@ export default function VerifyPage() {
             {readNote && (
               <p className="mt-2 text-xs text-yellow-700 italic">{readNote}</p>
             )}
-            <p className="mt-2 text-xs">
-              Automatic reading of scanned plans is planned for a future update.
-            </p>
           </div>
         )}
 
@@ -341,327 +401,329 @@ export default function VerifyPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div id="manual-entry">
+          <form onSubmit={handleSubmit} className="space-y-6">
 
-          <FieldGroup title="Building Information">
-            <div className="grid md:grid-cols-2 gap-4">
-              <Field
-                label="Floor Area (m²)"
-                name="floor_area"
-                value={formData.floor_area}
-                onChange={handleChange}
-                type="number"
-                step="0.1"
-                required
-              />
-              <Field
-                label="Number of Rooms"
-                name="rooms"
-                value={formData.rooms}
-                onChange={handleChange}
-                type="number"
-                required
-              />
-              <div className="md:col-span-2">
+            <FieldGroup title="Building Information">
+              <div className="grid md:grid-cols-2 gap-4">
                 <Field
-                  label="Room Labels"
-                  name="room_labels"
-                  value={formData.room_labels}
+                  label="Floor Area (m²)"
+                  name="floor_area"
+                  value={formData.floor_area}
                   onChange={handleChange}
-                  placeholder="Lounge, Kitchen, Garage, Bedroom 1, Bedroom 2, Bathroom"
+                  type="number"
+                  step="0.1"
+                  required
+                />
+                <Field
+                  label="Number of Rooms"
+                  name="rooms"
+                  value={formData.rooms}
+                  onChange={handleChange}
+                  type="number"
+                  required
+                />
+                <div className="md:col-span-2">
+                  <Field
+                    label="Room Labels"
+                    name="room_labels"
+                    value={formData.room_labels}
+                    onChange={handleChange}
+                    placeholder="Lounge, Kitchen, Garage, Bedroom 1, Bedroom 2, Bathroom"
+                  />
+                </div>
+                <Field
+                  label="Number of Storeys"
+                  name="storeys"
+                  value={formData.storeys}
+                  onChange={handleChange}
+                  type="number"
+                  min="1"
+                />
+                <Field
+                  label="Plan Scale"
+                  name="plan_scale"
+                  value={formData.plan_scale}
+                  onChange={handleChange}
+                  type="select"
+                  options={['1:50', '1:100', '1:200', '1:500']}
                 />
               </div>
-              <Field
-                label="Number of Storeys"
-                name="storeys"
-                value={formData.storeys}
-                onChange={handleChange}
-                type="number"
-                min="1"
-              />
-              <Field
-                label="Plan Scale"
-                name="plan_scale"
-                value={formData.plan_scale}
-                onChange={handleChange}
-                type="select"
-                options={['1:50', '1:100', '1:200', '1:500']}
-              />
-            </div>
-          </FieldGroup>
+            </FieldGroup>
 
-          <FieldGroup title="Walls">
-            <div className="grid md:grid-cols-3 gap-4">
-              <Field
-                label="Total Wall Length (m)"
-                name="wall_length"
-                value={formData.wall_length}
-                onChange={handleChange}
-                type="number"
-                step="0.1"
-                required
-              />
-              <Field
-                label="Wall Height (m)"
-                name="wall_height"
-                value={formData.wall_height}
-                onChange={handleChange}
-                type="number"
-                step="0.1"
-              />
-              <Field
-                label="Wall Thickness (mm)"
-                name="wall_thickness"
-                value={formData.wall_thickness}
-                onChange={handleChange}
-                type="select"
-                options={[
-                  { value: '115', label: '115 mm (half brick)' },
-                  { value: '230', label: '230 mm (one brick)' },
-                ]}
-              />
-            </div>
-          </FieldGroup>
-
-          <FieldGroup title="Foundation & Slab">
-            <div className="grid md:grid-cols-3 gap-4">
-              <Field
-                label="Foundation Type"
-                name="foundation_type"
-                value={formData.foundation_type}
-                onChange={handleChange}
-                type="select"
-                options={[
-                  { value: 'strip', label: 'Strip Foundation' },
-                  { value: 'raft', label: 'Raft Foundation' },
-                  { value: 'pad', label: 'Pad Foundation' },
-                ]}
-              />
-              <Field
-                label="Soil Type"
-                name="soil_type"
-                value={formData.soil_type}
-                onChange={handleSoilTypeChange}
-                type="select"
-                options={SOIL_TYPES}
-              />
-              <Field
-                label="Foundation Depth (m)"
-                name="foundation_depth"
-                value={formData.foundation_depth}
-                onChange={handleChange}
-                type="number"
-                step="0.1"
-                placeholder={formData.soil_type === 'other' ? 'Required for custom' : ''}
-              />
-              <Field
-                label="Foundation Width (m)"
-                name="foundation_width"
-                value={formData.foundation_width}
-                onChange={handleChange}
-                type="number"
-                step="0.1"
-              />
-              <Field
-                label="Slab Type"
-                name="slab_type"
-                value={formData.slab_type}
-                onChange={handleChange}
-                type="select"
-                options={[
-                  { value: 'ground', label: 'Ground Slab' },
-                  { value: 'suspended', label: 'Suspended Slab' },
-                  { value: 'raft', label: 'Raft Slab' },
-                ]}
-              />
-              <Field
-                label="Slab Thickness (m)"
-                name="slab_thickness"
-                value={formData.slab_thickness}
-                onChange={handleChange}
-                type="number"
-                step="0.01"
-              />
-              <Field
-                label="Concrete Grade"
-                name="concrete_grade"
-                value={formData.concrete_grade}
-                onChange={handleChange}
-                type="select"
-                options={[
-                  { value: 'C15', label: 'C15 / G15 (Foundation)' },
-                  { value: 'C20', label: 'C20 / G20 (General)' },
-                  { value: 'C25', label: 'C25 / G25 (Structural)' },
-                  { value: 'C30', label: 'C30 / G30 (High Strength)' },
-                ]}
-              />
-            </div>
-            <p className="text-xs text-gray-500 mt-3">
-              Depth is auto-set from soil type. Adjust manually if you have a geotechnical report.
-              The default 0.6m is a standard assumption for stable ground in Zimbabwe.
-            </p>
-          </FieldGroup>
-
-          <FieldGroup title="Roof">
-            <div className="grid md:grid-cols-2 gap-4">
-              <Field
-                label="Roof Type"
-                name="roof_type"
-                value={formData.roof_type}
-                onChange={handleChange}
-                type="select"
-                options={[
-                  { value: 'ibr', label: 'IBR Sheet' },
-                  { value: 'chromadek', label: 'Chromadek Sheet' },
-                  { value: 'concrete', label: 'Concrete Tiles' },
-                  { value: 'clay', label: 'Clay Tiles' },
-                ]}
-              />
-              <Field
-                label="Roof Pitch (degrees)"
-                name="roof_pitch"
-                value={formData.roof_pitch}
-                onChange={handleChange}
-                type="select"
-                options={[
-                  { value: '15', label: '15°' },
-                  { value: '20', label: '20°' },
-                  { value: '22.5', label: '22.5°' },
-                  { value: '25', label: '25°' },
-                  { value: '30', label: '30°' },
-                  { value: '35', label: '35°' },
-                  { value: '40', label: '40°' },
-                ]}
-              />
-            </div>
-          </FieldGroup>
-
-          <FieldGroup title="Doors &amp; Windows">
-            <div className="grid md:grid-cols-2 gap-4">
-              <Field
-                label="Number of Doors"
-                name="doors"
-                value={formData.doors}
-                onChange={handleChange}
-                type="number"
-                required
-              />
-              <Field
-                label="Number of Windows"
-                name="windows"
-                value={formData.windows}
-                onChange={handleChange}
-                type="number"
-                required
-              />
-              <div className="md:col-span-2">
+            <FieldGroup title="Walls">
+              <div className="grid md:grid-cols-3 gap-4">
                 <Field
-                  label="Door Codes (if shown on plan)"
-                  name="door_details"
-                  value={formData.door_details}
+                  label="Total Wall Length (m)"
+                  name="wall_length"
+                  value={formData.wall_length}
                   onChange={handleChange}
-                  placeholder="e.g. D1, D1, DD, D2"
+                  type="number"
+                  step="0.1"
+                  required
+                />
+                <Field
+                  label="Wall Height (m)"
+                  name="wall_height"
+                  value={formData.wall_height}
+                  onChange={handleChange}
+                  type="number"
+                  step="0.1"
+                />
+                <Field
+                  label="Wall Thickness (mm)"
+                  name="wall_thickness"
+                  value={formData.wall_thickness}
+                  onChange={handleChange}
+                  type="select"
+                  options={[
+                    { value: '115', label: '115 mm (half brick)' },
+                    { value: '230', label: '230 mm (one brick)' },
+                  ]}
                 />
               </div>
-              <div className="md:col-span-2">
+            </FieldGroup>
+
+            <FieldGroup title="Foundation & Slab">
+              <div className="grid md:grid-cols-3 gap-4">
                 <Field
-                  label="Window Codes (if shown on plan)"
-                  name="window_details"
-                  value={formData.window_details}
+                  label="Foundation Type"
+                  name="foundation_type"
+                  value={formData.foundation_type}
                   onChange={handleChange}
-                  placeholder="e.g. PT1212, PT1212, HS1512"
+                  type="select"
+                  options={[
+                    { value: 'strip', label: 'Strip Foundation' },
+                    { value: 'raft', label: 'Raft Foundation' },
+                    { value: 'pad', label: 'Pad Foundation' },
+                  ]}
+                />
+                <Field
+                  label="Soil Type"
+                  name="soil_type"
+                  value={formData.soil_type}
+                  onChange={handleSoilTypeChange}
+                  type="select"
+                  options={SOIL_TYPES}
+                />
+                <Field
+                  label="Foundation Depth (m)"
+                  name="foundation_depth"
+                  value={formData.foundation_depth}
+                  onChange={handleChange}
+                  type="number"
+                  step="0.1"
+                  placeholder={formData.soil_type === 'other' ? 'Required for custom' : ''}
+                />
+                <Field
+                  label="Foundation Width (m)"
+                  name="foundation_width"
+                  value={formData.foundation_width}
+                  onChange={handleChange}
+                  type="number"
+                  step="0.1"
+                />
+                <Field
+                  label="Slab Type"
+                  name="slab_type"
+                  value={formData.slab_type}
+                  onChange={handleChange}
+                  type="select"
+                  options={[
+                    { value: 'ground', label: 'Ground Slab' },
+                    { value: 'suspended', label: 'Suspended Slab' },
+                    { value: 'raft', label: 'Raft Slab' },
+                  ]}
+                />
+                <Field
+                  label="Slab Thickness (m)"
+                  name="slab_thickness"
+                  value={formData.slab_thickness}
+                  onChange={handleChange}
+                  type="number"
+                  step="0.01"
+                />
+                <Field
+                  label="Concrete Grade"
+                  name="concrete_grade"
+                  value={formData.concrete_grade}
+                  onChange={handleChange}
+                  type="select"
+                  options={[
+                    { value: 'C15', label: 'C15 / G15 (Foundation)' },
+                    { value: 'C20', label: 'C20 / G20 (General)' },
+                    { value: 'C25', label: 'C25 / G25 (Structural)' },
+                    { value: 'C30', label: 'C30 / G30 (High Strength)' },
+                  ]}
                 />
               </div>
-            </div>
-          </FieldGroup>
+              <p className="text-xs text-gray-500 mt-3">
+                Depth is auto-set from soil type. Adjust manually if you have a geotechnical report.
+                The default 0.6m is a standard assumption for stable ground in Zimbabwe.
+              </p>
+            </FieldGroup>
 
-          <FieldGroup title="Services">
-            <div className="grid md:grid-cols-2 gap-4">
-              <Field
-                label="Electrical Points"
-                name="electrical_points"
-                value={formData.electrical_points}
-                onChange={handleChange}
-                type="number"
-              />
-              <Field
-                label="Plumbing Points"
-                name="plumbing_points"
-                value={formData.plumbing_points}
-                onChange={handleChange}
-                type="number"
-              />
-            </div>
-          </FieldGroup>
+            <FieldGroup title="Roof">
+              <div className="grid md:grid-cols-2 gap-4">
+                <Field
+                  label="Roof Type"
+                  name="roof_type"
+                  value={formData.roof_type}
+                  onChange={handleChange}
+                  type="select"
+                  options={[
+                    { value: 'ibr', label: 'IBR Sheet' },
+                    { value: 'chromadek', label: 'Chromadek Sheet' },
+                    { value: 'concrete', label: 'Concrete Tiles' },
+                    { value: 'clay', label: 'Clay Tiles' },
+                  ]}
+                />
+                <Field
+                  label="Roof Pitch (degrees)"
+                  name="roof_pitch"
+                  value={formData.roof_pitch}
+                  onChange={handleChange}
+                  type="select"
+                  options={[
+                    { value: '15', label: '15°' },
+                    { value: '20', label: '20°' },
+                    { value: '22.5', label: '22.5°' },
+                    { value: '25', label: '25°' },
+                    { value: '30', label: '30°' },
+                    { value: '35', label: '35°' },
+                    { value: '40', label: '40°' },
+                  ]}
+                />
+              </div>
+            </FieldGroup>
 
-          <FieldGroup title="Measured Elements from Plan">
-            <div className="grid md:grid-cols-3 gap-4">
-              <Field
-                label="Walls (red line) - m"
-                name="red_wall_length"
-                value={formData.red_wall_length}
-                onChange={handleChange}
-                type="number"
-                step="0.1"
-              />
-              <Field
-                label="Concrete (green line) - m²"
-                name="green_concrete_area"
-                value={formData.green_concrete_area}
-                onChange={handleChange}
-                type="number"
-                step="0.1"
-              />
-              <Field
-                label="Timber (yellow line) - m"
-                name="yellow_timber_length"
-                value={formData.yellow_timber_length}
-                onChange={handleChange}
-                type="number"
-                step="0.1"
-              />
-              <Field
-                label="Sewer (brown line) - m"
-                name="brown_sewer_length"
-                value={formData.brown_sewer_length}
-                onChange={handleChange}
-                type="number"
-                step="0.1"
-              />
-              <Field
-                label="Water (blue line) - m"
-                name="blue_water_length"
-                value={formData.blue_water_length}
-                onChange={handleChange}
-                type="number"
-                step="0.1"
-              />
-            </div>
-          </FieldGroup>
+            <FieldGroup title="Doors &amp; Windows">
+              <div className="grid md:grid-cols-2 gap-4">
+                <Field
+                  label="Number of Doors"
+                  name="doors"
+                  value={formData.doors}
+                  onChange={handleChange}
+                  type="number"
+                  required
+                />
+                <Field
+                  label="Number of Windows"
+                  name="windows"
+                  value={formData.windows}
+                  onChange={handleChange}
+                  type="number"
+                  required
+                />
+                <div className="md:col-span-2">
+                  <Field
+                    label="Door Codes (if shown on plan)"
+                    name="door_details"
+                    value={formData.door_details}
+                    onChange={handleChange}
+                    placeholder="e.g. D1, D1, DD, D2"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Field
+                    label="Window Codes (if shown on plan)"
+                    name="window_details"
+                    value={formData.window_details}
+                    onChange={handleChange}
+                    placeholder="e.g. PT1212, PT1212, HS1512"
+                  />
+                </div>
+              </div>
+            </FieldGroup>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
+            <FieldGroup title="Services">
+              <div className="grid md:grid-cols-2 gap-4">
+                <Field
+                  label="Electrical Points"
+                  name="electrical_points"
+                  value={formData.electrical_points}
+                  onChange={handleChange}
+                  type="number"
+                />
+                <Field
+                  label="Plumbing Points"
+                  name="plumbing_points"
+                  value={formData.plumbing_points}
+                  onChange={handleChange}
+                  type="number"
+                />
+              </div>
+            </FieldGroup>
 
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => router.push('/dashboard')}
-              className="px-6 py-3 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? 'Saving...' : 'Generate Bill of Quantities'}
-            </button>
-          </div>
-        </form>
+            <FieldGroup title="Measured Elements from Plan">
+              <div className="grid md:grid-cols-3 gap-4">
+                <Field
+                  label="Walls (red line) - m"
+                  name="red_wall_length"
+                  value={formData.red_wall_length}
+                  onChange={handleChange}
+                  type="number"
+                  step="0.1"
+                />
+                <Field
+                  label="Concrete (green line) - m²"
+                  name="green_concrete_area"
+                  value={formData.green_concrete_area}
+                  onChange={handleChange}
+                  type="number"
+                  step="0.1"
+                />
+                <Field
+                  label="Timber (yellow line) - m"
+                  name="yellow_timber_length"
+                  value={formData.yellow_timber_length}
+                  onChange={handleChange}
+                  type="number"
+                  step="0.1"
+                />
+                <Field
+                  label="Sewer (brown line) - m"
+                  name="brown_sewer_length"
+                  value={formData.brown_sewer_length}
+                  onChange={handleChange}
+                  type="number"
+                  step="0.1"
+                />
+                <Field
+                  label="Water (blue line) - m"
+                  name="blue_water_length"
+                  value={formData.blue_water_length}
+                  onChange={handleChange}
+                  type="number"
+                  step="0.1"
+                />
+              </div>
+            </FieldGroup>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => router.push('/dashboard')}
+                className="px-6 py-3 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex-1 bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? 'Saving...' : 'Generate Bill of Quantities'}
+              </button>
+            </div>
+          </form>
+        </div>
 
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
           Corrections to detected values are logged to improve future readings.
