@@ -17,14 +17,12 @@ const SOIL_TYPES = [
   { value: 'other',        label: 'Other / custom',                    defaultDepth: null },
 ];
 
-// Bedroom-based size presets for users who cannot read floor area
-// from the plan. Values are typical Zimbabwe residential areas.
 const SIZE_PRESETS = [
-  { value: '1bed',  label: '1-bedroom',  floorArea: 45,  wallLength: 30.9 },
-  { value: '2bed',  label: '2-bedroom',  floorArea: 65,  wallLength: 37.1 },
-  { value: '3bed',  label: '3-bedroom',  floorArea: 90,  wallLength: 43.6 },
-  { value: '4bed',  label: '4-bedroom',  floorArea: 120, wallLength: 50.4 },
-  { value: '5bed',  label: '5+ bedroom', floorArea: 160, wallLength: 58.2 },
+  { value: '1bed',   label: '1-bedroom',  floorArea: 45,  wallLength: 30.9 },
+  { value: '2bed',   label: '2-bedroom',  floorArea: 65,  wallLength: 37.1 },
+  { value: '3bed',   label: '3-bedroom',  floorArea: 90,  wallLength: 43.6 },
+  { value: '4bed',   label: '4-bedroom',  floorArea: 120, wallLength: 50.4 },
+  { value: '5bed',   label: '5+ bedroom', floorArea: 160, wallLength: 58.2 },
   { value: 'custom', label: 'Custom size', floorArea: null, wallLength: null },
 ];
 
@@ -191,43 +189,24 @@ export default function VerifyPage() {
   };
 
   const handleSizeSelect = (preset) => {
-  setSelectedSize(preset.value);
+    setSelectedSize(preset.value);
 
-  if (preset.value === 'custom' || preset.floorArea === null) {
-    // Leave fields unchanged for custom. User will type their own values.
-    return;
-  }
-
-  // Always update when a preset is clicked.
-  const bedroomCount =
-    preset.value === '5bed' ? 5 : parseInt(preset.value.replace('bed', ''), 10);
-
-  setFormData((prev) => ({
-    ...prev,
-    floor_area: preset.floorArea.toFixed(1),
-    wall_length: preset.wallLength.toFixed(1),
-    rooms: String(bedroomCount + 3),
-  }));
-};
-
-    // Fill floor_area and estimate wall_length. Only fill empty fields,
-    // so we do not overwrite an actual AI-read value.
-    const updates = {};
-
-    if (!formData.floor_area) {
-      updates.floor_area = String(preset.floorArea);
-    }
-    if (!formData.wall_length) {
-      updates.wall_length = String(preset.wallLength);
-    }
-    if (!formData.rooms) {
-      // Estimate room count from bedroom count: bedrooms + 3 common rooms
-      const bedroomCount =
-        preset.value === '5bed' ? 5 : parseInt(preset.value.replace('bed', ''), 10);
-      updates.rooms = String(bedroomCount + 3);
+    if (preset.value === 'custom' || preset.floorArea === null) {
+      // Leave fields unchanged for custom. User types their own values.
+      return;
     }
 
-    setFormData({ ...formData, ...updates });
+    // Always update when a preset is clicked. Fixes the case where the user
+    // first clicks one size and then another.
+    const bedroomCount =
+      preset.value === '5bed' ? 5 : parseInt(preset.value.replace('bed', ''), 10);
+
+    setFormData((prev) => ({
+      ...prev,
+      floor_area: preset.floorArea.toFixed(1),
+      wall_length: preset.wallLength.toFixed(1),
+      rooms: String(bedroomCount + 3),
+    }));
   };
 
   function trackCorrections(userData, aiData) {
@@ -986,4 +965,4 @@ function Field({
       {hint && <p className="text-xs text-blue-600 mt-1">{hint}</p>}
     </div>
   );
-   }
+    }
