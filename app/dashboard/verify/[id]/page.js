@@ -27,7 +27,7 @@ export default function VerifyPage() {
   const [error, setError] = useState('');
   const [project, setProject] = useState(null);
   const [originalData, setOriginalData] = useState({});
-  const [planWasRead, setPlanWasRead] = useState(false);
+  const [readQuality, setReadQuality] = useState('none');
   const [readNote, setReadNote] = useState('');
   const [planNotes, setPlanNotes] = useState('');
   const [isImageUpload, setIsImageUpload] = useState(false);
@@ -85,7 +85,7 @@ export default function VerifyPage() {
 
       setProject(data);
 
-      // Detect file type from the URL to decide if this is a photo upload
+      // Determine if the source file was a photo
       const fileUrl = String(data.file_url || '').toLowerCase();
       const isImage =
         fileUrl.endsWith('.jpg') ||
@@ -94,11 +94,24 @@ export default function VerifyPage() {
         fileUrl.endsWith('.webp');
       setIsImageUpload(isImage);
 
+      // Determine read quality from the fields present
+      const hasFloorArea = Number(data.floor_area) > 0;
+      const hasWallLength = Number(data.wall_length) > 0;
+      const hasDoors = Number(data.doors) > 0;
+      const hasWindows = Number(data.windows) > 0;
+      const hasRooms = Number(data.rooms) > 0;
+
+      let quality;
+      if (hasFloorArea && hasWallLength) {
+        quality = 'complete';
+      } else if (hasFloorArea || hasWallLength || hasDoors || hasWindows || hasRooms) {
+        quality = 'partial';
+      } else {
+        quality = 'none';
+      }
+      setReadQuality(quality);
+
       const notes = data.notes || '';
-      const wasRead =
-        notes.startsWith('Extracted from PDF:') ||
-        notes.startsWith('Extracted from PDF via vision:');
-      setPlanWasRead(wasRead);
       setReadNote(notes);
 
       const planNotesMatch = notes.match(/plan_notes="([^"]+)"/);
@@ -281,22 +294,25 @@ export default function VerifyPage() {
     );
   }
 
-  const showRetryPanel = !planWasRead && isImageUpload;
+  const showRetryPanel = readQuality !== 'complete' && (isImageUpload || readQuality === 'none');
+  const showPhotoRetakeLink = isImageUpload && readQuality === 'complete';
+
+  // Badge configuration
+  const badge =
+    readQuality === 'complete'
+      ? { text: 'Analysis complete', className: 'bg-green-100 text-green-800' }
+      : readQuality === 'partial'
+      ? { text: 'Partial read - please check fields below', className: 'bg-amber-100 text-amber-800' }
+      : { text: 'Manual entry required', className: 'bg-yellow-100 text-yellow-800' };
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-4xl mx-auto">
 
         <div className="mb-6">
-          {planWasRead ? (
-            <div className="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-semibold mb-3">
-              Analysis complete
-            </div>
-          ) : (
-            <div className="inline-block bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-semibold mb-3">
-              Manual entry required
-            </div>
-          )}
+          <div className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 ${badge.className}`}>
+            {badge.text}
+          </div>
           <div className="text-sm text-gray-500 mb-2">Step 2 of 3: Verify &amp; correct</div>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] mb-2">
             Verify Project Data
@@ -307,7 +323,7 @@ export default function VerifyPage() {
           </p>
         </div>
 
-        {planWasRead && readNote && (
+        {readQuality !== 'none' && readNote && (
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
             <div className="font-semibold mb-2">Extraction summary</div>
             {parseReadNote(readNote).map((row, i) => (
@@ -325,21 +341,35 @@ export default function VerifyPage() {
         {showRetryPanel && (
           <div className="mb-6 p-5 bg-amber-50 border border-amber-200 rounded-lg">
             <div className="font-semibold text-amber-900 mb-2">
-              We couldn&apos;t read this photo automatically
+              {isImageUpload
+                ? 'The photo could not be read completely'
+                : 'The plan could not be read completely'}
             </div>
             <p className="text-sm text-amber-800 mb-4">
-              Photos can be difficult to read when they are blurry, taken at an angle, or
-              have poor lighting. You have three options:
+              {isImageUpload
+                ? 'Photos of plans are harder to read than scans. You have three options:'
+                : 'Some measurements were missing from this plan. You have three options:'}
             </p>
 
             <div className="grid sm:grid-cols-3 gap-3 mb-4">
-              <button
-                type="button"
-                onClick={() => router.push(`/dashboard/new-project?retryProject=${projectId}`)}
-                className="bg-white border border-amber-300 text-amber-900 px-4 py-3 rounded-lg font-medium hover:bg-amber-100 transition text-sm"
-              >
-                Retake photo
-              </button>
+              {isImageUpload ? (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/dashboard/new-project?retryProject=${projectId}`)}
+                  className="bg-white border border-amber-300 text-amber-900 px-4 py-3 rounded-lg font-medium hover:bg-amber-100 transition text-sm"
+                >
+                  Retake photo
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/dashboard/new-project?retryProject=${projectId}&mode=file`)}
+                  className="bg-white border border-amber-300 text-amber-900 px-4 py-3 rounded-lg font-medium hover:bg-amber-100 transition text-sm"
+                >
+                  Upload a better PDF
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => router.push(`/dashboard/new-project?retryProject=${projectId}&mode=file`)}
@@ -347,6 +377,7 @@ export default function VerifyPage() {
               >
                 Upload a PDF instead
               </button>
+
               <button
                 type="button"
                 onClick={() => {
@@ -359,29 +390,18 @@ export default function VerifyPage() {
               </button>
             </div>
 
-            <div className="text-xs text-amber-900 bg-amber-100 rounded p-3">
-              <div className="font-semibold mb-1">Tips for a better photo:</div>
-              <ul className="list-disc pl-5 space-y-0.5">
-                <li>Print the plan on A4 or A3 paper if possible. Photos of screens have glare.</li>
-                <li>Place the paper flat on a table in good daylight.</li>
-                <li>Hold the phone directly above the plan, parallel to the paper.</li>
-                <li>Ensure the whole plan fits inside the photo frame.</li>
-                <li>Tap the plan on your phone screen to focus before taking the shot.</li>
-                <li>If you have a scanner app on your phone, use that instead. It removes shadows and straightens the page.</li>
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {!planWasRead && !isImageUpload && (
-          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-            <div className="font-semibold mb-1">Plan could not be read automatically</div>
-            <p>
-              The uploaded plan does not contain extractable text. This is common for
-              scanned or image-based PDFs. Please enter the measurements manually below.
-            </p>
-            {readNote && (
-              <p className="mt-2 text-xs text-yellow-700 italic">{readNote}</p>
+            {isImageUpload && (
+              <div className="text-xs text-amber-900 bg-amber-100 rounded p-3">
+                <div className="font-semibold mb-1">Tips for a better photo:</div>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  <li>Print the plan on A4 or A3 paper if possible. Photos of screens have glare.</li>
+                  <li>Place the paper flat on a table in good daylight.</li>
+                  <li>Hold the phone directly above the plan, parallel to the paper.</li>
+                  <li>Ensure the whole plan fits inside the photo frame.</li>
+                  <li>Tap the plan on your phone screen to focus before taking the shot.</li>
+                  <li>If you have a scanner app on your phone, use that instead. It removes shadows and straightens the page.</li>
+                </ul>
+              </div>
             )}
           </div>
         )}
@@ -725,6 +745,18 @@ export default function VerifyPage() {
           </form>
         </div>
 
+        {showPhotoRetakeLink && (
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={() => router.push(`/dashboard/new-project?retryProject=${projectId}`)}
+              className="text-sm text-gray-600 hover:text-gray-800 underline"
+            >
+              Not the right values? Retake the photo
+            </button>
+          </div>
+        )}
+
         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
           Corrections to detected values are logged to improve future readings.
         </div>
@@ -859,4 +891,4 @@ function Field({
       )}
     </div>
   );
-}
+   }
