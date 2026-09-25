@@ -4,11 +4,27 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-const BUILDING_TYPES = [
+const BUILDING_CATEGORIES = [
+  { value: 'residential', label: 'Residential' },
+  { value: 'rural',       label: 'Rural / Auxiliary' },
+];
+
+const RESIDENTIAL_TYPES = [
   { value: 'house',      label: 'House',           multiplier: 1.00 },
   { value: 'cottage',    label: 'Cottage',         multiplier: 0.85 },
   { value: 'outbuilding', label: 'Outbuilding',    multiplier: 0.70 },
   { value: 'commercial', label: 'Commercial',      multiplier: 1.60 },
+];
+
+const RURAL_TYPES = [
+  { value: 'kitchen_round',  label: 'Kitchen hut (round)',  floorArea: 12,  wallLength: 11, rooms: 1, doors: 1, windows: 1, plumbing: 0, electrical: 0 },
+  { value: 'kitchen_square', label: 'Kitchen hut (square)', floorArea: 9,   wallLength: 12, rooms: 1, doors: 1, windows: 1, plumbing: 0, electrical: 1 },
+  { value: 'toilet_block',   label: 'Toilet block',          floorArea: 2,   wallLength: 6,  rooms: 1, doors: 1, windows: 0, plumbing: 1, electrical: 0 },
+  { value: 'shower',         label: 'Shower enclosure',      floorArea: 2.5, wallLength: 6,  rooms: 1, doors: 1, windows: 0, plumbing: 1, electrical: 0 },
+  { value: 'storeroom',      label: 'Storeroom',             floorArea: 12,  wallLength: 14, rooms: 1, doors: 1, windows: 1, plumbing: 0, electrical: 1 },
+  { value: 'cottage_1room',  label: 'Single-room cottage',   floorArea: 12,  wallLength: 14, rooms: 1, doors: 2, windows: 2, plumbing: 0, electrical: 2 },
+  { value: 'cottage_2room',  label: 'Two-room cottage',      floorArea: 24,  wallLength: 20, rooms: 2, doors: 3, windows: 3, plumbing: 1, electrical: 3 },
+  { value: 'workshop',       label: 'Workshop / shed',       floorArea: 20,  wallLength: 18, rooms: 1, doors: 1, windows: 2, plumbing: 0, electrical: 3 },
 ];
 
 const BEDROOM_OPTIONS = [
@@ -37,10 +53,17 @@ const FINISH_OPTIONS = [
   { value: 'premium',  label: 'Premium',  multiplier: 1.30 },
 ];
 
-const ROOF_OPTIONS = [
+const RESIDENTIAL_ROOF_OPTIONS = [
   { value: 'ibr',      label: 'IBR Sheet' },
   { value: 'chromadek', label: 'Chromadek Sheet' },
   { value: 'tile',     label: 'Concrete Tile' },
+];
+
+const RURAL_ROOF_OPTIONS = [
+  { value: 'ibr',      label: 'IBR Sheet',  multiplier: 1.00 },
+  { value: 'asbestos', label: 'Asbestos',   multiplier: 1.10 },
+  { value: 'thatch',   label: 'Thatch',     multiplier: 0.90 },
+  { value: 'tile',     label: 'Concrete Tile', multiplier: 1.30 },
 ];
 
 const CITIES = [
@@ -63,7 +86,9 @@ export default function TemplatePage() {
 
   const [formData, setFormData] = useState({
     project_name: '',
+    category: 'residential',
     building_type: 'house',
+    rural_type: 'kitchen_square',
     bedrooms: '3',
     bathrooms: '2',
     garage: 'none',
@@ -76,18 +101,25 @@ export default function TemplatePage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const computeEstimates = () => {
-    const building = BUILDING_TYPES.find((b) => b.value === formData.building_type);
+  const handleCategoryChange = (e) => {
+    const category = e.target.value;
+    // Reset roof when switching categories, since roof options differ
+    setFormData({
+      ...formData,
+      category,
+      roof: 'ibr',
+    });
+  };
+
+  const computeResidentialEstimates = () => {
+    const building = RESIDENTIAL_TYPES.find((b) => b.value === formData.building_type);
     const bedrooms = BEDROOM_OPTIONS.find((b) => b.value === formData.bedrooms);
     const bathrooms = BATHROOM_OPTIONS.find((b) => b.value === formData.bathrooms);
     const garage = GARAGE_OPTIONS.find((g) => g.value === formData.garage);
     const finish = FINISH_OPTIONS.find((f) => f.value === formData.finish);
 
-    if (!building || !bedrooms || !bathrooms || !garage || !finish) {
-      return null;
-    }
+    if (!building || !bedrooms || !bathrooms || !garage || !finish) return null;
 
-    // Compute floor area
     let floorArea = bedrooms.baseArea;
     floorArea += bathrooms.extraArea;
     floorArea += garage.extraArea;
@@ -95,21 +127,13 @@ export default function TemplatePage() {
     floorArea *= building.multiplier;
     floorArea = Math.round(floorArea * 10) / 10;
 
-    // Wall length: perimeter approximation
     const wallLength = Math.round(4 * Math.sqrt(floorArea) * 1.15 * 10) / 10;
 
-    // Rooms
     const bedroomCount = formData.bedrooms === '5' ? 5 : parseInt(formData.bedrooms, 10);
     const bathroomCount = formData.bathrooms === '3' ? 3 : parseInt(formData.bathrooms, 10);
     const rooms = bedroomCount + bathroomCount + 3 + garage.extraRooms;
-
-    // Doors: about the same as rooms in a modest house
     const doors = bedroomCount + bathroomCount + 3 + garage.extraRooms;
-
-    // Windows: one per bedroom plus living areas and bathrooms
     const windows = bedroomCount + 2 + bathroomCount;
-
-    // Electrical and plumbing points
     const electricalPoints = rooms * 2 + 4;
     const plumbingPoints = bathroomCount + 1;
 
@@ -122,12 +146,48 @@ export default function TemplatePage() {
       electricalPoints,
       plumbingPoints,
       roofType: formData.roof,
-      buildingLabel: building.label,
-      finishLabel: finish.label,
-      garageLabel: garage.label,
-      bedroomLabel: bedrooms.label,
-      bathroomLabel: bathrooms.label,
+      summaryLabel: `${building.label}, ${bedrooms.label}, ${bathrooms.label}, ${garage.label}, ${finish.label} finish, ${formData.roof.toUpperCase()} roof`,
+      structureLabel: building.label,
     };
+  };
+
+  const computeRuralEstimates = () => {
+    const structure = RURAL_TYPES.find((r) => r.value === formData.rural_type);
+    const finish = FINISH_OPTIONS.find((f) => f.value === formData.finish);
+    const roof = RURAL_ROOF_OPTIONS.find((r) => r.value === formData.roof);
+
+    if (!structure || !finish || !roof) return null;
+
+    // Apply finish multiplier to floor area, and roof multiplier for cost adjustment
+    // Floor area is scaled by finish only (finish affects size of structure)
+    // Roof multiplier is applied to quantities that depend on roof, and reflected in cost through BOQ
+    let floorArea = structure.floorArea * finish.multiplier;
+    floorArea = Math.round(floorArea * 10) / 10;
+
+    // Wall length scaled by square root of area ratio, matching finish scale
+    const areaRatio = floorArea / structure.floorArea;
+    const wallLength = Math.round(structure.wallLength * Math.sqrt(areaRatio) * 10) / 10;
+
+    return {
+      floorArea,
+      wallLength,
+      rooms: structure.rooms,
+      doors: structure.doors,
+      windows: structure.windows,
+      electricalPoints: structure.electrical,
+      plumbingPoints: structure.plumbing,
+      roofType: formData.roof,
+      roofMultiplier: roof.multiplier,
+      summaryLabel: `${structure.label}, ${finish.label} finish, ${roof.label} roof`,
+      structureLabel: structure.label,
+    };
+  };
+
+  const computeEstimates = () => {
+    if (formData.category === 'rural') {
+      return computeRuralEstimates();
+    }
+    return computeResidentialEstimates();
   };
 
   const handleSubmit = async (e) => {
@@ -160,7 +220,7 @@ export default function TemplatePage() {
 
       const userId = session.user.id;
 
-      const notes = `Generated from template. Building type: ${estimates.buildingLabel}. ${estimates.bedroomLabel}, ${estimates.bathroomLabel}, ${estimates.garageLabel}, ${estimates.finishLabel} finish, ${estimates.roofType.toUpperCase()} roof. Quantities are typical for this configuration and require verification against actual plans.`;
+      const notes = `Generated from template. ${estimates.summaryLabel}. Quantities are typical for this configuration and require verification against actual site conditions.`;
 
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
@@ -169,7 +229,7 @@ export default function TemplatePage() {
             user_id: userId,
             project_name: formData.project_name.trim(),
             city_id: parseInt(formData.city_id, 10),
-            plan_type: 'residential',
+            plan_type: formData.category === 'rural' ? 'rural' : 'residential',
             status: 'processing',
             file_url: null,
             floor_area: estimates.floorArea,
@@ -217,6 +277,7 @@ export default function TemplatePage() {
   };
 
   const estimates = computeEstimates();
+  const isRural = formData.category === 'rural';
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
@@ -230,7 +291,7 @@ export default function TemplatePage() {
             Build a BOQ Without a Plan
           </h1>
           <p className="text-gray-600 text-sm">
-            Answer a few questions about the house you are planning to build.
+            Answer a few questions about the structure you are planning to build.
             We will generate a Bill of Quantities based on typical sizes for that configuration.
             You can review and edit every value before generating the final BOQ.
           </p>
@@ -258,41 +319,67 @@ export default function TemplatePage() {
             </div>
           </Section>
 
-          <Section title="Building Type">
+          <Section title="Category">
             <RadioGroup
-              name="building_type"
-              value={formData.building_type}
-              onChange={handleChange}
-              options={BUILDING_TYPES.map((b) => ({ value: b.value, label: b.label }))}
+              name="category"
+              value={formData.category}
+              onChange={handleCategoryChange}
+              options={BUILDING_CATEGORIES}
             />
           </Section>
 
-          <Section title="Bedrooms">
-            <RadioGroup
-              name="bedrooms"
-              value={formData.bedrooms}
-              onChange={handleChange}
-              options={BEDROOM_OPTIONS.map((b) => ({ value: b.value, label: b.label }))}
-            />
-          </Section>
+          {!isRural && (
+            <>
+              <Section title="Building Type">
+                <RadioGroup
+                  name="building_type"
+                  value={formData.building_type}
+                  onChange={handleChange}
+                  options={RESIDENTIAL_TYPES.map((b) => ({ value: b.value, label: b.label }))}
+                />
+              </Section>
 
-          <Section title="Bathrooms">
-            <RadioGroup
-              name="bathrooms"
-              value={formData.bathrooms}
-              onChange={handleChange}
-              options={BATHROOM_OPTIONS.map((b) => ({ value: b.value, label: b.label }))}
-            />
-          </Section>
+              <Section title="Bedrooms">
+                <RadioGroup
+                  name="bedrooms"
+                  value={formData.bedrooms}
+                  onChange={handleChange}
+                  options={BEDROOM_OPTIONS.map((b) => ({ value: b.value, label: b.label }))}
+                />
+              </Section>
 
-          <Section title="Garage">
-            <RadioGroup
-              name="garage"
-              value={formData.garage}
-              onChange={handleChange}
-              options={GARAGE_OPTIONS.map((g) => ({ value: g.value, label: g.label }))}
-            />
-          </Section>
+              <Section title="Bathrooms">
+                <RadioGroup
+                  name="bathrooms"
+                  value={formData.bathrooms}
+                  onChange={handleChange}
+                  options={BATHROOM_OPTIONS.map((b) => ({ value: b.value, label: b.label }))}
+                />
+              </Section>
+
+              <Section title="Garage">
+                <RadioGroup
+                  name="garage"
+                  value={formData.garage}
+                  onChange={handleChange}
+                  options={GARAGE_OPTIONS.map((g) => ({ value: g.value, label: g.label }))}
+                />
+              </Section>
+            </>
+          )}
+
+          {isRural && (
+            <>
+              <Section title="Structure Type">
+                <RadioGroup
+                  name="rural_type"
+                  value={formData.rural_type}
+                  onChange={handleChange}
+                  options={RURAL_TYPES.map((r) => ({ value: r.value, label: r.label }))}
+                />
+              </Section>
+            </>
+          )}
 
           <Section title="Finish Level">
             <RadioGroup
@@ -304,12 +391,21 @@ export default function TemplatePage() {
           </Section>
 
           <Section title="Roof Type">
-            <RadioGroup
-              name="roof"
-              value={formData.roof}
-              onChange={handleChange}
-              options={ROOF_OPTIONS.map((r) => ({ value: r.value, label: r.label }))}
-            />
+            {isRural ? (
+              <RadioGroup
+                name="roof"
+                value={formData.roof}
+                onChange={handleChange}
+                options={RURAL_ROOF_OPTIONS.map((r) => ({ value: r.value, label: r.label }))}
+              />
+            ) : (
+              <RadioGroup
+                name="roof"
+                value={formData.roof}
+                onChange={handleChange}
+                options={RESIDENTIAL_ROOF_OPTIONS.map((r) => ({ value: r.value, label: r.label }))}
+              />
+            )}
           </Section>
 
           {estimates && (
