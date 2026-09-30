@@ -45,8 +45,7 @@ export default function ArchitectsPage() {
           </a>
 
           <p className="text-xs text-gray-500 mt-4">
-            Update the WhatsApp number above with your own contact before
-            deploying.
+          
           </p>
         </div>
       </div>
