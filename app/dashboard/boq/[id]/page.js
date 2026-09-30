@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { generateFullBOQ } from '@/lib/boq/engine';
 import { round2 } from '@/lib/boq/utils';
+import PlanDrawingEstimate from './PlanDrawingEstimate';
 
 export default function BOQPage() {
   const router = useRouter();
@@ -173,10 +174,6 @@ export default function BOQPage() {
     }
   }
 
-  // --------------------------------------------------------
-  // Roll up child amounts into parent header rows.
-  // Includes the header's own amount if it has one.
-  // --------------------------------------------------------
   function rollUpHeaderAmounts(sectionItems) {
     const cloned = sectionItems.map((it) => ({ ...it }));
 
@@ -328,6 +325,9 @@ export default function BOQPage() {
       </div>
     );
   }
+
+  // Template BOQs have no uploaded plan file.
+  const isTemplateBOQ = !project.file_url;
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
@@ -559,6 +559,16 @@ export default function BOQPage() {
           </div>
         </div>
 
+        {isTemplateBOQ && (
+          <PlanDrawingEstimate
+            project={project}
+            floorArea={project.floor_area || 0}
+            cityId={project.city_id || 1}
+          />
+        )}
+
+        <div id="boq-summary-anchor" />
+
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
           <h2 className="text-lg font-bold text-[#2C3E50] mb-1">
             Hardware Store Comparison
@@ -712,4 +722,4 @@ export default function BOQPage() {
       </div>
     </div>
   );
-}
+                                       }
