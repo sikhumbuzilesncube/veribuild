@@ -24,7 +24,6 @@ export default function Home() {
 
       {/* ===== HERO ===== */}
       <section className="relative overflow-hidden">
-        {/* Background photo */}
         <div className="absolute inset-0">
           <Image
             src="/hero.webp"
@@ -37,7 +36,6 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900/85 via-slate-900/70 to-slate-900/40" />
         </div>
 
-        {/* Content */}
         <div className="relative max-w-content mx-auto px-6 pt-32 md:pt-40 pb-16 md:pb-24">
           <div className="max-w-3xl">
             <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 text-white px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6 md:mb-8">
@@ -52,8 +50,8 @@ export default function Home() {
             </h1>
 
             <p className="text-lg md:text-xl text-gray-200 mt-6 md:mt-8 max-w-2xl leading-relaxed">
-              VeriBuild generates a professional BOQ from your floor plan in 3 minutes — with
-              real material prices from Zimbabwean hardware stores and labour cost estimates.
+              Have a plan? Upload it. Don&apos;t? Pick a house type. In 3 minutes, get a
+              professional BOQ with real material prices, labour costs, and architect fees.
             </p>
 
             <div className="flex flex-wrap gap-3 mt-8 md:mt-10">
@@ -87,7 +85,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* BOQ Card — full width on mobile, absolute right on desktop */}
           <div className="mt-10 md:mt-0 md:absolute md:bottom-24 md:right-6 lg:right-12 xl:right-16 md:w-72 lg:w-80">
             <div className="bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
@@ -137,8 +134,81 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ===== TWO WAYS TO START ===== */}
+      <section className="py-16 md:py-20 px-6 bg-white border-b border-gray-100">
+        <div className="max-w-content mx-auto">
+          <div className="text-center max-w-2xl mx-auto mb-10 md:mb-12">
+            <span className="inline-block text-xs font-bold uppercase tracking-wider text-brand-500 mb-3">
+              Two ways to start
+            </span>
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-700">
+              Have a plan — or don&apos;t. Either way, you get a BOQ.
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4 md:gap-6">
+            <div className="bg-gray-50 rounded-2xl p-6 md:p-8 border border-gray-100">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-brand-500 flex items-center justify-center text-white flex-shrink-0">
+                  <IconUpload className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-brand-500 uppercase tracking-wider">
+                    Option 1
+                  </p>
+                  <h3 className="text-lg font-bold text-slate-700">
+                    I have a floor plan
+                  </h3>
+                </div>
+              </div>
+              <p className="text-gray-600 text-sm leading-relaxed mb-5">
+                Upload a PDF, JPEG, PNG, or even a hand-drawn sketch. Yaka reads every room,
+                dimension, door, and window, then prices it against local hardware stores.
+              </p>
+              <ul className="space-y-2 text-sm text-gray-600">
+                {['Accurate, plan-specific BOQ', 'Room-by-room takeoff', 'Material and labour pricing'].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <IconCheck className="w-4 h-4 text-brand-500 mt-0.5 flex-shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="bg-gray-50 rounded-2xl p-6 md:p-8 border border-gray-100">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-slate-700 flex items-center justify-center text-white flex-shrink-0">
+                  <IconDocument className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-brand-500 uppercase tracking-wider">
+                    Option 2
+                  </p>
+                  <h3 className="text-lg font-bold text-slate-700">
+                    I don&apos;t have a plan yet
+                  </h3>
+                </div>
+              </div>
+              <p className="text-gray-600 text-sm leading-relaxed mb-5">
+                Pick a house type — 1, 2, or 3 bedrooms. We&apos;ll generate a standard BOQ
+                including architect fees and council submission costs, and help you find an
+                architect.
+              </p>
+              <ul className="space-y-2 text-sm text-gray-600">
+                {['Instant BOQ from house type', 'Architect fee + council costs included', 'Matched with local architects'].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <IconCheck className="w-4 h-4 text-brand-500 mt-0.5 flex-shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ===== WHO IT'S FOR ===== */}
-      <section id="who" className="py-16 md:py-24 px-6 bg-gray-50 border-y border-gray-100">
+      <section id="who" className="py-16 md:py-24 px-6 bg-gray-50 border-b border-gray-100">
         <div className="max-w-content mx-auto">
           <div className="max-w-2xl mb-10">
             <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-700">
@@ -198,7 +268,7 @@ export default function Home() {
               Three steps. Three minutes.
             </h2>
             <p className="text-gray-600 mt-4 text-lg">
-              No quantity surveyor required. No spreadsheets. Just your plan.
+              No quantity surveyor required. No spreadsheets. Just your plan — or a house type.
             </p>
           </div>
 
@@ -207,20 +277,20 @@ export default function Home() {
               {
                 n: '01',
                 icon: <IconUpload className="w-7 h-7" />,
-                title: 'Upload your plan',
-                body: 'PDF, JPEG, PNG, or a hand-drawn sketch. All common formats work.',
+                title: 'Start with what you have',
+                body: 'Upload a floor plan — or pick a 1, 2, or 3-bedroom house type.',
               },
               {
                 n: '02',
                 icon: <IconSparkle className="w-7 h-7" />,
-                title: 'Yaka reads it',
-                body: 'Rooms, dimensions, doors, windows, electrical points — extracted automatically.',
+                title: 'Yaka does the work',
+                body: 'Reads rooms and dimensions, or generates a standard BOQ. Adds architect and council fees.',
               },
               {
                 n: '03',
                 icon: <IconDocument className="w-7 h-7" />,
                 title: 'Get your BOQ',
-                body: 'Priced against live hardware stock. Compare suppliers. See labour costs.',
+                body: 'Priced against live hardware stock. Compare suppliers. See labour costs. Build.',
               },
             ].map((step) => (
               <div key={step.n} className="relative">
@@ -254,15 +324,16 @@ export default function Home() {
               </h2>
               <p className="text-lg md:text-xl text-gray-300 mt-6 leading-relaxed max-w-lg">
                 Yaka is our BOQ engine. Built from real Zimbabwean construction data — material
-                rates, labour patterns, hardware stock — so your estimate reflects how building
+                rates, labour patterns, architect fees — so your estimate reflects how building
                 actually works in Zimbabwe.
               </p>
 
               <ul className="mt-8 space-y-4">
                 {[
-                  ['Reads every detail', 'Rooms, dimensions, doors, windows, electrical points.'],
+                  ['Reads every detail', 'Rooms, dimensions, doors, windows — from your plan.'],
                   ['Prices against reality', 'Live rates from local hardware stores.'],
                   ['Knows Zimbabwean labour', 'Realistic gang-day costs for bricklayers, plumbers, and general labour.'],
+                  ['Adds what you forget', 'Architect fees and council submission costs, estimated upfront.'],
                 ].map(([title, body]) => (
                   <li key={title} className="flex items-start gap-3">
                     <IconCheck className="w-5 h-5 text-brand-500 mt-0.5 flex-shrink-0" />
@@ -298,7 +369,7 @@ export default function Home() {
                     ['Measured wall area — 218m²', 'done'],
                     ['Counted 6 doors, 8 windows', 'done'],
                     ['Priced against 3 hardware stores', 'loading'],
-                    ['Calculating labour costs', 'pending'],
+                    ['Calculating labour + architect fees', 'pending'],
                   ].map(([label, status]) => (
                     <div key={label} className="flex items-center gap-3">
                       {status === 'done' ? (
@@ -342,12 +413,12 @@ export default function Home() {
 
           <div className="grid md:grid-cols-3 gap-x-12 gap-y-12">
             {[
+              ['No plan needed', 'Pick a house type and get a BOQ instantly — no drawings required.'],
+              ['Architect + council fees', 'Estimated upfront so your budget reflects the full picture.'],
               ['Real local prices', 'Live material costs from Zimbabwean hardware stores.'],
               ['Labour estimates', 'Realistic breakdown by trade, not just materials.'],
               ['Full BOQ structure', 'Substructure, superstructure, roof, finishes, services, labour.'],
               ['Works offline', 'Low-data mode. Generates even on a weak connection.'],
-              ['Export anywhere', 'PDF, CSV. Share with lenders, suppliers, or your team.'],
-              ['Built for Zimbabwe', 'Local suppliers, local rates, local context.'],
             ].map(([title, body], i) => (
               <div key={title}>
                 <span className="text-xs font-bold text-brand-500 tracking-wider">
@@ -362,29 +433,25 @@ export default function Home() {
       </section>
 
       {/* ===== TESTIMONIAL ===== */}
-      <section className="py-24 md:py-32 px-6 bg-gray-50 border-y border-gray-100">
-        <div className="max-w-3xl mx-auto text-center">
-          <span className="inline-block text-xs font-bold uppercase tracking-wider text-brand-500 mb-8">
-            From our first users
-          </span>
-          <blockquote className="text-2xl md:text-3xl font-medium text-slate-700 leading-snug tracking-tight">
-            &ldquo;Yaka gave me a full BOQ in under 5 minutes. My quantity surveyor quoted
-            $450 and 3 weeks. Same numbers, fraction of the cost.&rdquo;
-          </blockquote>
-          <div className="mt-8 flex items-center justify-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-brand-500 flex items-center justify-center text-white font-bold">
-              TM
-            </div>
-            <div className="text-left">
-              <p className="font-semibold text-slate-700">Tendai M.</p>
-              <p className="text-sm text-gray-500">Homeowner · Borrowdale, Harare</p>
-            </div>
-          </div>
-          <p className="text-xs text-gray-400 mt-6 italic">
-            Placeholder testimonial — replace with a real quote from a real user when available.
-          </p>
-        </div>
-      </section>
+<section className="py-24 md:py-32 px-6 bg-gray-50 border-y border-gray-100">
+  <div className="max-w-3xl mx-auto text-center">
+    <span className="inline-block text-xs font-bold uppercase tracking-wider text-brand-500 mb-8">
+      What architects are saying
+    </span>
+    <blockquote className="text-2xl md:text-3xl font-medium text-slate-700 leading-snug tracking-tight">
+      &ldquo;It&apos;s accurate. And the user interface is simple and user-friendly.&rdquo;
+    </blockquote>
+    <div className="mt-10 flex items-center justify-center gap-4">
+      <div className="w-14 h-14 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-lg">
+        PN
+      </div>
+      <div className="text-left">
+        <p className="font-semibold text-slate-700">Mr. P Ncube</p>
+        <p className="text-sm text-gray-500">Architect · Zimbabwe</p>
+      </div>
+    </div>
+  </div>
+</section>
 
       {/* ===== STATS ===== */}
       <section className="py-20 px-6 bg-white">
@@ -392,7 +459,7 @@ export default function Home() {
           {[
             ['3 min', 'Average BOQ time'],
             ['6', 'BOQ sections'],
-            ['50+', 'Hardware partners'],
+            ['2', 'Ways to start'],
             ['100%', 'Zimbabwe-focused'],
           ].map(([stat, label]) => (
             <div key={label}>
@@ -427,7 +494,7 @@ export default function Home() {
                 <div className="mt-6">
                   <p className="flex items-baseline">
                     <span className="text-6xl md:text-7xl font-bold text-brand-500 tracking-tighter">
-                      $10
+                      $5
                     </span>
                     <span className="text-gray-400 ml-3 text-base">/ BOQ</span>
                   </p>
@@ -472,9 +539,9 @@ export default function Home() {
                   <li className="flex items-start gap-3">
                     <IconCheck className="w-5 h-5 text-brand-500 mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="font-semibold text-slate-700">Labour cost breakdown</p>
+                      <p className="font-semibold text-slate-700">Architect + council fees</p>
                       <p className="text-sm text-gray-600 mt-0.5">
-                        By trade — bricklaying, plumbing, electrical, general labour.
+                        Estimated upfront — plus help finding an architect if you need one.
                       </p>
                     </div>
                   </li>
@@ -491,7 +558,7 @@ export default function Home() {
                   </span>
                   <span className="flex items-center gap-1.5">
                     <IconCheck className="w-3.5 h-3.5 text-brand-500" />
-                    Works offline
+                    No plan required
                   </span>
                 </div>
               </div>
@@ -517,7 +584,7 @@ export default function Home() {
             in 3 minutes.
           </h2>
           <p className="text-gray-600 mt-6 text-lg">
-            Upload a plan. Get a BOQ. Build with confidence.
+            Upload a plan, or pick a house type. Either way, you get a BOQ.
           </p>
           <div className="flex flex-wrap gap-3 justify-center mt-10">
             <Link
