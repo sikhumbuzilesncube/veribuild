@@ -36,7 +36,7 @@ export default function ArchitectsPage() {
           </p>
 
           <a
-            href="https://wa.me/263777893524"
+            href="https://wa.me/263777803517"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block bg-[#F47B20] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition"
