@@ -66,6 +66,25 @@ const RURAL_ROOF_OPTIONS = [
   { value: 'tile',     label: 'Concrete Tile', multiplier: 1.30 },
 ];
 
+const FOUNDATION_BRICK_TYPES = [
+  { value: 'common',     label: 'Common brick' },
+  { value: 'industrial', label: 'Industrial brick' },
+];
+
+const WALL_BRICK_TYPES = [
+  { value: 'common',     label: 'Common brick (plastered)' },
+  { value: 'industrial', label: 'Industrial brick (plastered)' },
+  { value: 'face',       label: 'Face brick (exposed, no plaster)' },
+  { value: 'mixed',      label: 'Mixed (face front, industrial sides)' },
+];
+
+const PLASTER_SCOPES = [
+  { value: 'both',     label: 'Both internal and external' },
+  { value: 'interior', label: 'Interior only' },
+  { value: 'exterior', label: 'Exterior only' },
+  { value: 'none',     label: 'No plaster' },
+];
+
 const CITIES = [
   { id: 1, name: 'Harare' },
   { id: 2, name: 'Bulawayo' },
@@ -95,6 +114,10 @@ export default function TemplatePage() {
     finish: 'standard',
     roof: 'ibr',
     city_id: '1',
+    foundation_brick_type: 'common',
+    wall_brick_type: 'common',
+    face_brick_proportion: '0.30',
+    plaster_scope: 'both',
   });
 
   const handleChange = (e) => {
@@ -103,12 +126,24 @@ export default function TemplatePage() {
 
   const handleCategoryChange = (e) => {
     const category = e.target.value;
-    // Reset roof when switching categories, since roof options differ
     setFormData({
       ...formData,
       category,
       roof: 'ibr',
     });
+  };
+
+  const handleWallBrickChange = (e) => {
+    const wallBrickType = e.target.value;
+    const updates = { wall_brick_type: wallBrickType };
+
+    if (wallBrickType === 'face') {
+      updates.plaster_scope = 'interior';
+    } else if (wallBrickType === 'mixed' && formData.plaster_scope === 'both') {
+      updates.plaster_scope = 'interior';
+    }
+
+    setFormData({ ...formData, ...updates });
   };
 
   const computeResidentialEstimates = () => {
@@ -158,13 +193,9 @@ export default function TemplatePage() {
 
     if (!structure || !finish || !roof) return null;
 
-    // Apply finish multiplier to floor area, and roof multiplier for cost adjustment
-    // Floor area is scaled by finish only (finish affects size of structure)
-    // Roof multiplier is applied to quantities that depend on roof, and reflected in cost through BOQ
     let floorArea = structure.floorArea * finish.multiplier;
     floorArea = Math.round(floorArea * 10) / 10;
 
-    // Wall length scaled by square root of area ratio, matching finish scale
     const areaRatio = floorArea / structure.floorArea;
     const wallLength = Math.round(structure.wallLength * Math.sqrt(areaRatio) * 10) / 10;
 
@@ -248,6 +279,10 @@ export default function TemplatePage() {
             concrete_grade: 'C20',
             soil_type: 'not_sure',
             plan_scale: '1:100',
+            foundation_brick_type: formData.foundation_brick_type,
+            wall_brick_type: formData.wall_brick_type,
+            face_brick_proportion: parseFloat(formData.face_brick_proportion) || 0.30,
+            plaster_scope: formData.plaster_scope,
             notes,
           },
         ])
@@ -278,6 +313,7 @@ export default function TemplatePage() {
 
   const estimates = computeEstimates();
   const isRural = formData.category === 'rural';
+  const showFaceBrickProportion = formData.wall_brick_type === 'mixed';
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
@@ -369,16 +405,14 @@ export default function TemplatePage() {
           )}
 
           {isRural && (
-            <>
-              <Section title="Structure Type">
-                <RadioGroup
-                  name="rural_type"
-                  value={formData.rural_type}
-                  onChange={handleChange}
-                  options={RURAL_TYPES.map((r) => ({ value: r.value, label: r.label }))}
-                />
-              </Section>
-            </>
+            <Section title="Structure Type">
+              <RadioGroup
+                name="rural_type"
+                value={formData.rural_type}
+                onChange={handleChange}
+                options={RURAL_TYPES.map((r) => ({ value: r.value, label: r.label }))}
+              />
+            </Section>
           )}
 
           <Section title="Finish Level">
@@ -406,6 +440,52 @@ export default function TemplatePage() {
                 options={RESIDENTIAL_ROOF_OPTIONS.map((r) => ({ value: r.value, label: r.label }))}
               />
             )}
+          </Section>
+
+          <Section title="Brick Type">
+            <div className="grid md:grid-cols-2 gap-4">
+              <SelectInput
+                label="Foundation Brick Type"
+                name="foundation_brick_type"
+                value={formData.foundation_brick_type}
+                onChange={handleChange}
+                options={FOUNDATION_BRICK_TYPES}
+              />
+              <SelectInput
+                label="Wall Brick Type"
+                name="wall_brick_type"
+                value={formData.wall_brick_type}
+                onChange={handleWallBrickChange}
+                options={WALL_BRICK_TYPES}
+              />
+            </div>
+            {showFaceBrickProportion && (
+              <div className="mt-4">
+                <Input
+                  label="Face brick proportion (0-1)"
+                  name="face_brick_proportion"
+                  value={formData.face_brick_proportion}
+                  onChange={handleChange}
+                  type="number"
+                  step="0.05"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Default 0.30 means 30% of walls are face brick (front), 70% industrial (sides).
+                </p>
+              </div>
+            )}
+          </Section>
+
+          <Section title="Plaster Scope">
+            <RadioGroup
+              name="plaster_scope"
+              value={formData.plaster_scope}
+              onChange={handleChange}
+              options={PLASTER_SCOPES}
+            />
+            <p className="text-xs text-gray-500 mt-3">
+              Selecting face or mixed brick above auto-sets this to interior only. Override if needed.
+            </p>
           </Section>
 
           {estimates && (
@@ -499,7 +579,7 @@ function Section({ title, children }) {
   );
 }
 
-function Input({ label, name, value, onChange, placeholder, required }) {
+function Input({ label, name, value, onChange, placeholder, required, type = 'text', step }) {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -507,11 +587,12 @@ function Input({ label, name, value, onChange, placeholder, required }) {
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
       <input
-        type="text"
+        type={type}
         name={name}
         value={value}
         onChange={onChange}
         placeholder={placeholder}
+        step={step}
         className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition text-sm ${
           required && !value ? 'border-red-400 bg-red-50' : 'border-gray-300'
         }`}
