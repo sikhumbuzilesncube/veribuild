@@ -17,6 +17,25 @@ const SOIL_TYPES = [
   { value: 'other',        label: 'Other / custom',                    defaultDepth: null },
 ];
 
+const FOUNDATION_BRICK_TYPES = [
+  { value: 'common',     label: 'Common brick' },
+  { value: 'industrial', label: 'Industrial brick' },
+];
+
+const WALL_BRICK_TYPES = [
+  { value: 'common',     label: 'Common brick (plastered)' },
+  { value: 'industrial', label: 'Industrial brick (plastered)' },
+  { value: 'face',       label: 'Face brick (exposed, no plaster)' },
+  { value: 'mixed',      label: 'Mixed (face front, industrial sides)' },
+];
+
+const PLASTER_SCOPES = [
+  { value: 'both',     label: 'Both internal and external' },
+  { value: 'interior', label: 'Interior only' },
+  { value: 'exterior', label: 'Exterior only' },
+  { value: 'none',     label: 'No plaster' },
+];
+
 const SIZE_PRESETS = [
   { value: '1bed',   label: '1-bedroom',  floorArea: 45,  wallLength: 30.9 },
   { value: '2bed',   label: '2-bedroom',  floorArea: 65,  wallLength: 37.1 },
@@ -49,6 +68,10 @@ export default function VerifyPage() {
     wall_length: '',
     wall_height: '2.7',
     wall_thickness: '230',
+    foundation_brick_type: 'common',
+    wall_brick_type: 'common',
+    face_brick_proportion: '0.30',
+    plaster_scope: 'both',
     foundation_type: 'strip',
     soil_type: 'not_sure',
     foundation_depth: '0.6',
@@ -137,6 +160,10 @@ export default function VerifyPage() {
         wall_length: data.wall_length || '',
         wall_height: data.wall_height || '2.7',
         wall_thickness: '230',
+        foundation_brick_type: data.foundation_brick_type || 'common',
+        wall_brick_type: data.wall_brick_type || 'common',
+        face_brick_proportion: data.face_brick_proportion != null ? String(data.face_brick_proportion) : '0.30',
+        plaster_scope: data.plaster_scope || 'both',
         foundation_type: data.foundation_type || 'strip',
         soil_type: soilType,
         foundation_depth: data.foundation_depth || (soilDefault ?? 0.6),
@@ -188,16 +215,26 @@ export default function VerifyPage() {
     }
   };
 
+  const handleWallBrickChange = (e) => {
+    const wallBrickType = e.target.value;
+    const updates = { wall_brick_type: wallBrickType };
+
+    if (wallBrickType === 'face') {
+      updates.plaster_scope = 'interior';
+    } else if (wallBrickType === 'mixed' && formData.plaster_scope === 'both') {
+      updates.plaster_scope = 'interior';
+    }
+
+    setFormData({ ...formData, ...updates });
+  };
+
   const handleSizeSelect = (preset) => {
     setSelectedSize(preset.value);
 
     if (preset.value === 'custom' || preset.floorArea === null) {
-      // Leave fields unchanged for custom. User types their own values.
       return;
     }
 
-    // Always update when a preset is clicked. Fixes the case where the user
-    // first clicks one size and then another.
     const bedroomCount =
       preset.value === '5bed' ? 5 : parseInt(preset.value.replace('bed', ''), 10);
 
@@ -256,6 +293,10 @@ export default function VerifyPage() {
         room_labels: formData.room_labels || null,
         wall_length: parseFloat(formData.wall_length),
         wall_height: parseFloat(formData.wall_height) || 2.7,
+        foundation_brick_type: formData.foundation_brick_type,
+        wall_brick_type: formData.wall_brick_type,
+        face_brick_proportion: parseFloat(formData.face_brick_proportion) || 0.30,
+        plaster_scope: formData.plaster_scope,
         foundation_type: formData.foundation_type || 'strip',
         soil_type: formData.soil_type || 'not_sure',
         foundation_depth: parseFloat(formData.foundation_depth) || 0.6,
@@ -332,6 +373,8 @@ export default function VerifyPage() {
       : readQuality === 'partial'
       ? { text: 'Partial read - please check fields below', className: 'bg-amber-100 text-amber-800' }
       : { text: 'Manual entry required', className: 'bg-yellow-100 text-yellow-800' };
+
+  const showFaceBrickProportion = formData.wall_brick_type === 'mixed';
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
@@ -586,6 +629,39 @@ export default function VerifyPage() {
                   ]}
                 />
               </div>
+
+              <div className="grid md:grid-cols-2 gap-4 mt-4">
+                <Field
+                  label="Foundation Brick Type"
+                  name="foundation_brick_type"
+                  value={formData.foundation_brick_type}
+                  onChange={handleChange}
+                  type="select"
+                  options={FOUNDATION_BRICK_TYPES}
+                />
+                <Field
+                  label="Wall Brick Type"
+                  name="wall_brick_type"
+                  value={formData.wall_brick_type}
+                  onChange={handleWallBrickChange}
+                  type="select"
+                  options={WALL_BRICK_TYPES}
+                />
+              </div>
+
+              {showFaceBrickProportion && (
+                <div className="mt-4">
+                  <Field
+                    label="Face brick proportion (fraction of walls that are face brick)"
+                    name="face_brick_proportion"
+                    value={formData.face_brick_proportion}
+                    onChange={handleChange}
+                    type="number"
+                    step="0.05"
+                    hint="Default 0.30 means 30% of walls are face brick (front), 70% industrial (sides)."
+                  />
+                </div>
+              )}
             </FieldGroup>
 
             <FieldGroup title="Foundation & Slab">
@@ -738,6 +814,24 @@ export default function VerifyPage() {
                   />
                 </div>
               </div>
+            </FieldGroup>
+
+            <FieldGroup title="Finishes">
+              <div className="grid md:grid-cols-2 gap-4">
+                <Field
+                  label="Plaster Scope"
+                  name="plaster_scope"
+                  value={formData.plaster_scope}
+                  onChange={handleChange}
+                  type="select"
+                  options={PLASTER_SCOPES}
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-3">
+                Plaster scope controls whether internal and external walls are rendered.
+                Selecting face or mixed brick above auto-sets this to interior only, which
+                matches typical practice. Override it here if needed.
+              </p>
             </FieldGroup>
 
             <FieldGroup title="Services">
@@ -898,6 +992,9 @@ function humanise(key) {
     windows: 'Windows detected',
     foundation_depth: 'Foundation depth',
     wall_thickness: 'Wall thickness',
+    foundation_brick: 'Foundation brick',
+    wall_brick: 'Wall brick',
+    plaster_scope: 'Plaster scope',
     door_codes: 'Door codes',
     window_codes: 'Window codes',
   };
@@ -965,4 +1062,4 @@ function Field({
       {hint && <p className="text-xs text-blue-600 mt-1">{hint}</p>}
     </div>
   );
-    }
+   }
