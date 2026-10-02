@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { generateFullBOQ } from '@/lib/boq/engine';
 import { round2 } from '@/lib/boq/utils';
 import PlanDrawingEstimate from './PlanDrawingEstimate';
+import { CITY_NAMES } from '@/lib/cities';
 
 export default function BOQPage() {
   const router = useRouter();
