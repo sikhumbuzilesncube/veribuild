@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { readPlan } from '@/app/actions/readPlan';
+import { CITIES } from '@/lib/cities';
 
 export default function NewProjectPage() {
   return (
@@ -21,7 +22,7 @@ function NewProject() {
 
   const retryProjectId = searchParams.get('retryProject');
   const isRetry = !!retryProjectId;
-  const modeParam = searchParams.get('mode'); // 'file' or null
+  const modeParam = searchParams.get('mode');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -32,9 +33,6 @@ function NewProject() {
   const [uploadMethod, setUploadMethod] = useState(modeParam === 'file' ? 'file' : 'camera');
   const [apiStatus, setApiStatus] = useState('');
 
-  import { CITIES, CITY_NAMES } from '@/lib/cities';
-
-  // On retry, load the existing project so the form is pre-filled
   useEffect(() => {
     async function loadRetryProject() {
       if (!retryProjectId) return;
@@ -112,7 +110,6 @@ function NewProject() {
 
       const userId = session.user.id;
 
-      // STEP 1: Upload file to Supabase Storage
       setApiStatus('Uploading file...');
       const fileExt = file.name.split('.').pop();
       const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
@@ -136,7 +133,6 @@ function NewProject() {
       let projectId;
 
       if (isRetry) {
-        // Update the existing project's file_url instead of creating a new one
         setApiStatus('Updating project...');
         const { error: updateError } = await supabase
           .from('projects')
@@ -155,7 +151,6 @@ function NewProject() {
         }
         projectId = retryProjectId;
       } else {
-        // STEP 2: Create new project
         setApiStatus('Creating project...');
         const { data: projectData, error: projectError } = await supabase
           .from('projects')
@@ -180,7 +175,6 @@ function NewProject() {
         projectId = projectData[0].id;
       }
 
-      // STEP 3: Read the plan
       setApiStatus('Reading plan...');
       try {
         const result = await readPlan(projectId, urlData.publicUrl);
@@ -197,7 +191,6 @@ function NewProject() {
         setApiStatus('Manual verification needed');
       }
 
-      // STEP 4: Redirect to verification
       setApiStatus('Redirecting to verification...');
       setTimeout(() => {
         router.push(`/dashboard/verify/${projectId}`);
@@ -265,7 +258,7 @@ function NewProject() {
                     onChange={(e) => setCityId(parseInt(e.target.value))}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
                   >
-                    {cities.map((c) => (
+                    {CITIES.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
@@ -331,7 +324,7 @@ function NewProject() {
                     </p>
                     {uploadMethod === 'camera' && (
                       <p className="text-xs text-gray-500 mt-2 max-w-md mx-auto">
-                        For best results, place the plan flat in good light, hold the phone directly above it, and ensure the whole plan fits in the frame.
+                        For best results, take the photo in good light, hold the phone flat above the plan, and ensure the whole plan is in frame.
                       </p>
                     )}
 
@@ -417,4 +410,4 @@ function NewProject() {
       </div>
     </div>
   );
-        }
+    }
