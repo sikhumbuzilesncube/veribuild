@@ -32,16 +32,7 @@ function NewProject() {
   const [uploadMethod, setUploadMethod] = useState(modeParam === 'file' ? 'file' : 'camera');
   const [apiStatus, setApiStatus] = useState('');
 
-  const cities = [
-    { id: 1, name: 'Harare' },
-    { id: 2, name: 'Bulawayo' },
-    { id: 3, name: 'Mutare' },
-    { id: 4, name: 'Gweru' },
-    { id: 5, name: 'Kwekwe' },
-    { id: 6, name: 'Masvingo' },
-    { id: 7, name: 'Chinhoyi' },
-    { id: 8, name: 'Marondera' },
-  ];
+  import { CITIES, CITY_NAMES } from '@/lib/cities';
 
   // On retry, load the existing project so the form is pre-filled
   useEffect(() => {
