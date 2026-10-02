@@ -85,16 +85,8 @@ const PLASTER_SCOPES = [
   { value: 'none',     label: 'No plaster' },
 ];
 
-const CITIES = [
-  { id: 1, name: 'Harare' },
-  { id: 2, name: 'Bulawayo' },
-  { id: 3, name: 'Mutare' },
-  { id: 4, name: 'Gweru' },
-  { id: 5, name: 'Kwekwe' },
-  { id: 6, name: 'Masvingo' },
-  { id: 7, name: 'Chinhoyi' },
-  { id: 8, name: 'Marondera' },
-];
+import { CITIES, CITY_NAMES } from '@/lib/cities';
+
 
 export default function TemplatePage() {
   const router = useRouter();
