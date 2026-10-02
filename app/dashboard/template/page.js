@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { CITIES } from '@/lib/cities';
 
 const BUILDING_CATEGORIES = [
   { value: 'residential', label: 'Residential' },
@@ -84,9 +85,6 @@ const PLASTER_SCOPES = [
   { value: 'exterior', label: 'Exterior only' },
   { value: 'none',     label: 'No plaster' },
 ];
-
-import { CITIES, CITY_NAMES } from '@/lib/cities';
-
 
 export default function TemplatePage() {
   const router = useRouter();
