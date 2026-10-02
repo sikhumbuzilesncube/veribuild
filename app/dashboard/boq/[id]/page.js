@@ -350,7 +350,7 @@ export default function BOQPage() {
               <div className="grid grid-cols-[120px_1fr] gap-2 mb-1">
                 <span className="text-gray-500">Location:</span>
                 <span className="font-medium text-[#2C3E50]">
-                  {boq.summary.cityId ? `City ID ${boq.summary.cityId}` : 'Not specified'}
+                  {CITY_NAMES[boq.summary.cityId] || 'Not specified'}
                 </span>
               </div>
               <div className="grid grid-cols-[120px_1fr] gap-2 mb-1">
