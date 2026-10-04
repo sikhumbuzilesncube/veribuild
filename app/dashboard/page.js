@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import Sidebar from '@/components/Sidebar';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -11,7 +12,6 @@ export default function Dashboard() {
   const [userName, setUserName] = useState('User');
   const [userEmail, setUserEmail] = useState('');
   const [userType, setUserType] = useState('client');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [projects, setProjects] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -113,192 +113,8 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* ===== MOBILE HEADER ===== */}
-      <div className="md:hidden bg-[#2C3E50] text-white p-4 flex justify-between items-center sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-sm">
-            V
-          </div>
-          <h1 className="text-lg font-bold">VeriBuild</h1>
-        </div>
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="text-white text-3xl focus:outline-none"
-        >
-          ☰
-        </button>
-      </div>
+      <Sidebar />
 
-      {/* ===== MOBILE MENU ===== */}
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-[#2C3E50] text-white p-4 border-t border-[#F47B20]/30">
-          <nav className="space-y-3">
-            <Link
-              href="/dashboard"
-              className="block py-3 px-4 bg-[#F47B20] rounded-lg font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/dashboard/new-project"
-              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              New BOQ
-            </Link>
-            <Link
-              href="/dashboard/template"
-              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              BOQ Without a Plan
-            </Link>
-            <Link
-              href="/dashboard/projects"
-              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              My Projects
-            </Link>
-            <Link
-              href="/dashboard/hardware"
-              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Hardware
-            </Link>
-            <Link
-              href="/dashboard/construction"
-              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Construction
-            </Link>
-            <Link
-              href="/dashboard/workers"
-              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Workers
-            </Link>
-            <Link
-              href="/dashboard/jobs"
-              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Jobs
-            </Link>
-            <Link
-              href="/dashboard/settings"
-              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Settings
-            </Link>
-            <Link
-              href="/payment"
-              className="block py-3 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Payments
-            </Link>
-            <button
-              onClick={async () => {
-                await supabase.auth.signOut();
-                router.push('/login');
-              }}
-              className="block w-full text-left py-3 px-4 hover:bg-red-500/20 rounded-lg transition font-medium mt-4 text-red-300"
-            >
-              Logout
-            </button>
-          </nav>
-        </div>
-      )}
-
-      {/* ===== DESKTOP SIDEBAR ===== */}
-      <div className="fixed left-0 top-0 h-full w-64 bg-[#2C3E50] text-white p-6 hidden md:block">
-        <div className="flex items-center gap-2 mb-8">
-          <div className="w-8 h-8 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-sm">
-            V
-          </div>
-          <h1 className="text-xl font-bold">VeriBuild</h1>
-        </div>
-
-        <nav className="space-y-1">
-          <Link
-            href="/dashboard"
-            className="block py-2.5 px-4 bg-[#F47B20] rounded-lg font-medium text-sm"
-          >
-            Dashboard
-          </Link>
-          <Link
-            href="/dashboard/new-project"
-            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
-          >
-            New BOQ
-          </Link>
-          <Link
-            href="/dashboard/template"
-            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
-          >
-            BOQ Without a Plan
-          </Link>
-          <Link
-            href="/dashboard/projects"
-            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
-          >
-            My Projects
-          </Link>
-          <Link
-            href="/dashboard/hardware"
-            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
-          >
-            Hardware
-          </Link>
-          <Link
-            href="/dashboard/construction"
-            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
-          >
-            Construction
-          </Link>
-          <Link
-            href="/dashboard/workers"
-            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
-          >
-            Workers
-          </Link>
-          <Link
-            href="/dashboard/jobs"
-            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
-          >
-            Jobs
-          </Link>
-          <Link
-            href="/dashboard/settings"
-            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
-          >
-            Settings
-          </Link>
-          <Link
-            href="/payment"
-            className="block py-2.5 px-4 hover:bg-[#F47B20]/20 rounded-lg transition font-medium text-sm"
-          >
-            Payments
-          </Link>
-          <button
-            onClick={async () => {
-              await supabase.auth.signOut();
-              router.push('/login');
-            }}
-            className="block w-full text-left py-2.5 px-4 hover:bg-red-500/20 rounded-lg transition font-medium text-sm mt-4 text-red-300"
-          >
-            Logout
-          </button>
-        </nav>
-      </div>
-
-      {/* ===== MAIN CONTENT ===== */}
       <div className="md:ml-64 p-4 md:p-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
@@ -322,6 +138,11 @@ export default function Dashboard() {
                 Worker Account
               </p>
             )}
+            {userType === 'architect' && (
+              <p className="text-xs md:text-sm text-indigo-600 font-semibold">
+                Architect Account
+              </p>
+            )}
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
             <Link
@@ -339,7 +160,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
           <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
             <p className="text-gray-500 text-xs md:text-sm">Total Projects</p>
@@ -361,7 +181,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Recent Projects */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
           <h2 className="text-base md:text-lg font-bold text-[#2C3E50] mb-4">
             Recent Projects
@@ -443,4 +262,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-             }
+      }
