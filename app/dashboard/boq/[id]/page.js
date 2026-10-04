@@ -5,8 +5,14 @@ import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { generateFullBOQ } from '@/lib/boq/engine';
 import { round2 } from '@/lib/boq/utils';
-import PlanDrawingEstimate from './PlanDrawingEstimate';
 import { CITY_NAMES } from '@/lib/cities';
+import PlanDrawingEstimate from './PlanDrawingEstimate';
+
+const MAX_FEATURED_HARDWARE = 3;
+const MAX_OTHER_HARDWARE = 3;
+const MAX_CONSTRUCTION = 2;
+const MAX_WORKERS = 2;
+const MAX_ARCHITECTS = 3;
 
 export default function BOQPage() {
   const router = useRouter();
@@ -16,9 +22,11 @@ export default function BOQPage() {
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState(null);
   const [boq, setBoq] = useState(null);
-  const [hardwareStores, setHardwareStores] = useState([]);
+  const [featuredHardware, setFeaturedHardware] = useState([]);
+  const [otherHardware, setOtherHardware] = useState([]);
   const [constructionCompanies, setConstructionCompanies] = useState([]);
   const [workers, setWorkers] = useState([]);
+  const [architects, setArchitects] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -75,11 +83,15 @@ export default function BOQPage() {
       }
       setSaving(false);
 
-      await fetchHardwareStores(generated.items);
-      const constructionData = await fetchConstructionCompanies();
-      setConstructionCompanies(constructionData);
-      const workerData = await fetchWorkers();
-      setWorkers(workerData);
+      const cityId = projectData.city_id;
+      const isTemplateBOQ = !projectData.file_url;
+
+      await Promise.all([
+        loadHardwareStores(generated.items, cityId),
+        loadConstructionCompanies(cityId),
+        loadWorkers(cityId),
+        isTemplateBOQ ? loadArchitects(cityId) : Promise.resolve(),
+      ]);
 
       setLoading(false);
     }
@@ -87,26 +99,35 @@ export default function BOQPage() {
     loadBOQ();
   }, [projectId, router]);
 
-  async function fetchHardwareStores(boqItems) {
+  // ----------------------------------------------------------
+  // Hardware stores: featured (premium) and other (standard)
+  // ----------------------------------------------------------
+  async function loadHardwareStores(boqItems, cityId) {
     try {
-      const { data: activeStores } = await supabase
+      let query = supabase
         .from('hardware_stores')
-        .select('id, store_name, contact_person, phone, location, email, subscription_status')
+        .select('id, store_name, contact_person, phone, location, email, subscription_status, subscription_tier, featured_city_ids')
         .eq('subscription_status', 'active');
 
-      if (!activeStores || activeStores.length === 0) {
-        setHardwareStores([]);
+      if (cityId) {
+        query = query.or(`featured_city_ids.cs.{${cityId}},featured_city_ids.is.null,subscription_coverage.eq.national`);
+      }
+
+      const { data: stores } = await query;
+      if (!stores || stores.length === 0) {
+        setFeaturedHardware([]);
+        setOtherHardware([]);
         return;
       }
 
-      const storeIds = activeStores.map((s) => s.id);
+      const storeIds = stores.map((s) => s.id);
 
       const { data: materialsData } = await supabase
         .from('materials')
         .select('name, price_usd, unit, hardware_store_id')
         .in('hardware_store_id', storeIds);
 
-      const storesWithPrices = activeStores.map((store) => {
+      const storesWithPrices = stores.map((store) => {
         const storeMaterials =
           materialsData?.filter((m) => m.hardware_store_id === store.id) || [];
 
@@ -137,44 +158,130 @@ export default function BOQPage() {
         return { ...store, materials: matched, total: round2(storeTotal) };
       });
 
-      storesWithPrices.sort((a, b) => a.total - b.total);
-      setHardwareStores(storesWithPrices);
+      // Only keep stores that matched at least one item
+      const useful = storesWithPrices.filter((s) => s.materials.length > 0);
+
+      const premium = useful
+        .filter((s) => s.subscription_tier === 'premium')
+        .sort((a, b) => a.total - b.total)
+        .slice(0, MAX_FEATURED_HARDWARE);
+
+      const standard = useful
+        .filter((s) => s.subscription_tier !== 'premium')
+        .sort((a, b) => a.total - b.total)
+        .slice(0, MAX_OTHER_HARDWARE);
+
+      setFeaturedHardware(premium);
+      setOtherHardware(standard);
     } catch (err) {
-      console.error('Error fetching hardware stores:', err);
-      setHardwareStores([]);
+      console.error('Error loading hardware stores:', err);
+      setFeaturedHardware([]);
+      setOtherHardware([]);
     }
   }
 
-  async function fetchConstructionCompanies() {
+  // ----------------------------------------------------------
+  // Construction companies (max 2)
+  // ----------------------------------------------------------
+  async function loadConstructionCompanies(cityId) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('construction_companies')
         .select('*')
         .eq('subscription_status', 'active')
         .eq('is_verified', true);
-      if (error) return [];
-      return data || [];
-    } catch {
-      return [];
+
+      if (cityId) {
+        query = query.or(`featured_city_ids.cs.{${cityId}},featured_city_ids.is.null,subscription_coverage.eq.national`);
+      }
+
+      const { data } = await query;
+      if (!data) {
+        setConstructionCompanies([]);
+        return;
+      }
+
+      const sorted = data
+        .sort((a, b) => {
+          if (b.rating !== a.rating) return (b.rating || 0) - (a.rating || 0);
+          return (b.years_experience || 0) - (a.years_experience || 0);
+        })
+        .slice(0, MAX_CONSTRUCTION);
+
+      setConstructionCompanies(sorted);
+    } catch (err) {
+      console.error('Error loading construction companies:', err);
+      setConstructionCompanies([]);
     }
   }
 
-  async function fetchWorkers() {
+  // ----------------------------------------------------------
+  // Workers (max 2)
+  // ----------------------------------------------------------
+  async function loadWorkers(cityId) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('workers')
         .select('*')
         .eq('subscription_status', 'active')
         .eq('is_verified', true)
-        .eq('availability', 'available')
-        .order('rating', { ascending: false });
-      if (error) return [];
-      return data || [];
-    } catch {
-      return [];
+        .eq('availability', 'available');
+
+      if (cityId) {
+        query = query.or(`featured_city_ids.cs.{${cityId}},featured_city_ids.is.null,subscription_coverage.eq.national`);
+      }
+
+      const { data } = await query;
+      if (!data) {
+        setWorkers([]);
+        return;
+      }
+
+      const sorted = data
+        .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+        .slice(0, MAX_WORKERS);
+
+      setWorkers(sorted);
+    } catch (err) {
+      console.error('Error loading workers:', err);
+      setWorkers([]);
     }
   }
 
+  // ----------------------------------------------------------
+  // Architects (max 3, template BOQs only)
+  // ----------------------------------------------------------
+  async function loadArchitects(cityId) {
+    try {
+      let query = supabase
+        .from('architects')
+        .select('*')
+        .eq('subscription_status', 'active');
+
+      if (cityId) {
+        query = query.or(`featured_city_ids.cs.{${cityId}},featured_city_ids.is.null,subscription_coverage.eq.national`);
+      }
+
+      const { data } = await query;
+      if (!data) {
+        setArchitects([]);
+        return;
+      }
+
+      const sorted = data
+        .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+        .slice(0, MAX_ARCHITECTS);
+
+      setArchitects(sorted);
+    } catch (err) {
+      console.error('Error loading architects:', err);
+      setArchitects([]);
+    }
+  }
+
+  // ----------------------------------------------------------
+  // Roll up child amounts into parent header rows
+  // ----------------------------------------------------------
   function rollUpHeaderAmounts(sectionItems) {
     const cloned = sectionItems.map((it) => ({ ...it }));
 
@@ -327,13 +434,14 @@ export default function BOQPage() {
     );
   }
 
-  // Template BOQs have no uploaded plan file.
   const isTemplateBOQ = !project.file_url;
+  const cityName = CITY_NAMES[boq.summary.cityId] || 'your city';
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-5xl mx-auto">
 
+        {/* Header */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8 mb-6">
           <div className="border-b-2 border-[#2C3E50] pb-4 mb-4">
             <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] uppercase tracking-wide">
@@ -349,9 +457,7 @@ export default function BOQPage() {
               </div>
               <div className="grid grid-cols-[120px_1fr] gap-2 mb-1">
                 <span className="text-gray-500">Location:</span>
-                <span className="font-medium text-[#2C3E50]">
-                  {CITY_NAMES[boq.summary.cityId] || 'Not specified'}
-                </span>
+                <span className="font-medium text-[#2C3E50]">{cityName}</span>
               </div>
               <div className="grid grid-cols-[120px_1fr] gap-2 mb-1">
                 <span className="text-gray-500">Type:</span>
@@ -396,6 +502,7 @@ export default function BOQPage() {
           )}
         </div>
 
+        {/* Sections */}
         {boq.sections.map((section) => {
           const rolled = rollUpHeaderAmounts(section.items);
 
@@ -439,9 +546,7 @@ export default function BOQPage() {
                         >
                           <td
                             className={`px-3 py-2 font-mono text-xs ${
-                              isHeader
-                                ? 'font-semibold text-[#2C3E50]'
-                                : 'text-gray-500'
+                              isHeader ? 'font-semibold text-[#2C3E50]' : 'text-gray-500'
                             }`}
                           >
                             {item.code}
@@ -462,9 +567,7 @@ export default function BOQPage() {
                               </span>
                             )}
                           </td>
-                          <td className="px-3 py-2 text-gray-600 text-xs">
-                            {item.unit}
-                          </td>
+                          <td className="px-3 py-2 text-gray-600 text-xs">{item.unit}</td>
                           <td className="px-3 py-2 text-right text-gray-800 text-xs">
                             {item.qty}
                           </td>
@@ -517,11 +620,10 @@ export default function BOQPage() {
           );
         })}
 
+        {/* Summary */}
         <div className="bg-white rounded-lg shadow-sm border-2 border-[#2C3E50] mb-6 overflow-hidden">
           <div className="bg-[#2C3E50] text-white px-4 sm:px-6 py-3">
-            <h2 className="text-base sm:text-lg font-bold uppercase tracking-wide">
-              Summary
-            </h2>
+            <h2 className="text-base sm:text-lg font-bold uppercase tracking-wide">Summary</h2>
           </div>
           <div className="p-4 sm:p-6">
             <table className="w-full text-sm">
@@ -553,13 +655,13 @@ export default function BOQPage() {
 
             {boq.summary.cityMultiplier !== 1.0 && (
               <p className="text-xs text-gray-500 mt-3">
-                Prices adjusted by regional factor{' '}
-                {boq.summary.cityMultiplier.toFixed(2)}.
+                Prices adjusted by regional factor {boq.summary.cityMultiplier.toFixed(2)}.
               </p>
             )}
           </div>
         </div>
 
+        {/* Plan drawings (template BOQs only) */}
         {isTemplateBOQ && (
           <PlanDrawingEstimate
             project={project}
@@ -570,88 +672,54 @@ export default function BOQPage() {
 
         <div id="boq-summary-anchor" />
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
-          <h2 className="text-lg font-bold text-[#2C3E50] mb-1">
-            Hardware Store Comparison
-          </h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Prices from subscribed hardware stores. Only stocked items are compared.
-          </p>
-
-          {hardwareStores && hardwareStores.length > 0 ? (
-            <div className="space-y-4">
-              {hardwareStores.map((store) => (
-                <div key={store.id} className="border border-gray-200 rounded-lg">
-                  <div className="flex justify-between items-start p-4 bg-gray-50 border-b border-gray-200">
-                    <div>
-                      <h3 className="font-bold text-[#2C3E50]">{store.store_name}</h3>
-                      <p className="text-xs text-gray-500">
-                        {store.location || 'Location not set'} ·{' '}
-                        {store.phone || 'No phone'}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs text-gray-500">Matched subtotal</div>
-                      <div className="text-lg font-bold text-[#2C3E50]">
-                        ${store.total.toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
-                  {store.materials.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead className="text-gray-500">
-                          <tr>
-                            <th className="text-left px-3 py-2">Item</th>
-                            <th className="text-right px-3 py-2">Qty</th>
-                            <th className="text-left px-3 py-2">Unit</th>
-                            <th className="text-right px-3 py-2">Unit Price</th>
-                            <th className="text-right px-3 py-2">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {store.materials.map((m, i) => (
-                            <tr key={i} className="border-t border-gray-100">
-                              <td className="px-3 py-2">{m.name}</td>
-                              <td className="px-3 py-2 text-right">{m.qty}</td>
-                              <td className="px-3 py-2">{m.unit}</td>
-                              <td className="px-3 py-2 text-right">
-                                ${m.price.toFixed(2)}
-                              </td>
-                              <td className="px-3 py-2 text-right font-medium">
-                                ${m.total.toFixed(2)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p className="p-4 text-xs text-gray-400">
-                      No matching items found in this store&apos;s inventory.
-                    </p>
-                  )}
-                </div>
+        {/* Architects (template BOQs only, if any in city) */}
+        {isTemplateBOQ && architects.length > 0 && (
+          <SectionCard title="Featured Architects">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {architects.map((arch) => (
+                <ArchitectCard key={arch.id} architect={arch} />
               ))}
             </div>
-          ) : (
-            <div className="py-8 text-center text-gray-500 text-sm">
-              No hardware stores are currently subscribed.
-            </div>
-          )}
-        </div>
+            <p className="text-xs text-gray-500 mt-4">
+              Featured architects in {cityName}. More on the marketplace.
+            </p>
+          </SectionCard>
+        )}
 
-        {constructionCompanies && constructionCompanies.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
-            <h2 className="text-lg font-bold text-[#2C3E50] mb-4">
-              Construction Companies
-            </h2>
+        {/* Featured Hardware */}
+        {featuredHardware.length > 0 && (
+          <SectionCard title="Featured Hardware Suppliers">
+            <div className="space-y-4">
+              {featuredHardware.map((store) => (
+                <HardwareCard key={store.id} store={store} featured />
+              ))}
+            </div>
+          </SectionCard>
+        )}
+
+        {/* Other Hardware */}
+        {otherHardware.length > 0 && (
+          <SectionCard title="Other Hardware Suppliers">
+            <div className="space-y-4">
+              {otherHardware.map((store) => (
+                <HardwareCard key={store.id} store={store} />
+              ))}
+            </div>
+            <button
+              onClick={() => router.push('/dashboard/hardware')}
+              className="mt-4 text-sm text-[#F47B20] hover:underline"
+            >
+              See all suppliers in {cityName}
+            </button>
+          </SectionCard>
+        )}
+
+        {/* Construction companies */}
+        {constructionCompanies.length > 0 && (
+          <SectionCard title="Construction Companies">
             <div className="grid md:grid-cols-2 gap-4">
               {constructionCompanies.map((company) => (
-                <div
-                  key={company.id}
-                  className="border border-gray-200 rounded-lg p-4"
-                >
+                <div key={company.id} className="border border-gray-200 rounded-lg p-4">
                   <h3 className="font-bold text-[#2C3E50]">{company.company_name}</h3>
                   <p className="text-sm text-gray-600 mt-1">
                     {company.ad_text || 'No description available'}
@@ -664,18 +732,15 @@ export default function BOQPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </SectionCard>
         )}
 
-        {workers && workers.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
-            <h2 className="text-lg font-bold text-[#2C3E50] mb-4">Available Workers</h2>
+        {/* Workers */}
+        {workers.length > 0 && (
+          <SectionCard title="Skilled Workers">
             <div className="grid md:grid-cols-2 gap-4">
               {workers.map((worker) => (
-                <div
-                  key={worker.id}
-                  className="border border-gray-200 rounded-lg p-4"
-                >
+                <div key={worker.id} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex justify-between">
                     <div>
                       <h3 className="font-bold text-[#2C3E50]">{worker.full_name}</h3>
@@ -696,9 +761,10 @@ export default function BOQPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </SectionCard>
         )}
 
+        {/* Actions */}
         <div className="flex flex-wrap gap-3 mb-8">
           <button
             onClick={downloadCSV}
@@ -719,8 +785,116 @@ export default function BOQPage() {
             Back to Dashboard
           </button>
         </div>
-
       </div>
     </div>
   );
-                                       }
+}
+
+// ----------------------------------------------------------
+// Shared sub-components
+// ----------------------------------------------------------
+function SectionCard({ title, children }) {
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+      <h2 className="text-lg font-bold text-[#2C3E50] mb-4">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+function HardwareCard({ store, featured = false }) {
+  return (
+    <div
+      className={`border rounded-lg ${
+        featured ? 'border-[#F47B20] bg-orange-50/40' : 'border-gray-200'
+      }`}
+    >
+      <div
+        className={`flex justify-between items-start p-4 border-b ${
+          featured ? 'bg-orange-50 border-[#F47B20]/30' : 'bg-gray-50 border-gray-200'
+        }`}
+      >
+        <div>
+          <h3 className="font-bold text-[#2C3E50] flex items-center gap-2">
+            {store.store_name}
+            {featured && (
+              <span className="text-xs bg-[#F47B20] text-white px-2 py-0.5 rounded">
+                Featured
+              </span>
+            )}
+          </h3>
+          <p className="text-xs text-gray-500">
+            {store.location || 'Location not set'} · {store.phone || 'No phone'}
+          </p>
+        </div>
+        <div className="text-right">
+          <div className="text-xs text-gray-500">Matched subtotal</div>
+          <div className="text-lg font-bold text-[#2C3E50]">
+            ${store.total.toFixed(2)}
+          </div>
+        </div>
+      </div>
+      {store.materials.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead className="text-gray-500">
+              <tr>
+                <th className="text-left px-3 py-2">Item</th>
+                <th className="text-right px-3 py-2">Qty</th>
+                <th className="text-left px-3 py-2">Unit</th>
+                <th className="text-right px-3 py-2">Unit Price</th>
+                <th className="text-right px-3 py-2">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {store.materials.slice(0, 5).map((m, i) => (
+                <tr key={i} className="border-t border-gray-100">
+                  <td className="px-3 py-2">{m.name}</td>
+                  <td className="px-3 py-2 text-right">{m.qty}</td>
+                  <td className="px-3 py-2">{m.unit}</td>
+                  <td className="px-3 py-2 text-right">${m.price.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right font-medium">
+                    ${m.total.toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+              {store.materials.length > 5 && (
+                <tr>
+                  <td colSpan="5" className="px-3 py-2 text-xs text-gray-500 italic">
+                    + {store.materials.length - 5} more items
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ArchitectCard({ architect }) {
+  return (
+    <div className="border border-gray-200 rounded-lg p-4">
+      <h3 className="font-bold text-[#2C3E50]">{architect.firm_name}</h3>
+      {architect.contact_person && (
+        <p className="text-xs text-gray-500 mt-0.5">{architect.contact_person}</p>
+      )}
+      {architect.services && architect.services.length > 0 && (
+        <p className="text-xs text-gray-600 mt-1">
+          {architect.services.join(', ')}
+        </p>
+      )}
+      {(architect.price_per_m2_min || architect.price_per_m2_max) && (
+        <p className="text-xs text-gray-600 mt-1">
+          ${architect.price_per_m2_min || 0}–${architect.price_per_m2_max || 0} per m²
+        </p>
+      )}
+      <div className="mt-2 text-xs text-gray-500 space-y-0.5">
+        {architect.phone && <div>Tel: {architect.phone}</div>}
+        {architect.email && <div>Email: {architect.email}</div>}
+        {architect.location && <div>Location: {architect.location}</div>}
+      </div>
+    </div>
+  );
+}
