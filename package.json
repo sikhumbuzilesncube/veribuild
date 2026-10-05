@@ -16,6 +16,7 @@
     "crypto-js": "^4.2.0",
     "jsonwebtoken": "^9.0.2",
     "next": "14.0.4",
+    "paynow": "^2.0.0",
     "pdf-parse": "^1.1.1",
     "react": "^18",
     "react-dom": "^18",
