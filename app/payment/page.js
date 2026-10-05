@@ -9,11 +9,9 @@ export default function PaymentPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const plan = searchParams.get('plan') || 'monthly';
   const userType = searchParams.get('type') || 'hardware';
   const amount = searchParams.get('amount') || '15';
-
-  const testEmail = 'test@example.com';
+  const testEmail = 'gatekeeperzw@gmail.com';   // ← Updated
 
   const planDetails = {
     hardware: { name: 'Hardware Store', price: 15, duration: 'monthly' },
@@ -124,20 +122,8 @@ export default function PaymentPage() {
             disabled={loading}
             className="w-full flex justify-center items-center px-4 py-3 border border-transparent text-base font-medium rounded-lg text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ backgroundColor: '#E65A00' }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#CC4F00'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#E65A00'}
           >
-            {loading ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Processing...
-              </>
-            ) : (
-              `Pay $${amount} Now`
-            )}
+            {loading ? 'Processing...' : `Pay $${amount} Now`}
           </button>
 
           <div className="mt-4 text-center">
