@@ -5,6 +5,22 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
+const USER_TYPES = [
+  { value: 'client',       label: 'Client (Homeowner / Contractor)' },
+  { value: 'construction', label: 'Construction Company' },
+  { value: 'architect',    label: 'Architect or Draftsman' },
+  { value: 'hardware',     label: 'Hardware Store' },
+  { value: 'worker',       label: 'Skilled Worker' },
+];
+
+const POST_SIGNUP_REDIRECT = {
+  client:       '/dashboard',
+  construction: '/dashboard/construction',
+  architect:    '/dashboard/architects',
+  hardware:     '/dashboard/hardware',
+  worker:       '/dashboard/workers',
+};
+
 export default function Register() {
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -14,7 +30,7 @@ export default function Register() {
     company: '',
     password: '',
     confirmPassword: '',
-    userType: 'client'
+    userType: 'client',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -49,7 +65,6 @@ export default function Register() {
     }
 
     try {
-      // Create Auth user with all metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -59,8 +74,8 @@ export default function Register() {
             phone: formData.phone || '',
             company: formData.company || '',
             user_type: formData.userType,
-          }
-        }
+          },
+        },
       });
 
       if (authError) {
@@ -74,17 +89,20 @@ export default function Register() {
       }
 
       setSuccess('Account created! Please check your email to confirm your address.');
-      
-      setTimeout(() => {
-        router.push('/login');
-      }, 3000);
 
+      const destination = POST_SIGNUP_REDIRECT[formData.userType] || '/dashboard';
+
+      setTimeout(() => {
+        router.push(destination);
+      }, 3000);
     } catch (err) {
       console.error('Unexpected error:', err);
       setError('Something went wrong. Please try again.');
       setLoading(false);
     }
   };
+
+  const isBusinessRole = formData.userType !== 'client';
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center px-4 py-8">
@@ -143,7 +161,9 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Phone Number
+            </label>
             <input
               type="tel"
               name="phone"
@@ -151,18 +171,6 @@ export default function Register() {
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
               placeholder="+263 78 123 4567"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Company (Optional)</label>
-            <input
-              type="text"
-              name="company"
-              value={formData.company}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-              placeholder="Your Company Name"
             />
           </div>
 
@@ -176,11 +184,29 @@ export default function Register() {
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
             >
-              <option value="client">Client (Homeowner/Contractor)</option>
-              <option value="hardware">Hardware Store</option>
-              <option value="worker">Skilled Worker</option>
+              {USER_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
             </select>
           </div>
+
+          {isBusinessRole && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Company or Business Name (Optional)
+              </label>
+              <input
+                type="text"
+                name="company"
+                value={formData.company}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                placeholder="Your Company Name"
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
