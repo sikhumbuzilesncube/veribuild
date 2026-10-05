@@ -36,14 +36,18 @@ function SubscriptionContent() {
       }
       setUser(session.user);
 
-      // Load user's existing listings from each table
       const listings = {};
       for (const cat of SUBSCRIPTION_CATEGORIES) {
-        const { data } = await supabase
+        const { data, error: fetchError } = await supabase
           .from(cat.table)
-          .select('id, subscription_tier, subscription_plan_key')
+          .select('id, subscription_tier, subscription_coverage, subscription_status')
           .eq('user_id', session.user.id)
           .maybeSingle();
+
+        if (fetchError) {
+          console.error(`Error loading ${cat.table}:`, fetchError);
+        }
+
         if (data) {
           listings[cat.key] = data;
         }
@@ -73,7 +77,6 @@ function SubscriptionContent() {
       return;
     }
 
-    // Check if the user has a listing in this category
     const existing = userListings[categoryKey];
 
     if (!existing) {
@@ -87,14 +90,17 @@ function SubscriptionContent() {
     setStatus('Saving your plan selection...');
 
     try {
+      // Only send columns that exist in all four tables
+      const updateFields = {
+        subscription_tier: dbFields.subscription_tier,
+        subscription_coverage: dbFields.subscription_coverage,
+        subscription_status: dbFields.subscription_status,
+        featured_city_ids: dbFields.featured_city_ids,
+      };
+
       const { error: updateError } = await supabase
         .from(cat.table)
-        .update({
-          subscription_tier: dbFields.subscription_tier,
-          subscription_coverage: dbFields.subscription_coverage,
-          subscription_status: dbFields.subscription_status,
-          featured_city_ids: dbFields.featured_city_ids,
-        })
+        .update(updateFields)
         .eq('id', existing.id);
 
       if (updateError) {
@@ -108,10 +114,13 @@ function SubscriptionContent() {
         `Plan selected: ${cat.label} — ${planKey.replace('_', ' ')}. Payment gateway is not yet connected. This plan will be charged when billing launches.`
       );
 
-      // Update local state
       setUserListings({
         ...userListings,
-        [categoryKey]: { ...existing, subscription_tier: dbFields.subscription_tier },
+        [categoryKey]: {
+          ...existing,
+          subscription_tier: dbFields.subscription_tier,
+          subscription_coverage: dbFields.subscription_coverage,
+        },
       });
 
       setSaving(false);
@@ -159,7 +168,6 @@ function SubscriptionContent() {
           </p>
         </div>
 
-        {/* Category tabs */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 mb-6 flex flex-wrap gap-2">
           {SUBSCRIPTION_CATEGORIES.map((cat) => {
             const isActive = selectedCategory === cat.key;
@@ -185,10 +193,11 @@ function SubscriptionContent() {
           })}
         </div>
 
-        {/* Listing status */}
         {!userHasListing && (
           <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
-            <div className="font-semibold mb-1">You do not have a {currentCategory.label} listing yet</div>
+            <div className="font-semibold mb-1">
+              You do not have a {currentCategory.label} listing yet
+            </div>
             <p>
               To subscribe to a plan, you first need a listing. Create one from your
               {' '}{currentCategory.label} dashboard, then return here to select a plan.
@@ -196,16 +205,23 @@ function SubscriptionContent() {
           </div>
         )}
 
-        {/* Plans grid */}
+        {userHasListing && currentListing && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
+            <div className="font-semibold mb-1">Your current plan</div>
+            <p>
+              {currentListing.subscription_tier === 'premium' ? 'Premium' : 'Standard'}
+              {' · '}
+              {currentListing.subscription_coverage === 'national' ? 'All cities' : 'One city'}
+            </p>
+          </div>
+        )}
+
         <div className="grid md:grid-cols-3 gap-4 mb-6">
           {currentCategory.plans.map((plan) => {
             const isCurrent =
               currentListing &&
-              currentListing.subscription_tier ===
-                (plan.placement === 'boq' ? 'premium' : 'standard') &&
-              ((plan.coverage === 'national' &&
-                currentListing.subscription_tier === 'premium') ||
-                plan.coverage === 'local');
+              currentListing.subscription_tier === (plan.placement === 'boq' ? 'premium' : 'standard') &&
+              currentListing.subscription_coverage === plan.coverage;
 
             return (
               <div
@@ -256,7 +272,6 @@ function SubscriptionContent() {
           })}
         </div>
 
-        {/* Status and error */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
             {error}
@@ -269,7 +284,6 @@ function SubscriptionContent() {
           </div>
         )}
 
-        {/* Notes */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
           <div className="font-semibold mb-1">About subscriptions during beta</div>
           <p>
