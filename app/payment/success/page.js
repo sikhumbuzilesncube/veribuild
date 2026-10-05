@@ -11,16 +11,15 @@ export default function PaymentSuccessPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const ref = searchParams.get('reference') || localStorage.getItem('pesepay_reference');
+    const ref = searchParams.get('reference') || localStorage.getItem('paynow_reference');
     setReference(ref);
 
     if (ref) {
-      // Check payment status
-      fetch(`/api/pesepay/status?referenceNumber=${encodeURIComponent(ref)}`)
+      fetch(`/api/paynow/status?reference=${encodeURIComponent(ref)}`)
         .then(res => res.json())
         .then(data => {
           if (data.success) {
-            setStatus(data.status);
+            setStatus(data.paid ? 'Paid' : data.status);
           }
         })
         .catch(err => console.error('Status check error:', err))
@@ -44,9 +43,9 @@ export default function PaymentSuccessPage() {
           <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full mb-4" style={{ backgroundColor: '#E65A00' }}>
             <span className="text-white text-3xl">✓</span>
           </div>
-          
+
           <h3 className="text-xl font-bold text-gray-900 mb-2">Payment Successful!</h3>
-          <p className="text-sm text-gray-600 mb-6">Your payment has been confirmed and your account is now active.</p>
+          <p className="text-sm text-gray-600 mb-6">Your payment has been received. Your account is now active.</p>
 
           <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
             <div className="flex justify-between mb-2">
@@ -81,4 +80,4 @@ export default function PaymentSuccessPage() {
       </div>
     </div>
   );
-  }
+        }
