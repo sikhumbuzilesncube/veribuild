@@ -8,18 +8,17 @@ export default function PaymentPage() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+
   const plan = searchParams.get('plan') || 'monthly';
   const userType = searchParams.get('type') || 'hardware';
   const amount = searchParams.get('amount') || '15';
-  
+
   const testEmail = 'test@example.com';
-  const testName = 'Test User';
 
   const planDetails = {
     hardware: { name: 'Hardware Store', price: 15, duration: 'monthly' },
     construction: { name: 'Construction Company', price: 15, duration: 'monthly' },
-    worker: { name: 'Skilled Worker', price: 5, duration: 'monthly' }
+    worker: { name: 'Skilled Worker', price: 5, duration: 'monthly' },
   };
 
   const selectedPlan = planDetails[userType] || planDetails.hardware;
@@ -33,19 +32,15 @@ export default function PaymentPage() {
         amount: parseFloat(amount),
         currency: 'USD',
         customerEmail: testEmail,
-        customerFirstName: testName.split(' ')[0] || 'Test',
-        customerLastName: testName.split(' ')[1] || 'User',
         planType: userType,
         planName: selectedPlan.name,
         planDuration: selectedPlan.duration,
-        userId: 'test-user-123'
+        userId: 'test-user-123',
       };
 
-      const response = await fetch('/api/pesepay', {
+      const response = await fetch('/api/paynow', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(paymentData),
       });
 
@@ -55,9 +50,11 @@ export default function PaymentPage() {
         throw new Error(data.error || 'Payment initiation failed');
       }
 
-      // Store reference for later use
       if (data.reference) {
-        localStorage.setItem('pesepay_reference', data.reference);
+        localStorage.setItem('paynow_reference', data.reference);
+      }
+      if (data.pollUrl) {
+        localStorage.setItem('paynow_pollUrl', data.pollUrl);
       }
 
       if (data.redirectUrl) {
@@ -111,7 +108,7 @@ export default function PaymentPage() {
             <div className="flex items-start">
               <span className="text-yellow-600 text-sm font-medium mr-2">ⓘ</span>
               <p className="text-xs text-yellow-700">
-                <strong>Test Mode:</strong> You will be redirected to PesePay to choose your payment method and complete the payment.
+                You will be redirected to <strong>Paynow</strong> to choose your payment method and complete the payment.
               </p>
             </div>
           </div>
@@ -157,7 +154,7 @@ export default function PaymentPage() {
               </div>
               <div className="flex items-center space-x-1">
                 <span className="text-sm" style={{ color: '#E65A00' }}>◆</span>
-                <span className="text-xs text-gray-500">PesePay</span>
+                <span className="text-xs text-gray-500">Paynow</span>
               </div>
             </div>
           </div>
@@ -165,4 +162,4 @@ export default function PaymentPage() {
       </div>
     </div>
   );
-}
+                   }
