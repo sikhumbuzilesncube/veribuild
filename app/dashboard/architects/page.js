@@ -94,7 +94,7 @@ export default function ArchitectsPage() {
 
           {myListing ? (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-              <div className="flex justify-between items-start">
+              <div className="flex justify-between items-start mb-3">
                 <div>
                   <h2 className="text-base font-bold text-[#2C3E50]">Your Listing</h2>
                   <p className="text-sm text-gray-600 mt-1">{myListing.firm_name}</p>
@@ -113,6 +113,20 @@ export default function ArchitectsPage() {
                     {myListing.subscription_tier === 'premium' ? 'Premium' : 'Standard'}
                   </span>
                 </div>
+              </div>
+              <div className="flex gap-2 pt-3 border-t border-gray-100">
+                <button
+                  onClick={() => router.push('/dashboard/architects/new')}
+                  className="bg-[#F47B20] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
+                >
+                  Edit Listing
+                </button>
+                <button
+                  onClick={() => router.push('/dashboard/subscription?category=architect')}
+                  className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
+                >
+                  Change Plan
+                </button>
               </div>
             </div>
           ) : (
