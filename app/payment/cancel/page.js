@@ -9,7 +9,7 @@ export default function PaymentCancelPage() {
   const [reference, setReference] = useState(null);
 
   useEffect(() => {
-    const ref = searchParams.get('reference') || localStorage.getItem('pesepay_reference');
+    const ref = searchParams.get('reference') || localStorage.getItem('paynow_reference');
     setReference(ref);
   }, [searchParams]);
 
@@ -27,7 +27,7 @@ export default function PaymentCancelPage() {
           <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100 mb-4">
             <span className="text-yellow-600 text-3xl">⚠</span>
           </div>
-          
+
           <h3 className="text-xl font-bold text-gray-900 mb-2">Payment Cancelled</h3>
           <p className="text-sm text-gray-600 mb-4">
             You cancelled the payment. No charges were made.
@@ -62,4 +62,4 @@ export default function PaymentCancelPage() {
       </div>
     </div>
   );
-  }
+    }
