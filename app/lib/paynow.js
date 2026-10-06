@@ -70,50 +70,31 @@ export async function initiatePayment(paymentData) {
       throw new Error(response.error || 'Paynow rejected the payment request');
     }
 
-    // Store payment record
-    try {
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+ // Store payment record
+try {
+  const { createClient } = await import('@supabase/supabase-js');
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-      if (supabaseUrl && supabaseServiceKey) {
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
-        await supabase.from('payments').insert({
-          transaction_id: reference,
-          reference: reference,
-          user_id: paymentData.userId,
-          amount: parseFloat(paymentData.amount),
-          currency: 'USD',
-          plan_type: paymentData.planType,
-          plan_name: paymentData.planName,
-          customer_email: paymentData.customerEmail,
-          status: 'pending',
-          poll_url: response.pollUrl,
-          payment_gateway: 'paynow',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-        console.log('Payment record stored in database');
-      }
-    } catch (dbError) {
-      console.error('DB storage error (non-blocking):', dbError.message);
-    }
-
-    console.log('=== PAYNOW INITIATE SUCCESS ===');
-
-    return {
-      success: true,
-      reference: reference,
-      redirectUrl: response.redirectUrl,
-      pollUrl: response.pollUrl,
-    };
-
-  } catch (error) {
-    console.error('=== PAYNOW INITIATE ERROR ===');
-    console.error('Error:', error.message);
-    throw error;
+  if (supabaseUrl && supabaseServiceKey) {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    await supabase.from('payments').insert({
+      user_id: paymentData.userId === 'test-user-123' ? null : paymentData.userId,
+      amount: parseFloat(paymentData.amount),
+      currency: 'USD',
+      payment_method: paymentData.planType,
+      payment_status: 'pending',
+      transaction_reference: reference,
+      payment_proof_url: response.pollUrl,
+      provider: 'paynow',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    console.log('Payment record stored in database');
   }
-}
+} catch (dbError) {
+  console.error('DB storage error (non-blocking):', dbError.message);
+      }   
 
 /**
  * Check payment status with Paynow
