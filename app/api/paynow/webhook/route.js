@@ -5,22 +5,16 @@ import { checkPaymentStatus } from '../../../lib/paynow';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-/**
- * Paynow sends the result as form-urlencoded POST
- */
 export async function POST(request) {
   console.log('=== PAYNOW WEBHOOK RECEIVED ===');
 
   try {
     const contentType = request.headers.get('content-type') || '';
-    console.log('Content-Type:', contentType);
-
     let data = {};
 
     if (contentType.includes('application/json')) {
       data = await request.json();
     } else {
-      // Paynow sends form-urlencoded
       const formData = await request.formData();
       for (const [key, value] of formData.entries()) {
         data[key] = value;
@@ -29,21 +23,13 @@ export async function POST(request) {
 
     console.log('Webhook body:', JSON.stringify(data));
 
-    const {
-      reference,
-      paynowreference,
-      amount,
-      status,
-      pollurl,
-      hash,
-    } = data;
+    const { reference, paynowreference, amount, status, pollurl } = data;
 
     if (!reference) {
       console.error('No reference in webhook');
       return new NextResponse('ok', { status: 200 });
     }
 
-    // Always verify via pollUrl (more reliable than trusting the webhook body)
     let verifiedStatus = status;
     let isPaid = false;
 
@@ -54,7 +40,7 @@ export async function POST(request) {
         isPaid = verification.paid;
         console.log('Verified status:', verifiedStatus, 'Paid:', isPaid);
       } catch (err) {
-        console.error('Verification failed, using webhook status:', err.message);
+        console.error('Verification failed:', err.message);
         isPaid = String(status).toLowerCase() === 'paid';
       }
     } else {
@@ -68,31 +54,37 @@ export async function POST(request) {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Find the payment by transaction_reference
+    const { data: payment, error: findError } = await supabase
+      .from('payments')
+      .select('*')
+      .eq('transaction_reference', reference)
+      .single();
+
+    if (findError) {
+      console.error('Payment not found:', reference);
+      return new NextResponse('ok', { status: 200 });
+    }
+
     if (isPaid) {
       console.log(`Payment ${reference} confirmed as PAID`);
 
-      const { data: payment, error: paymentError } = await supabase
+      await supabase
         .from('payments')
         .update({
-          status: 'completed',
-          transaction_id: paynowreference || reference,
-          transaction_status: verifiedStatus,
+          payment_status: 'completed',
+          provider_code: paynowreference || reference,
+          webhook_received: true,
+          webhook_data: data,
           updated_at: new Date().toISOString(),
         })
-        .eq('reference', reference)
-        .select()
-        .single();
-
-      if (paymentError) {
-        console.error('Error updating payment:', paymentError);
-      }
+        .eq('transaction_reference', reference);
 
       if (payment) {
         await activateSubscription({
           userId: payment.user_id,
-          planType: payment.plan_type,
-          transactionId: paynowreference || reference,
-          amount: amount || payment.amount,
+          planType: payment.payment_method,
+          paymentId: payment.id,
         });
       }
     } else {
@@ -101,19 +93,18 @@ export async function POST(request) {
       await supabase
         .from('payments')
         .update({
-          status: 'failed',
-          transaction_status: verifiedStatus,
+          payment_status: 'failed',
+          webhook_received: true,
+          webhook_data: data,
           updated_at: new Date().toISOString(),
         })
-        .eq('reference', reference);
+        .eq('transaction_reference', reference);
     }
 
-    // Paynow expects "ok" response
     return new NextResponse('ok', { status: 200 });
 
   } catch (error) {
     console.error('Paynow webhook error:', error);
-    // Still return ok to prevent retries
     return new NextResponse('ok', { status: 200 });
   }
 }
@@ -135,42 +126,24 @@ async function activateSubscription(subscriptionData) {
 
     const { error } = await supabase
       .from('subscriptions')
-      .upsert({
+      .insert({
         user_id: subscriptionData.userId,
-        plan_type: subscriptionData.planType,
+        subscription_type: subscriptionData.planType,
         status: 'active',
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString(),
-        transaction_id: subscriptionData.transactionId,
-        auto_renew: true,
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0],
+        payment_id: subscriptionData.paymentId,
+        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
 
     if (error) {
-      console.error('Subscription activation error:', error);
+      console.error('Subscription insert error:', error);
       return;
-    }
-
-    const roleMap = {
-      hardware: 'hardware_store',
-      construction: 'construction_company',
-      worker: 'skilled_worker',
-    };
-
-    const userRole = roleMap[subscriptionData.planType];
-    if (userRole) {
-      await supabase
-        .from('profiles')
-        .update({
-          user_type: userRole,
-          is_verified: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', subscriptionData.userId);
     }
 
     console.log('Subscription activated');
   } catch (error) {
     console.error('Subscription activation error:', error);
   }
-    }
+}
