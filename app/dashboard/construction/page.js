@@ -9,6 +9,7 @@ export default function ConstructionPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState([]);
+  const [myListing, setMyListing] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -23,15 +24,24 @@ export default function ConstructionPage() {
         .from('construction_companies')
         .select('*')
         .eq('subscription_status', 'active')
-        .order('rating', { ascending: false });
+        .order('company_name', { ascending: true });
 
       if (fetchError) {
+        console.error('Construction list error:', fetchError);
         setError(fetchError.message);
         setLoading(false);
         return;
       }
 
       setCompanies(data || []);
+
+      const { data: mine } = await supabase
+        .from('construction_companies')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+
+      setMyListing(mine || null);
       setLoading(false);
     }
     load();
@@ -83,11 +93,69 @@ export default function ConstructionPage() {
             </button>
           </div>
 
+          {myListing ? (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h2 className="text-base font-bold text-[#2C3E50]">Your Company</h2>
+                  <p className="text-sm text-gray-600 mt-1">{myListing.company_name}</p>
+                  {myListing.location && (
+                    <p className="text-xs text-gray-500">{myListing.location}</p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <span
+                    className={`text-xs px-2 py-1 rounded ${
+                      myListing.subscription_tier === 'premium'
+                        ? 'bg-[#F47B20] text-white'
+                        : 'bg-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {myListing.subscription_tier === 'premium' ? 'Premium' : 'Standard'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-3 border-t border-gray-100">
+                <button
+                  onClick={() => router.push('/dashboard/construction/new')}
+                  className="bg-[#F47B20] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
+                >
+                  Edit Listing
+                </button>
+                <button
+                  onClick={() => router.push('/dashboard/subscription?category=construction')}
+                  className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
+                >
+                  Change Plan
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+              <div className="font-semibold text-amber-900 mb-1">
+                You do not have a listing yet
+              </div>
+              <p className="text-sm text-amber-800 mb-3">
+                Create your company listing to appear in the marketplace and on BOQ documents.
+              </p>
+              <button
+                onClick={() => router.push('/dashboard/construction/new')}
+                className="bg-[#F47B20] text-white px-5 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
+              >
+                Create Listing
+              </button>
+            </div>
+          )}
+
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
               {error}
             </div>
           )}
+
+          <h2 className="text-lg font-bold text-[#2C3E50] mb-4">
+            Listed Companies
+          </h2>
 
           {companies.length === 0 ? (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
@@ -125,4 +193,4 @@ export default function ConstructionPage() {
       </div>
     </div>
   );
-        }
+                }
