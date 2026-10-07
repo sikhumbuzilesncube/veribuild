@@ -14,7 +14,7 @@ export default function ProjectsPage() {
   useEffect(() => {
     async function loadProjects() {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         router.push('/login');
         return;
@@ -32,7 +32,7 @@ export default function ProjectsPage() {
         return;
       }
 
-      const formatted = (projectsData || []).map(p => ({
+      const formatted = (projectsData || []).map((p) => ({
         id: p.id,
         name: p.project_name || 'Unnamed Project',
         status: p.status || 'draft',
@@ -52,9 +52,10 @@ export default function ProjectsPage() {
     loadProjects();
   }, [router]);
 
-  const filteredProjects = filter === 'all' 
-    ? projects 
-    : projects.filter(p => p.status.toLowerCase() === filter);
+  const filteredProjects =
+    filter === 'all'
+      ? projects
+      : projects.filter((p) => p.status.toLowerCase() === filter);
 
   function getStatusColor(status) {
     const s = status?.toLowerCase() || '';
@@ -81,7 +82,7 @@ export default function ProjectsPage() {
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-[#2C3E50]">📋 My Projects</h1>
+            <h1 className="text-3xl font-bold text-[#2C3E50]">My Projects</h1>
             <p className="text-gray-600">Manage all your BOQ projects</p>
           </div>
           <Link
@@ -97,7 +98,9 @@ export default function ProjectsPage() {
           <button
             onClick={() => setFilter('all')}
             className={`px-4 py-2 rounded-lg font-medium transition ${
-              filter === 'all' ? 'bg-[#2C3E50] text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              filter === 'all'
+                ? 'bg-[#2C3E50] text-white'
+                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
             }`}
           >
             All
@@ -105,7 +108,9 @@ export default function ProjectsPage() {
           <button
             onClick={() => setFilter('completed')}
             className={`px-4 py-2 rounded-lg font-medium transition ${
-              filter === 'completed' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              filter === 'completed'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
             }`}
           >
             Completed
@@ -113,7 +118,9 @@ export default function ProjectsPage() {
           <button
             onClick={() => setFilter('processing')}
             className={`px-4 py-2 rounded-lg font-medium transition ${
-              filter === 'processing' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              filter === 'processing'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
             }`}
           >
             Processing
@@ -121,7 +128,9 @@ export default function ProjectsPage() {
           <button
             onClick={() => setFilter('draft')}
             className={`px-4 py-2 rounded-lg font-medium transition ${
-              filter === 'draft' ? 'bg-yellow-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              filter === 'draft'
+                ? 'bg-yellow-600 text-white'
+                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
             }`}
           >
             Draft
@@ -146,18 +155,31 @@ export default function ProjectsPage() {
                 </thead>
                 <tbody>
                   {filteredProjects.map((project) => (
-                    <tr key={project.id} className="border-b border-gray-100 hover:bg-gray-50 transition">
-                      <td className="px-4 py-3 font-medium text-[#2C3E50]">{project.name}</td>
-                      <td className="px-4 py-3 text-sm capitalize">{project.plan_type}</td>
+                    <tr
+                      key={project.id}
+                      className="border-b border-gray-100 hover:bg-gray-50 transition"
+                    >
+                      <td className="px-4 py-3 font-medium text-[#2C3E50]">
+                        {project.name}
+                      </td>
+                      <td className="px-4 py-3 text-sm capitalize">
+                        {project.plan_type}
+                      </td>
                       <td className="px-4 py-3 text-sm">{project.rooms}</td>
                       <td className="px-4 py-3 text-sm">{project.floor_area}m²</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{project.date}</td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                            project.status
+                          )}`}
+                        >
                           {project.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-bold text-[#2C3E50]">${project.cost}</td>
+                      <td className="px-4 py-3 font-bold text-[#2C3E50]">
+                        ${project.cost}
+                      </td>
                       <td className="px-4 py-3">
                         <Link
                           href={`/dashboard/boq/${project.id}`}
@@ -174,14 +196,16 @@ export default function ProjectsPage() {
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-            <div className="text-6xl mb-4">📋</div>
+            <div className="text-6xl mb-4 text-gray-300">[ ]</div>
             <h2 className="text-2xl font-bold text-[#2C3E50] mb-2">No Projects Yet</h2>
-            <p className="text-gray-500 mb-6">Upload your first floor plan to generate a BOQ</p>
+            <p className="text-gray-500 mb-6">
+              Upload your first floor plan to generate a BOQ
+            </p>
             <Link
               href="/dashboard/new-project"
               className="bg-[#F47B20] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition"
             >
-              📤 Create Your First BOQ
+              Create Your First BOQ
             </Link>
           </div>
         )}
