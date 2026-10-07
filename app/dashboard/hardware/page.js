@@ -9,6 +9,7 @@ export default function HardwarePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState([]);
+  const [myStore, setMyStore] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -22,15 +23,25 @@ export default function HardwarePage() {
       const { data, error: fetchError } = await supabase
         .from('hardware_stores')
         .select('*')
-        .eq('subscription_status', 'active');
+        .eq('subscription_status', 'active')
+        .order('store_name', { ascending: true });
 
       if (fetchError) {
+        console.error('Hardware list error:', fetchError);
         setError(fetchError.message);
         setLoading(false);
         return;
       }
 
       setStores(data || []);
+
+      const { data: mine } = await supabase
+        .from('hardware_stores')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+
+      setMyStore(mine || null);
       setLoading(false);
     }
     load();
@@ -82,11 +93,75 @@ export default function HardwarePage() {
             </button>
           </div>
 
+          {myStore ? (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h2 className="text-base font-bold text-[#2C3E50]">Your Store</h2>
+                  <p className="text-sm text-gray-600 mt-1">{myStore.store_name}</p>
+                  {myStore.location && (
+                    <p className="text-xs text-gray-500">{myStore.location}</p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <span
+                    className={`text-xs px-2 py-1 rounded ${
+                      myStore.subscription_tier === 'premium'
+                        ? 'bg-[#F47B20] text-white'
+                        : 'bg-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {myStore.subscription_tier === 'premium' ? 'Premium' : 'Standard'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
+                <button
+                  onClick={() => router.push('/dashboard/hardware/new')}
+                  className="bg-[#F47B20] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
+                >
+                  Edit Store
+                </button>
+                <button
+                  onClick={() => router.push('/dashboard/hardware/products')}
+                  className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
+                >
+                  Manage Products
+                </button>
+                <button
+                  onClick={() => router.push('/dashboard/subscription?category=hardware')}
+                  className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
+                >
+                  Change Plan
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+              <div className="font-semibold text-amber-900 mb-1">
+                You do not have a store listing yet
+              </div>
+              <p className="text-sm text-amber-800 mb-3">
+                Create your store listing to appear in the marketplace and on BOQ pages in your city.
+              </p>
+              <button
+                onClick={() => router.push('/dashboard/hardware/new')}
+                className="bg-[#F47B20] text-white px-5 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
+              >
+                Create Store
+              </button>
+            </div>
+          )}
+
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
               {error}
             </div>
           )}
+
+          <h2 className="text-lg font-bold text-[#2C3E50] mb-4">
+            Listed Stores
+          </h2>
 
           {stores.length === 0 ? (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
@@ -122,4 +197,4 @@ export default function HardwarePage() {
       </div>
     </div>
   );
-        }
+  }
