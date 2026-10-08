@@ -120,6 +120,8 @@ export default function NewWorkerListing() {
         return;
       }
 
+      // On create: no plan selected yet. Subscription is set later from
+      // the subscription page. On edit: preserve existing subscription state.
       const payload = {
         user_id: session.user.id,
         full_name: formData.full_name.trim(),
@@ -137,20 +139,25 @@ export default function NewWorkerListing() {
         city_id: parseInt(formData.city_id, 10) || 1,
         location: formData.location.trim() || null,
         about_me: formData.about_me.trim() || null,
-        subscription_tier: 'standard',
-        subscription_coverage: 'local',
-        subscription_status: 'active',
-        featured_city_ids: [],
       };
 
       let result;
       if (existingListing) {
+        // Preserve existing subscription state on edit
         result = await supabase
           .from('workers')
           .update(payload)
           .eq('id', existingListing.id);
       } else {
-        result = await supabase.from('workers').insert([payload]);
+        // New listing starts unsubscribed
+        const insertPayload = {
+          ...payload,
+          subscription_tier: null,
+          subscription_coverage: null,
+          subscription_status: 'none',
+          featured_city_ids: [],
+        };
+        result = await supabase.from('workers').insert([insertPayload]);
       }
 
       if (result.error) {
@@ -332,7 +339,7 @@ export default function NewWorkerListing() {
           </div>
 
           <p className="text-xs text-gray-500 text-center">
-            Your profile is created with the Standard tier by default. You can upgrade later from the Subscription page.
+            After creating your profile, choose a subscription plan to appear on BOQ documents.
           </p>
 
         </form>
@@ -392,4 +399,4 @@ function Select({ label, name, value, onChange, options }) {
       </select>
     </div>
   );
-}
+    }
