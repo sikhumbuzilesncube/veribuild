@@ -19,11 +19,11 @@ const EMPTY_FORM = {
   id: null,
   catalog_name: '',
   brand: '',
+  custom_brand: '',
   price_usd: '',
   in_stock: true,
 };
 
-// Derive a category label from the catalog section (used for brand suggestions)
 function categoryFromSection(sectionKey) {
   if (sectionKey === 'A' || sectionKey === 'B') return 'Cement';
   if (sectionKey === 'C') return 'Roofing';
@@ -109,6 +109,7 @@ export default function HardwareProductsPage() {
       id: product.id,
       catalog_name: product.name || '',
       brand: '',
+      custom_brand: '',
       price_usd: product.price_usd != null ? String(product.price_usd) : '',
       in_stock: product.in_stock !== false,
     });
@@ -159,10 +160,13 @@ export default function HardwareProductsPage() {
       return;
     }
 
-    // Build the description. Brand, when present, is prefixed to the name.
-    const displayName = formData.brand && formData.brand !== 'No specific brand'
-      ? `${formData.brand} - ${catalogItem.name}`
-      : catalogItem.name;
+    // Resolve the brand label
+    let brandLabel = '';
+    if (formData.brand === 'Other' && formData.custom_brand && formData.custom_brand.trim()) {
+      brandLabel = formData.custom_brand.trim();
+    } else if (formData.brand && formData.brand !== 'No specific brand') {
+      brandLabel = formData.brand;
+    }
 
     const payload = {
       hardware_store_id: store.id,
@@ -172,6 +176,7 @@ export default function HardwareProductsPage() {
       price_usd: parseFloat(formData.price_usd),
       currency: 'USD',
       in_stock: !!formData.in_stock,
+      brand: brandLabel || null,
       updated_at: new Date().toISOString(),
     };
 
@@ -432,6 +437,18 @@ export default function HardwareProductsPage() {
                       </option>
                     ))}
                   </select>
+
+                  {formData.brand === 'Other' && (
+                    <input
+                      type="text"
+                      name="custom_brand"
+                      value={formData.custom_brand}
+                      onChange={handleChange}
+                      placeholder="Type the brand name"
+                      className="w-full px-3 py-2 mt-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none text-sm"
+                    />
+                  )}
+
                   <p className="text-xs text-gray-500 mt-1">
                     Shown on your store page. Does not affect BOQ matching.
                   </p>
@@ -502,4 +519,4 @@ export default function HardwareProductsPage() {
 
     </div>
   );
-  }
+            }
