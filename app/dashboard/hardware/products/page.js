@@ -4,45 +4,33 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
+import { BOQ_SECTIONS, findCatalogItem } from '@/lib/boq/catalog';
 
-const CATEGORIES = [
-  'Cement',
-  'Bricks',
-  'Blocks',
-  'Roofing',
-  'Timber',
-  'Steel',
-  'Plumbing',
-  'Electrical',
-  'Finishes',
-  'Aggregates',
-  'Tools',
-  'Other',
-];
-
-const UNITS = [
-  'bag',
-  'nr',
-  'piece',
-  'sheet',
-  'roll',
-  'm',
-  'm2',
-  'm3',
-  'kg',
-  'tonne',
-  'litre',
-  'load',
-];
+const BRANDS_BY_CATEGORY = {
+  Cement: ['PPC', 'Lafarge', 'Sino', 'Dura', 'Other', 'No specific brand'],
+  Bricks: ['Betta Bricks', 'Willdale', 'Other', 'No specific brand'],
+  Roofing: ['Turnall', 'Zimboard', 'Dura', 'Other', 'No specific brand'],
+  Timber: ['Other', 'No specific brand'],
+  Steel: ['Steelmakers', 'Other', 'No specific brand'],
+  default: ['Other', 'No specific brand'],
+};
 
 const EMPTY_FORM = {
   id: null,
-  name: '',
-  category: 'Cement',
-  unit: 'bag',
+  catalog_name: '',
+  brand: '',
   price_usd: '',
   in_stock: true,
 };
+
+// Derive a category label from the catalog section (used for brand suggestions)
+function categoryFromSection(sectionKey) {
+  if (sectionKey === 'A' || sectionKey === 'B') return 'Cement';
+  if (sectionKey === 'C') return 'Roofing';
+  if (sectionKey === 'D') return 'Finishes';
+  if (sectionKey === 'E') return 'Services';
+  return 'default';
+}
 
 export default function HardwareProductsPage() {
   const router = useRouter();
@@ -119,9 +107,8 @@ export default function HardwareProductsPage() {
   const openEditForm = (product) => {
     setFormData({
       id: product.id,
-      name: product.name || '',
-      category: product.category || 'Other',
-      unit: product.unit || 'nr',
+      catalog_name: product.name || '',
+      brand: '',
       price_usd: product.price_usd != null ? String(product.price_usd) : '',
       in_stock: product.in_stock !== false,
     });
@@ -153,8 +140,8 @@ export default function HardwareProductsPage() {
     setError('');
     setSuccess('');
 
-    if (!formData.name || formData.name.trim() === '') {
-      setError('Product name is required');
+    if (!formData.catalog_name) {
+      setError('Please select a BOQ material from the list');
       setSaving(false);
       return;
     }
@@ -165,11 +152,23 @@ export default function HardwareProductsPage() {
       return;
     }
 
+    const catalogItem = findCatalogItem(formData.catalog_name);
+    if (!catalogItem) {
+      setError('Selected material not found in catalog');
+      setSaving(false);
+      return;
+    }
+
+    // Build the description. Brand, when present, is prefixed to the name.
+    const displayName = formData.brand && formData.brand !== 'No specific brand'
+      ? `${formData.brand} - ${catalogItem.name}`
+      : catalogItem.name;
+
     const payload = {
       hardware_store_id: store.id,
-      name: formData.name.trim(),
-      category: formData.category || 'Other',
-      unit: formData.unit || 'nr',
+      name: catalogItem.name,
+      category: catalogItem.section,
+      unit: catalogItem.unit,
       price_usd: parseFloat(formData.price_usd),
       currency: 'USD',
       in_stock: !!formData.in_stock,
@@ -236,6 +235,11 @@ export default function HardwareProductsPage() {
     );
   }
 
+  const selectedItem = formData.catalog_name ? findCatalogItem(formData.catalog_name) : null;
+  const brandOptions = selectedItem
+    ? BRANDS_BY_CATEGORY[categoryFromSection(selectedItem.section)] || BRANDS_BY_CATEGORY.default
+    : [];
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Sidebar />
@@ -300,8 +304,7 @@ export default function HardwareProductsPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-[#2C3E50] text-white">
                     <tr>
-                      <th className="text-left px-4 py-3 font-semibold">Product</th>
-                      <th className="text-left px-4 py-3 font-semibold">Category</th>
+                      <th className="text-left px-4 py-3 font-semibold">BOQ Material</th>
                       <th className="text-left px-4 py-3 font-semibold">Unit</th>
                       <th className="text-right px-4 py-3 font-semibold">Price (USD)</th>
                       <th className="text-center px-4 py-3 font-semibold">In Stock</th>
@@ -316,9 +319,6 @@ export default function HardwareProductsPage() {
                       >
                         <td className="px-4 py-3 font-medium text-[#2C3E50]">
                           {product.name}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {product.category || '—'}
                         </td>
                         <td className="px-4 py-3 text-gray-600">{product.unit}</td>
                         <td className="px-4 py-3 text-right font-semibold text-[#2C3E50]">
@@ -358,9 +358,9 @@ export default function HardwareProductsPage() {
           )}
 
           <p className="text-xs text-gray-500 mt-4 text-center">
-            Products you list here are compared against BOQ items on the platform. Use the exact
-            product names that appear in a standard BOQ where possible — for example
-            &quot;Cement 50kg&quot;, &quot;Common Bricks&quot;, &quot;River Sand&quot;.
+            Products are matched against BOQ line items by exact name. Select from the standard
+            catalog to guarantee a match. Brand is displayed on your store profile but does not
+            affect matching.
           </p>
 
         </div>
@@ -368,82 +368,91 @@ export default function HardwareProductsPage() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-5 border-b border-gray-100">
               <h2 className="text-lg font-bold text-[#2C3E50]">
                 {formData.id ? 'Edit Product' : 'Add Product'}
               </h2>
+              <p className="text-xs text-gray-500 mt-1">
+                Select a material from the standard BOQ catalog.
+              </p>
             </div>
 
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Product Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none text-sm"
-                  placeholder="e.g. Cement 50kg PPC"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category
+                  BOQ Material <span className="text-red-500">*</span>
                 </label>
                 <select
-                  name="category"
-                  value={formData.category}
+                  name="catalog_name"
+                  value={formData.catalog_name}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none text-sm"
+                  required
                 >
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
+                  <option value="">— Select a material —</option>
+                  {BOQ_SECTIONS.map((section) => (
+                    <optgroup key={section.key} label={`Section ${section.key} — ${section.label}`}>
+                      {section.items.map((item) => (
+                        <option key={item.code} value={item.name}>
+                          {item.name} ({item.unit})
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {selectedItem && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs">
+                  <div className="text-gray-600">
+                    <span className="font-medium">Code:</span> {selectedItem.code}
+                  </div>
+                  <div className="text-gray-600">
+                    <span className="font-medium">Unit:</span> {selectedItem.unit}
+                  </div>
+                </div>
+              )}
+
+              {selectedItem && brandOptions.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Unit
+                    Brand (optional)
                   </label>
                   <select
-                    name="unit"
-                    value={formData.unit}
+                    name="brand"
+                    value={formData.brand}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none text-sm"
                   >
-                    {UNITS.map((u) => (
-                      <option key={u} value={u}>
-                        {u}
+                    <option value="">— Not specified —</option>
+                    {brandOptions.map((b) => (
+                      <option key={b} value={b}>
+                        {b}
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Shown on your store page. Does not affect BOQ matching.
+                  </p>
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Price (USD) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="price_usd"
-                    value={formData.price_usd}
-                    onChange={handleChange}
-                    step="0.01"
-                    min="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none text-sm"
-                    placeholder="11.00"
-                    required
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Price (USD) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  name="price_usd"
+                  value={formData.price_usd}
+                  onChange={handleChange}
+                  step="0.01"
+                  min="0"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none text-sm"
+                  placeholder="11.00"
+                  required
+                />
               </div>
 
               <div className="flex items-center gap-2">
