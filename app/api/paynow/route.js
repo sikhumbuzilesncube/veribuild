@@ -6,13 +6,15 @@ export async function POST(request) {
     const body = await request.json();
     console.log('Paynow payment request received:', body);
 
-    const { 
-      amount, 
-      customerEmail, 
-      planType, 
-      planName, 
-      planDuration, 
-      userId 
+    const {
+      amount,
+      customerEmail,
+      customerPhone,
+      planType,
+      planName,
+      planDuration,
+      userId,
+      paymentMethod,
     } = body;
 
     if (!amount) {
@@ -31,10 +33,12 @@ export async function POST(request) {
     const result = await initiatePayment({
       amount: parsedAmount,
       customerEmail,
+      customerPhone: customerPhone || '',
       planType: planType || 'hardware',
       planName: planName || 'Hardware Store',
       planDuration: planDuration || 'monthly',
-      userId: userId || 'guest-user',
+      userId: userId || null,
+      paymentMethod: paymentMethod || 'web',
     });
 
     return NextResponse.json({
@@ -42,6 +46,8 @@ export async function POST(request) {
       redirectUrl: result.redirectUrl,
       pollUrl: result.pollUrl,
       reference: result.reference,
+      instructions: result.instructions,
+      isMobile: result.isMobile,
     });
 
   } catch (error) {
@@ -54,9 +60,7 @@ export async function POST(request) {
 }
 
 export async function GET() {
-  return NextResponse.json({
-    message: 'Paynow API endpoint. Use POST to initiate payment.',
-  });
+  return NextResponse.json({ message: 'Paynow API endpoint. Use POST to initiate payment.' });
 }
 
 export async function OPTIONS() {
@@ -67,4 +71,4 @@ export async function OPTIONS() {
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
   });
-  }
+                               }
