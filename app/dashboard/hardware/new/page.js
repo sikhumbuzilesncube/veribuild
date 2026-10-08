@@ -90,18 +90,31 @@ export default function NewHardwareStore() {
         return;
       }
 
+      const selectedCityId = parseInt(formData.city_id, 10) || 1;
+
+      // Preserve existing featured cities if editing, plus ensure the
+      // store's own city is included. New stores start with just their city.
+      let featuredCityIds;
+      if (existingStore && Array.isArray(existingStore.featured_city_ids)) {
+        const set = new Set(existingStore.featured_city_ids);
+        set.add(selectedCityId);
+        featuredCityIds = Array.from(set);
+      } else {
+        featuredCityIds = [selectedCityId];
+      }
+
       const payload = {
         user_id: session.user.id,
         store_name: formData.store_name.trim(),
         contact_person: formData.contact_person.trim() || null,
         phone: formData.phone.trim() || null,
         email: formData.email.trim() || null,
-        city_id: parseInt(formData.city_id, 10) || 1,
+        city_id: selectedCityId,
         location: formData.location.trim() || null,
         subscription_tier: 'standard',
         subscription_coverage: 'local',
         subscription_status: 'active',
-        featured_city_ids: [],
+        featured_city_ids: featuredCityIds,
       };
 
       let result;
@@ -213,6 +226,9 @@ export default function NewHardwareStore() {
                 placeholder="e.g., 45 Robert Mugabe Way, Harare"
               />
             </div>
+            <p className="text-xs text-gray-500 mt-3">
+              Your store will appear on BOQ pages generated in the city you select above.
+            </p>
           </Section>
 
           {error && (
