@@ -1,6 +1,7 @@
 /**
  * Paynow Payment Integration
  * For VeriBuild - A Product of GateKeeperAI
+ * With automatic fallback from mobile push to redirect
  */
 
 let Paynow;
@@ -32,8 +33,8 @@ function generateReference() {
 }
 
 /**
- * Initiate a payment with Paynow
- * Supports both web redirect and mobile push
+ * Initiate a payment with automatic fallback
+ * Tries sendMobile first; if it fails, falls back to send (redirect)
  */
 export async function initiatePayment(paymentData) {
   console.log('=== PAYNOW INITIATE START ===');
@@ -58,25 +59,49 @@ export async function initiatePayment(paymentData) {
     let response;
     let isMobile = false;
 
-    // Mobile methods: EcoCash, OneMoney, InnBucks
     const mobileMethods = ['ecocash', 'onemoney', 'innbucks', 'telecash'];
     const method = (paymentData.paymentMethod || '').toLowerCase();
 
-    if (mobileMethods.includes(method)) {
-      if (!paymentData.customerPhone) {
-        throw new Error('Phone number is required for mobile payments');
+    if (mobileMethods.includes(method) && paymentData.customerPhone) {
+      console.log('Attempting sendMobile for', method);
+
+      try {
+        response = await paynow.sendMobile(payment, paymentData.customerPhone, method);
+
+        if (response.success) {
+          isMobile = true;
+          console.log('sendMobile SUCCESS');
+        } else {
+          console.log('sendMobile FAILED:', response.error);
+          console.log('Falling back to redirect flow...');
+          // Try the redirect flow
+          const fallbackPayment = paynow.createPayment(reference, paymentData.customerEmail);
+          fallbackPayment.add(
+            `${paymentData.planName} - ${paymentData.planDuration} Subscription`,
+            parseFloat(paymentData.amount)
+          );
+          response = await paynow.send(fallbackPayment);
+          isMobile = false;
+        }
+      } catch (mobileError) {
+        console.error('sendMobile threw error:', mobileError.message);
+        console.log('Falling back to redirect flow...');
+        const fallbackPayment = paynow.createPayment(reference, paymentData.customerEmail);
+        fallbackPayment.add(
+          `${paymentData.planName} - ${paymentData.planDuration} Subscription`,
+          parseFloat(paymentData.amount)
+        );
+        response = await paynow.send(fallbackPayment);
+        isMobile = false;
       }
-      console.log('Using sendMobile for', method, 'phone:', paymentData.customerPhone);
-      response = await paynow.sendMobile(payment, paymentData.customerPhone, method);
-      isMobile = true;
     } else {
       console.log('Using web redirect (send)');
       response = await paynow.send(payment);
       isMobile = false;
     }
 
-    console.log('Paynow response success:', response.success);
-    console.log('Paynow response error:', response.error);
+    console.log('Final response success:', response.success);
+    console.log('isMobile:', isMobile);
 
     if (!response.success) {
       throw new Error(response.error || 'Paynow rejected the payment request');
@@ -102,10 +127,9 @@ export async function initiatePayment(paymentData) {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
-        console.log('Payment record stored in database');
       }
     } catch (dbError) {
-      console.error('DB storage error (non-blocking):', dbError.message);
+      console.error('DB storage error:', dbError.message);
     }
 
     console.log('=== PAYNOW INITIATE SUCCESS ===');
@@ -126,17 +150,12 @@ export async function initiatePayment(paymentData) {
   }
 }
 
-/**
- * Check payment status
- */
 export async function checkPaymentStatus(pollUrl) {
   try {
     if (!pollUrl) throw new Error('Poll URL is required');
 
     const paynow = getPaynowInstance();
     const status = await paynow.pollTransaction(pollUrl);
-
-    console.log('Paynow status:', JSON.stringify(status));
 
     return {
       success: true,
