@@ -1,17 +1,12 @@
 /**
  * Paynow Payment Integration
  * For VeriBuild - A Product of GateKeeperAI
- * 
- * Note: The paynow package uses CommonJS. We use require() here
- * because it's not ESM-compatible.
  */
 
-// Use require for the paynow package (CommonJS)
 let Paynow;
 try {
   Paynow = require('paynow').Paynow;
 } catch (e) {
-  // Fallback for when running in ESM context
   const paynowModule = require('paynow');
   Paynow = paynowModule.Paynow || paynowModule.default?.Paynow || paynowModule;
 }
@@ -36,6 +31,10 @@ function generateReference() {
   return `VB-${timestamp}-${random}`.toUpperCase();
 }
 
+/**
+ * Initiate a payment with Paynow
+ * Supports both web redirect and mobile push
+ */
 export async function initiatePayment(paymentData) {
   console.log('=== PAYNOW INITIATE START ===');
 
@@ -46,6 +45,7 @@ export async function initiatePayment(paymentData) {
 
     const reference = generateReference();
     console.log('Reference:', reference);
+    console.log('Method:', paymentData.paymentMethod);
 
     const paynow = getPaynowInstance();
     const payment = paynow.createPayment(reference, paymentData.customerEmail);
@@ -55,18 +55,34 @@ export async function initiatePayment(paymentData) {
       parseFloat(paymentData.amount)
     );
 
-    console.log('Sending payment request to Paynow...');
-    const response = await paynow.send(payment);
+    let response;
+    let isMobile = false;
+
+    // Mobile methods: EcoCash, OneMoney, InnBucks
+    const mobileMethods = ['ecocash', 'onemoney', 'innbucks', 'telecash'];
+    const method = (paymentData.paymentMethod || '').toLowerCase();
+
+    if (mobileMethods.includes(method)) {
+      if (!paymentData.customerPhone) {
+        throw new Error('Phone number is required for mobile payments');
+      }
+      console.log('Using sendMobile for', method, 'phone:', paymentData.customerPhone);
+      response = await paynow.sendMobile(payment, paymentData.customerPhone, method);
+      isMobile = true;
+    } else {
+      console.log('Using web redirect (send)');
+      response = await paynow.send(payment);
+      isMobile = false;
+    }
 
     console.log('Paynow response success:', response.success);
-    console.log('Paynow redirectUrl:', response.redirectUrl);
-    console.log('Paynow pollUrl:', response.pollUrl);
+    console.log('Paynow response error:', response.error);
 
     if (!response.success) {
       throw new Error(response.error || 'Paynow rejected the payment request');
     }
 
-    // Store payment record using your existing schema
+    // Store payment record
     try {
       const { createClient } = await import('@supabase/supabase-js');
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -75,7 +91,7 @@ export async function initiatePayment(paymentData) {
       if (supabaseUrl && supabaseServiceKey) {
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
         await supabase.from('payments').insert({
-          user_id: paymentData.userId === 'test-user-123' ? null : paymentData.userId,
+          user_id: paymentData.userId || null,
           amount: parseFloat(paymentData.amount),
           currency: 'USD',
           payment_method: paymentData.planType,
@@ -99,6 +115,8 @@ export async function initiatePayment(paymentData) {
       reference: reference,
       redirectUrl: response.redirectUrl,
       pollUrl: response.pollUrl,
+      instructions: response.instructions,
+      isMobile: isMobile,
     };
 
   } catch (error) {
@@ -108,6 +126,9 @@ export async function initiatePayment(paymentData) {
   }
 }
 
+/**
+ * Check payment status
+ */
 export async function checkPaymentStatus(pollUrl) {
   try {
     if (!pollUrl) throw new Error('Poll URL is required');
