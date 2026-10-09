@@ -46,6 +46,8 @@ export default function NewWorkerProfile() {
     city_id: '1',
     location: '',
     about_me: '',
+    portfolio_link: '',
+    references_text: '',
   });
 
   useEffect(() => {
@@ -76,6 +78,8 @@ export default function NewWorkerProfile() {
           city_id: String(data.city_id || 1),
           location: data.location || '',
           about_me: data.about_me || '',
+          portfolio_link: data.portfolio_link || '',
+          references_text: data.references_text || '',
         });
       } else {
         const metadata = session.user.user_metadata || {};
@@ -137,18 +141,17 @@ export default function NewWorkerProfile() {
         city_id: parseInt(formData.city_id, 10) || 1,
         location: formData.location.trim() || null,
         about_me: formData.about_me.trim() || null,
+        portfolio_link: formData.portfolio_link.trim() || null,
+        references_text: formData.references_text.trim() || null,
       };
 
       let result;
       if (existingProfile) {
-        // Preserve subscription state on edit
         result = await supabase
           .from('workers')
           .update(payload)
           .eq('id', existingProfile.id);
       } else {
-        // New profiles start unsubscribed. Seller selects a plan from
-        // the subscription page later.
         result = await supabase.from('workers').insert([
           {
             ...payload,
@@ -262,13 +265,14 @@ export default function NewWorkerProfile() {
                 placeholder="8"
               />
               <Input
-                label="Daily Rate (USD)"
+                label="Daily Rate (USD, optional)"
                 name="daily_rate_usd"
                 value={formData.daily_rate_usd}
                 onChange={handleChange}
                 type="number"
                 step="0.01"
                 placeholder="18.00"
+                hint="Leave blank if you quote per project. Clients will see 'Rate on request'."
               />
               <Select
                 label="Availability"
@@ -297,9 +301,36 @@ export default function NewWorkerProfile() {
                 placeholder="e.g., Mbare, Harare"
               />
             </div>
-            <p className="text-xs text-gray-500 mt-3">
-              Your profile will appear on BOQ pages generated in the city you select above.
-            </p>
+          </Section>
+
+          <Section title="Portfolio and References">
+            <div className="space-y-4">
+              <Input
+                label="Portfolio Link (optional)"
+                name="portfolio_link"
+                value={formData.portfolio_link}
+                onChange={handleChange}
+                placeholder="https://drive.google.com/..."
+                hint="A website, Google Drive folder, or social media page showing your past work."
+              />
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  References (optional)
+                </label>
+                <textarea
+                  name="references_text"
+                  value={formData.references_text}
+                  onChange={handleChange}
+                  rows="4"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition text-sm"
+                  placeholder={"Example:\nMr T. Chikwanda — 0772 123 456 — Built 3-bed house 2024\nMrs R. Nyoni — 0712 987 654 — Tiled 4 rooms 2024"}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Two or three past clients or employers. Name, phone, and a short note on the job.
+                </p>
+              </div>
+            </div>
           </Section>
 
           <Section title="About You">
@@ -362,7 +393,7 @@ function Section({ title, children }) {
   );
 }
 
-function Input({ label, name, value, onChange, placeholder, required, type = 'text', step }) {
+function Input({ label, name, value, onChange, placeholder, required, type = 'text', step, hint }) {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -380,6 +411,7 @@ function Input({ label, name, value, onChange, placeholder, required, type = 'te
           required && !value ? 'border-red-400 bg-red-50' : 'border-gray-300'
         }`}
       />
+      {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
     </div>
   );
 }
@@ -402,4 +434,4 @@ function Select({ label, name, value, onChange, options }) {
       </select>
     </div>
   );
-  }
+}
