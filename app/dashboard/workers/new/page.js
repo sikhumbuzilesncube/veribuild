@@ -3,50 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { CITIES } from '@/lib/cities';
+import Sidebar from '@/components/Sidebar';
 
-const TRADES = [
-  'Mason',
-  'Carpenter',
-  'Plumber',
-  'Electrician',
-  'Tiler',
-  'Painter',
-  'Roofer',
-  'Welder',
-  'Steel fixer',
-  'General labourer',
-  'Site supervisor',
-  'Other',
-];
-
-const AVAILABILITY_OPTIONS = [
-  { value: 'available', label: 'Available now' },
-  { value: 'limited', label: 'Limited availability' },
-  { value: 'unavailable', label: 'Not available' },
-];
-
-export default function NewWorkerListing() {
+export default function WorkersPage() {
   const router = useRouter();
-
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [myProfile, setMyProfile] = useState(null);
   const [error, setError] = useState('');
-  const [existingListing, setExistingListing] = useState(null);
-
-  const [formData, setFormData] = useState({
-    full_name: '',
-    phone: '',
-    email: '',
-    trade: 'Mason',
-    sub_trade: '',
-    years_experience: '',
-    daily_rate_usd: '',
-    availability: 'available',
-    city_id: '1',
-    location: '',
-    about_me: '',
-  });
 
   useEffect(() => {
     async function load() {
@@ -56,347 +19,207 @@ export default function NewWorkerListing() {
         return;
       }
 
-      const { data } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('workers')
         .select('*')
         .eq('user_id', session.user.id)
         .maybeSingle();
 
-      if (data) {
-        setExistingListing(data);
-        setFormData({
-          full_name: data.full_name || '',
-          phone: data.phone || '',
-          email: data.email || '',
-          trade: data.trade || 'Mason',
-          sub_trade: data.sub_trade || '',
-          years_experience: data.years_experience != null ? String(data.years_experience) : '',
-          daily_rate_usd: data.daily_rate_usd != null ? String(data.daily_rate_usd) : '',
-          availability: data.availability || 'available',
-          city_id: String(data.city_id || 1),
-          location: data.location || '',
-          about_me: data.about_me || '',
-        });
-      } else {
-        const metadata = session.user.user_metadata || {};
-        setFormData((prev) => ({
-          ...prev,
-          full_name: metadata.full_name || '',
-          email: session.user.email || '',
-          phone: metadata.phone || '',
-        }));
+      if (fetchError) {
+        console.error('Worker lookup error:', fetchError);
+        setError(fetchError.message);
+        setLoading(false);
+        return;
       }
 
+      setMyProfile(data || null);
       setLoading(false);
     }
     load();
   }, [router]);
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    setError('');
-
-    if (!formData.full_name || formData.full_name.trim() === '') {
-      setError('Full name is required');
-      setSaving(false);
-      return;
-    }
-
-    if (!formData.phone && !formData.email) {
-      setError('Please provide at least a phone number or an email address');
-      setSaving(false);
-      return;
-    }
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push('/login');
-        return;
-      }
-
-      // On create: no plan selected yet. Subscription is set later from
-      // the subscription page. On edit: preserve existing subscription state.
-      const payload = {
-        user_id: session.user.id,
-        full_name: formData.full_name.trim(),
-        phone: formData.phone.trim() || null,
-        email: formData.email.trim() || null,
-        trade: formData.trade || 'Other',
-        sub_trade: formData.sub_trade.trim() || null,
-        years_experience: formData.years_experience
-          ? parseInt(formData.years_experience, 10)
-          : null,
-        daily_rate_usd: formData.daily_rate_usd
-          ? parseFloat(formData.daily_rate_usd)
-          : null,
-        availability: formData.availability || 'available',
-        city_id: parseInt(formData.city_id, 10) || 1,
-        location: formData.location.trim() || null,
-        about_me: formData.about_me.trim() || null,
-      };
-
-      let result;
-      if (existingListing) {
-        // Preserve existing subscription state on edit
-        result = await supabase
-          .from('workers')
-          .update(payload)
-          .eq('id', existingListing.id);
-      } else {
-        // New listing starts unsubscribed
-        const insertPayload = {
-          ...payload,
-          subscription_tier: null,
-          subscription_coverage: null,
-          subscription_status: 'none',
-          featured_city_ids: [],
-        };
-        result = await supabase.from('workers').insert([insertPayload]);
-      }
-
-      if (result.error) {
-        console.error('Save error:', result.error);
-        setError(`Failed to save: ${result.error.message}`);
-        setSaving(false);
-        return;
-      }
-
-      router.push('/dashboard/workers');
-    } catch (err) {
-      console.error('Unexpected error:', err);
-      setError('Something went wrong. Please try again.');
-      setSaving(false);
-    }
-  };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-[#F47B20] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">Loading profile...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      <div className="max-w-3xl mx-auto">
+    <div className="min-h-screen bg-gray-50">
+      <Sidebar />
 
-        <div className="mb-6">
-          <button
-            onClick={() => router.push('/dashboard/workers')}
-            className="text-sm text-gray-600 hover:text-gray-800 mb-3"
-          >
-            ← Back to Workers
-          </button>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] mb-2">
-            {existingListing ? 'Edit Your Profile' : 'Create Your Worker Profile'}
-          </h1>
-          <p className="text-gray-600 text-sm">
-            Add your details to appear in the marketplace and on BOQ documents.
-          </p>
-        </div>
+      <div className="md:ml-64 p-4 sm:p-6">
+        <div className="max-w-3xl mx-auto">
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="mb-6">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="text-sm text-gray-600 hover:text-gray-800 mb-3"
+            >
+              ← Back to Dashboard
+            </button>
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] mb-2">
+              My Worker Profile
+            </h1>
+            <p className="text-gray-600 text-sm">
+              Manage your profile and subscription. Only you see this page.
+            </p>
+          </div>
 
-          <Section title="Personal Details">
-            <div className="grid md:grid-cols-2 gap-4">
-              <Input
-                label="Full Name"
-                name="full_name"
-                value={formData.full_name}
-                onChange={handleChange}
-                placeholder="e.g., John Moyo"
-                required
-              />
-              <Input
-                label="Phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="+263 78 123 4567"
-              />
-              <div className="md:col-span-2">
-                <Input
-                  label="Email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  type="email"
-                  placeholder="your@email.com"
-                />
+          <div className="bg-gradient-to-r from-[#F47B20] to-[#E06B10] rounded-lg p-6 mb-6 text-white">
+            <h2 className="text-lg font-bold mb-1">Promote Your Profile</h2>
+            <p className="text-sm mb-4 opacity-90">
+              Appear on BOQ documents and get found by more clients.
+            </p>
+            <button
+              onClick={() => router.push('/dashboard/subscription?category=worker')}
+              className="bg-white text-[#F47B20] px-5 py-2 rounded-lg font-semibold hover:bg-gray-100 transition text-sm"
+            >
+              View Plans
+            </button>
+          </div>
+
+          {myProfile ? (
+            <>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h2 className="text-base font-bold text-[#2C3E50]">Your Profile</h2>
+                    <p className="text-lg text-gray-800 mt-1">{myProfile.full_name}</p>
+                    <p className="text-sm text-gray-600">
+                      {myProfile.trade}
+                      {myProfile.sub_trade ? ` — ${myProfile.sub_trade}` : ''}
+                    </p>
+                    <div className="mt-2 text-xs text-gray-500 space-y-0.5">
+                      {myProfile.location && <div>Location: {myProfile.location}</div>}
+                      {myProfile.years_experience != null && (
+                        <div>Experience: {myProfile.years_experience} years</div>
+                      )}
+                      {myProfile.daily_rate_usd != null && (
+                        <div>Daily rate: ${myProfile.daily_rate_usd}</div>
+                      )}
+                      <div>
+                        Availability:{' '}
+                        {myProfile.availability === 'available'
+                          ? 'Available now'
+                          : myProfile.availability === 'limited'
+                          ? 'Limited availability'
+                          : 'Not available'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span
+                      className={`text-xs px-2 py-1 rounded ${
+                        myProfile.subscription_status === 'active' &&
+                        myProfile.subscription_tier === 'premium'
+                          ? 'bg-[#F47B20] text-white'
+                          : myProfile.subscription_status === 'active'
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}
+                    >
+                      {myProfile.subscription_status === 'active'
+                        ? myProfile.subscription_tier === 'premium'
+                          ? 'Premium'
+                          : 'Standard'
+                        : 'Not subscribed'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => router.push('/dashboard/workers/new')}
+                    className="bg-[#F47B20] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
+                  >
+                    Edit Profile
+                  </button>
+                  <button
+                    onClick={() => router.push('/dashboard/subscription?category=worker')}
+                    className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
+                  >
+                    {myProfile.subscription_status === 'active'
+                      ? 'Change Plan'
+                      : 'Choose a Plan'}
+                  </button>
+                </div>
               </div>
-            </div>
-          </Section>
 
-          <Section title="Trade Details">
-            <div className="grid md:grid-cols-2 gap-4">
-              <Select
-                label="Trade"
-                name="trade"
-                value={formData.trade}
-                onChange={handleChange}
-                options={TRADES.map((t) => ({ value: t, label: t }))}
-              />
-              <Input
-                label="Sub-trade or Speciality (optional)"
-                name="sub_trade"
-                value={formData.sub_trade}
-                onChange={handleChange}
-                placeholder="e.g., Roof tiling, Industrial wiring"
-              />
-              <Input
-                label="Years of Experience"
-                name="years_experience"
-                value={formData.years_experience}
-                onChange={handleChange}
-                type="number"
-                placeholder="8"
-              />
-              <Input
-                label="Daily Rate (USD)"
-                name="daily_rate_usd"
-                value={formData.daily_rate_usd}
-                onChange={handleChange}
-                type="number"
-                step="0.01"
-                placeholder="18.00"
-              />
-              <Select
-                label="Availability"
-                name="availability"
-                value={formData.availability}
-                onChange={handleChange}
-                options={AVAILABILITY_OPTIONS}
-              />
-            </div>
-          </Section>
+              {myProfile.subscription_status !== 'active' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                  <div className="font-semibold text-amber-900 mb-1">
+                    Your profile is not subscribed
+                  </div>
+                  <p className="text-sm text-amber-800 mb-3">
+                    Your profile appears in the marketplace. To also appear on BOQ
+                    documents, choose a subscription plan.
+                  </p>
+                  <button
+                    onClick={() => router.push('/dashboard/subscription?category=worker')}
+                    className="bg-[#F47B20] text-white px-5 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
+                  >
+                    Choose a Plan
+                  </button>
+                </div>
+              )}
 
-          <Section title="Location">
-            <div className="grid md:grid-cols-2 gap-4">
-              <Select
-                label="City"
-                name="city_id"
-                value={formData.city_id}
-                onChange={handleChange}
-                options={CITIES.map((c) => ({ value: String(c.id), label: c.name }))}
-              />
-              <Input
-                label="Area or Suburb (optional)"
-                name="location"
-                value={formData.location}
-                onChange={handleChange}
-                placeholder="e.g., Mbare, Harare"
-              />
+              {myProfile.subscription_status === 'active' && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                  <div className="font-semibold text-green-900 mb-1">
+                    Your profile is active
+                  </div>
+                  <p className="text-sm text-green-800">
+                    {myProfile.subscription_tier === 'premium' && myProfile.subscription_coverage === 'national'
+                      ? 'You appear on BOQ documents in all 47 cities.'
+                      : myProfile.subscription_tier === 'premium'
+                      ? 'You appear on BOQ documents in your city.'
+                      : 'You appear in the marketplace directory. Upgrade to appear on BOQ documents.'}
+                  </p>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 mb-6">
+              <div className="font-semibold text-amber-900 mb-2 text-lg">
+                You have not created a profile yet
+              </div>
+              <p className="text-sm text-amber-800 mb-4">
+                Create your worker profile to appear in the marketplace and on BOQ documents.
+                You will be able to add your trade, experience, daily rate, and location.
+              </p>
+              <button
+                onClick={() => router.push('/dashboard/workers/new')}
+                className="bg-[#F47B20] text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
+              >
+                Create Profile
+              </button>
             </div>
-          </Section>
-
-          <Section title="About You">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Short Description (optional)
-              </label>
-              <textarea
-                name="about_me"
-                value={formData.about_me}
-                onChange={handleChange}
-                rows="4"
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition text-sm"
-                placeholder="Describe your work, the kinds of jobs you take, and what clients can expect."
-              />
-            </div>
-          </Section>
+          )}
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
               {error}
             </div>
           )}
 
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => router.push('/dashboard/workers')}
-              className="px-6 py-3 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? 'Saving...' : existingListing ? 'Update Profile' : 'Create Profile'}
-            </button>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-blue-900">
+            <div className="font-semibold mb-1">How it works</div>
+            <p>
+              Your worker profile is visible in the marketplace for homeowners and
+              contractors browsing for trades. When you subscribe to a plan, your
+              profile is also shown on BOQ documents generated in your city (or all
+              cities for the national plan).
+            </p>
           </div>
 
-          <p className="text-xs text-gray-500 text-center">
-            After creating your profile, choose a subscription plan to appear on BOQ documents.
-          </p>
-
-        </form>
+        </div>
       </div>
     </div>
   );
-}
-
-function Section({ title, children }) {
-  return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
-      <h3 className="text-base font-bold text-[#2C3E50] mb-4 pb-2 border-b border-gray-100">
-        {title}
-      </h3>
-      {children}
-    </div>
-  );
-}
-
-function Input({ label, name, value, onChange, placeholder, required, type = 'text', step }) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
-      </label>
-      <input
-        type={type}
-        name={name}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        step={step}
-        className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition text-sm ${
-          required && !value ? 'border-red-400 bg-red-50' : 'border-gray-300'
-        }`}
-      />
-    </div>
-  );
-}
-
-function Select({ label, name, value, onChange, options }) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <select
-        name={name}
-        value={value}
-        onChange={onChange}
-        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition text-sm"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-          }
+        }
