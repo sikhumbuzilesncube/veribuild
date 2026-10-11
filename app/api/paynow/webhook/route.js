@@ -5,9 +5,17 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 /**
- * Paynow sends POST notifications here when a payment completes.
- * Handles both form-urlencoded and JSON payloads.
+ * Normalize a reference string — remove hidden characters, trim, uppercase
  */
+function normalizeRef(ref) {
+  if (!ref) return '';
+  return String(ref)
+    .replace(/[\u200B-\u200D\uFEFF]/g, '') // zero-width chars
+    .replace(/[\r\n\t]/g, '')                // whitespace chars
+    .trim()
+    .toUpperCase();
+}
+
 export async function POST(request) {
   console.log('=== PAYNOW WEBHOOK RECEIVED ===');
   console.log('Timestamp:', new Date().toISOString());
@@ -17,7 +25,6 @@ export async function POST(request) {
     const contentType = request.headers.get('content-type') || '';
     let data = {};
 
-    // Parse request body — Paynow sends form-urlencoded, but we handle both
     if (contentType.includes('application/json')) {
       data = await request.json();
     } else {
@@ -27,27 +34,21 @@ export async function POST(request) {
       }
     }
 
-    // Log EVERYTHING for debugging
-    console.log('Webhook body:', JSON.stringify(data, null, 2));
-    console.log('All fields received:', Object.keys(data));
+    console.log('Raw webhook body:', JSON.stringify(data, null, 2));
 
-    // Extract fields (Paynow can use different case conventions)
-    const reference = data.reference || data.Reference || data.merchantref || data.merchantReference;
-    const paynowRef = data.paynowreference || data.paynowReference || data.PaynowReference;
+    const rawReference = data.reference || data.Reference || data.merchantref;
+    const reference = normalizeRef(rawReference);
+    const paynowRef = data.paynowreference || data.paynowReference;
     const amount = data.amount || data.Amount;
     const status = data.status || data.Status;
-    const pollUrl = data.pollurl || data.pollUrl || data.PollUrl;
+    const pollUrl = data.pollurl || data.pollUrl;
 
-    console.log('Extracted fields:', {
-      reference,
-      paynowRef,
-      amount,
-      status,
-      pollUrl,
-    });
+    console.log('Normalized reference:', JSON.stringify(reference));
+    console.log('Raw reference:', JSON.stringify(rawReference));
+    console.log('Status:', status);
 
     if (!reference) {
-      console.error('❌ No reference in webhook body');
+      console.error('❌ No reference in webhook');
       return new NextResponse('ok', { status: 200 });
     }
 
@@ -58,28 +59,67 @@ export async function POST(request) {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Find the payment record by reference
-    const { data: payment, error: findError } = await supabase
+    // Try multiple matching strategies
+    let payment = null;
+    let matchStrategy = 'none';
+
+    // Strategy 1: exact match
+    const { data: exactMatch } = await supabase
       .from('payments')
       .select('*')
       .eq('transaction_reference', reference)
-      .single();
+      .maybeSingle();
 
-    if (findError || !payment) {
+    if (exactMatch) {
+      payment = exactMatch;
+      matchStrategy = 'exact';
+    }
+
+    // Strategy 2: ilike match
+    if (!payment) {
+      const { data: ilikeMatch } = await supabase
+        .from('payments')
+        .select('*')
+        .ilike('transaction_reference', reference)
+        .maybeSingle();
+
+      if (ilikeMatch) {
+        payment = ilikeMatch;
+        matchStrategy = 'ilike';
+      }
+    }
+
+    // Strategy 3: contains match
+    if (!payment) {
+      const { data: containsMatch } = await supabase
+        .from('payments')
+        .select('*')
+        .ilike('transaction_reference', `%${reference}%`)
+        .maybeSingle();
+
+      if (containsMatch) {
+        payment = containsMatch;
+        matchStrategy = 'contains';
+      }
+    }
+
+    if (!payment) {
       console.error('❌ Payment not found for reference:', reference);
       return new NextResponse('ok', { status: 200 });
     }
 
-    console.log('✅ Payment found:', payment.id, 'current status:', payment.payment_status);
+    console.log('✅ Payment found via strategy:', matchStrategy);
+    console.log('   Payment ID:', payment.id);
+    console.log('   Current status:', payment.payment_status);
 
-    // Determine if payment was successful
+    // Determine paid status
     const statusLower = String(status || '').toLowerCase();
-    const isPaid = statusLower === 'paid' || statusLower === 'completed' || statusLower === 'ok';
+    const isPaid = ['paid', 'completed', 'ok', 'success'].includes(statusLower);
 
     if (isPaid) {
       console.log('💰 Payment confirmed as PAID');
 
-      // Update payment status to completed
+      // Update payment
       const { error: updateError } = await supabase
         .from('payments')
         .update({
@@ -92,12 +132,12 @@ export async function POST(request) {
         .eq('id', payment.id);
 
       if (updateError) {
-        console.error('❌ Error updating payment:', updateError);
+        console.error('❌ Update error:', updateError);
       } else {
         console.log('✅ Payment updated to completed');
       }
 
-      // Create subscription (only if it doesn't already exist)
+      // Check if subscription exists
       const { data: existingSub } = await supabase
         .from('subscriptions')
         .select('id')
@@ -105,7 +145,7 @@ export async function POST(request) {
         .maybeSingle();
 
       if (existingSub) {
-        console.log('ℹ️ Subscription already exists for this payment');
+        console.log('ℹ️ Subscription already exists');
       } else {
         const startDate = new Date();
         const endDate = new Date();
@@ -125,13 +165,13 @@ export async function POST(request) {
           });
 
         if (subError) {
-          console.error('❌ Subscription insert error:', subError);
+          console.error('❌ Subscription error:', subError);
         } else {
           console.log('✅ Subscription activated for user:', payment.user_id);
         }
       }
-    } else if (statusLower === 'cancelled' || statusLower === 'failed' || statusLower === 'declined') {
-      console.log('❌ Payment status:', status);
+    } else if (['cancelled', 'failed', 'declined'].includes(statusLower)) {
+      console.log('❌ Payment failed:', status);
 
       await supabase
         .from('payments')
@@ -143,26 +183,20 @@ export async function POST(request) {
         })
         .eq('id', payment.id);
     } else {
-      console.log('ℹ️ Payment status:', status, '— no action taken');
+      console.log('ℹ️ Status not actionable:', status);
     }
 
-    // Always return 200 OK — Paynow expects this
     return new NextResponse('ok', { status: 200 });
 
   } catch (error) {
     console.error('❌ Webhook error:', error.message);
-    console.error('Stack:', error.stack);
-    // Still return 200 to prevent retries
     return new NextResponse('ok', { status: 200 });
   }
 }
 
-/**
- * Health check — can be accessed via browser to verify the endpoint is active
- */
 export async function GET() {
   return NextResponse.json(
     { message: 'Paynow webhook endpoint is active' },
     { status: 200 }
   );
-        }
+    }
