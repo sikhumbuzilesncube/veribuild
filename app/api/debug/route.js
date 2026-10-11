@@ -5,59 +5,75 @@ export async function GET() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  // Diagnostic info
   const diag = {
     supabaseUrl: url ? `${url.substring(0, 30)}...` : 'MISSING',
     serviceKeySet: !!serviceKey,
     serviceKeyLength: serviceKey?.length || 0,
-    serviceKeyPrefix: serviceKey?.substring(0, 30) || 'NONE',
     serviceKeyIsJWT: serviceKey?.startsWith('eyJ') || false,
   };
 
   if (!url || !serviceKey) {
-    return NextResponse.json({
-      ...diag,
-      error: 'Missing env vars',
-    });
+    return NextResponse.json({ ...diag, error: 'Missing env vars' });
   }
 
   try {
     const supabase = createClient(url, serviceKey);
 
-    // Try to find the specific payment
-    const { data: payment, error: findError } = await supabase
+    // Get ALL payments with char codes
+    const { data: allPayments, error: allErr } = await supabase
       .from('payments')
-      .select('*')
-      .eq('transaction_reference', 'VB-MV3RZ0WU-J9FY0D')
+      .select('id, transaction_reference, payment_status')
+      .order('id', { ascending: false })
+      .limit(20);
+
+    // Character analysis
+    const charAnalysis = (allPayments || []).map(p => ({
+      id: p.id,
+      ref: p.transaction_reference,
+      status: p.payment_status,
+      length: p.transaction_reference?.length,
+      charCodes: p.transaction_reference
+        ? p.transaction_reference.split('').map(c => c.charCodeAt(0))
+        : null,
+      hasLeadingSpace: p.transaction_reference?.startsWith(' '),
+      hasTrailingSpace: p.transaction_reference?.endsWith(' '),
+      cleanedRef: p.transaction_reference?.trim().toUpperCase(),
+    }));
+
+    // Try finding the specific one with different methods
+    const targetRef = 'VB-MV3RZ0WU-J9FY0D';
+
+    const { data: exact } = await supabase
+      .from('payments')
+      .select('id, transaction_reference')
+      .eq('transaction_reference', targetRef)
       .maybeSingle();
 
-    // Try to list any payments
-    const { data: all, error: listError, count } = await supabase
+    const { data: trimmed } = await supabase
       .from('payments')
-      .select('id, transaction_reference', { count: 'exact' })
-      .limit(5);
+      .select('id, transaction_reference')
+      .eq('transaction_reference', targetRef.trim())
+      .maybeSingle();
+
+    const { data: ilike } = await supabase
+      .from('payments')
+      .select('id, transaction_reference')
+      .ilike('transaction_reference', `%${targetRef}%`)
+      .maybeSingle();
 
     return NextResponse.json({
       ...diag,
-      findQuery: {
-        success: !!payment,
-        error: findError?.message || null,
-        found: payment ? {
-          id: payment.id,
-          ref: payment.transaction_reference,
-          status: payment.payment_status,
-        } : null,
+      targetRef,
+      targetRefCharCodes: targetRef.split('').map(c => c.charCodeAt(0)),
+      queryResults: {
+        exactMatch: { found: !!exact, data: exact },
+        trimmedMatch: { found: !!trimmed, data: trimmed },
+        ilikeMatch: { found: !!ilike, data: ilike },
       },
-      listQuery: {
-        count: count,
-        error: listError?.message || null,
-        preview: all || [],
-      },
+      allPayments: charAnalysis,
+      allErr: allErr?.message || null,
     });
   } catch (err) {
-    return NextResponse.json({
-      ...diag,
-      fatalError: err.message,
-    });
+    return NextResponse.json({ ...diag, fatalError: err.message });
   }
       }
