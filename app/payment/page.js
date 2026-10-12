@@ -5,13 +5,6 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
-const PAYMENT_METHODS = [
-  { id: 'ecocash', name: 'EcoCash', icon: '📱' },
-  { id: 'innbucks', name: 'InnBucks', icon: '🏦' },
-  { id: 'onemoney', name: 'OneMoney', icon: '📲' },
-  { id: 'card', name: 'Visa / Mastercard', icon: '💳' },
-];
-
 const PLAN_DETAILS = {
   hardware: { name: 'Hardware Store', price: 15, duration: 'monthly' },
   construction: { name: 'Construction Company', price: 15, duration: 'monthly' },
@@ -24,7 +17,6 @@ export default function PaymentPage() {
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [phoneNumber, setPhoneNumber] = useState('');
 
   const userType = searchParams.get('type') || 'hardware';
   const amount = searchParams.get('amount') || '15';
@@ -36,9 +28,6 @@ export default function PaymentPage() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
-        if (user?.user_metadata?.phone) {
-          setPhoneNumber(user.user_metadata.phone);
-        }
       } catch (err) {
         console.error('Auth error:', err);
       } finally {
@@ -59,28 +48,29 @@ export default function PaymentPage() {
     setLoading(true);
 
     try {
-      // Generate unique reference
+      // Generate reference
       const reference = `VB-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`.toUpperCase();
 
-      // Save pending record to database
-      const { error: dbError } = await supabase
-        .from('payments')
-        .insert({
-          user_id: user.id,
+      // Save payment record via SERVER API (bypasses RLS)
+      const createResponse = await fetch('/api/paynow/create-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          userEmail: user.email,
           amount: parseFloat(amount),
-          currency: 'USD',
-          payment_method: userType,
-          payment_status: 'pending',
-          transaction_reference: reference,
-          provider: 'paynow',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
+          planType: userType,
+          reference: reference,
+        }),
+      });
 
-      if (dbError) {
-        console.error('Database error:', dbError);
-        throw new Error('Could not save payment record');
+      const createData = await createResponse.json();
+
+      if (!createResponse.ok) {
+        throw new Error(createData.error || 'Could not save payment record');
       }
+
+      console.log('Payment record created:', createData);
 
       // Build Paynow Custom Form URL
       const payload = `id=27343&amount=${amount}&amount_quantity=0.00&l=1&reference=${reference}`;
@@ -203,4 +193,4 @@ export default function PaymentPage() {
       </div>
     </div>
   );
-    }
+}
