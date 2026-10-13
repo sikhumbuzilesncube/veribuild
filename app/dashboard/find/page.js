@@ -14,6 +14,9 @@ const CATEGORIES = [
   { key: 'workers',      label: 'Skilled Workers',        table: 'workers',               nameField: 'full_name' },
 ];
 
+// Categories where a full profile page is worth showing
+const CATEGORIES_WITH_PROFILE = ['workers', 'architects'];
+
 function getTierRank(item) {
   if (item.subscription_status !== 'active') return 2;
   if (item.subscription_tier === 'premium') return 0;
@@ -40,14 +43,10 @@ function getTierBadgeClass(item) {
   return 'bg-blue-100 text-blue-800';
 }
 
-// Convert any phone format to WhatsApp digits
 function toWhatsAppNumber(phone) {
   if (!phone) return '';
-  // Keep only digits and a leading plus sign
   let cleaned = String(phone).replace(/[^\d+]/g, '');
-  // Strip leading plus for wa.me format
   cleaned = cleaned.replace(/^\+/, '');
-  // Zimbabwe: if it starts with 0, replace with 263
   if (cleaned.startsWith('0')) {
     cleaned = '263' + cleaned.slice(1);
   }
@@ -129,6 +128,8 @@ function FindContent() {
     const nameB = String(b[currentCat.nameField] || '').toLowerCase();
     return nameA.localeCompare(nameB);
   });
+
+  const showProfileButton = CATEGORIES_WITH_PROFILE.includes(activeCategory);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -225,7 +226,12 @@ function FindContent() {
           ) : (
             <div className="grid md:grid-cols-2 gap-4">
               {sorted.map((item) => (
-                <ProviderCard key={item.id} item={item} category={currentCat} />
+                <ProviderCard
+                  key={item.id}
+                  item={item}
+                  category={currentCat}
+                  showProfileButton={showProfileButton}
+                />
               ))}
             </div>
           )}
@@ -236,11 +242,16 @@ function FindContent() {
   );
 }
 
-function ProviderCard({ item, category }) {
+function ProviderCard({ item, category, showProfileButton }) {
+  const router = useRouter();
   const nameField = category.nameField;
   const displayName = item[nameField] || 'Unnamed';
   const cityName = CITIES.find((c) => c.id === item.city_id)?.name || '';
   const whatsappNumber = toWhatsAppNumber(item.phone);
+
+  const handleViewProfile = () => {
+    router.push(`/dashboard/find/${category.key}/${item.id}`);
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
@@ -317,7 +328,15 @@ function ProviderCard({ item, category }) {
             Email
           </a>
         )}
+        {showProfileButton && (
+          <button
+            onClick={handleViewProfile}
+            className="border border-[#F47B20] text-[#F47B20] px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#F47B20] hover:text-white transition"
+          >
+            View Profile
+          </button>
+        )}
       </div>
     </div>
   );
-}
+      }
