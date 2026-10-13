@@ -5,11 +5,31 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 
+function getPlanLabel(firm) {
+  if (!firm) return 'No Plan';
+  if (firm.subscription_status !== 'active') return 'No Plan';
+  if (firm.subscription_tier === 'premium') {
+    return firm.subscription_coverage === 'national'
+      ? 'Premium · National'
+      : 'Premium · Local';
+  }
+  return 'Standard';
+}
+
+function getBadgeClass(firm) {
+  if (!firm || firm.subscription_status !== 'active') {
+    return 'bg-yellow-100 text-yellow-800';
+  }
+  if (firm.subscription_tier === 'premium') {
+    return 'bg-[#F47B20] text-white';
+  }
+  return 'bg-blue-100 text-blue-800';
+}
+
 export default function ArchitectsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [architects, setArchitects] = useState([]);
-  const [myListing, setMyListing] = useState(null);
+  const [myFirm, setMyFirm] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -23,24 +43,17 @@ export default function ArchitectsPage() {
       const { data, error: fetchError } = await supabase
         .from('architects')
         .select('*')
-        .eq('subscription_status', 'active')
-        .order('rating', { ascending: false });
+        .eq('user_id', session.user.id)
+        .maybeSingle();
 
       if (fetchError) {
+        console.error('Firm lookup error:', fetchError);
         setError(fetchError.message);
         setLoading(false);
         return;
       }
 
-      setArchitects(data || []);
-
-      const { data: mine } = await supabase
-        .from('architects')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .maybeSingle();
-
-      setMyListing(mine || null);
+      setMyFirm(data || null);
       setLoading(false);
     }
     load();
@@ -51,7 +64,7 @@ export default function ArchitectsPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-[#F47B20] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading architects...</p>
+          <p className="text-gray-600">Loading firm...</p>
         </div>
       </div>
     );
@@ -62,7 +75,7 @@ export default function ArchitectsPage() {
       <Sidebar />
 
       <div className="md:ml-64 p-4 sm:p-6">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-3xl mx-auto">
 
           <div className="mb-6">
             <button
@@ -72,10 +85,10 @@ export default function ArchitectsPage() {
               ← Back to Dashboard
             </button>
             <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] mb-2">
-              Architects
+              My Firm
             </h1>
             <p className="text-gray-600 text-sm">
-              Architects, draftsmen, and plan designers in Zimbabwe.
+              Manage your firm listing and subscription.
             </p>
           </div>
 
@@ -92,54 +105,101 @@ export default function ArchitectsPage() {
             </button>
           </div>
 
-          {myListing ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <h2 className="text-base font-bold text-[#2C3E50]">Your Listing</h2>
-                  <p className="text-sm text-gray-600 mt-1">{myListing.firm_name}</p>
-                  {myListing.location && (
-                    <p className="text-xs text-gray-500">{myListing.location}</p>
-                  )}
+          {myFirm ? (
+            <>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h2 className="text-base font-bold text-[#2C3E50]">Your Firm</h2>
+                    <p className="text-lg text-gray-800 mt-1">{myFirm.firm_name}</p>
+                    <div className="mt-2 text-xs text-gray-500 space-y-0.5">
+                      {myFirm.contact_person && <div>Contact: {myFirm.contact_person}</div>}
+                      {myFirm.phone && <div>Tel: {myFirm.phone}</div>}
+                      {myFirm.email && <div>Email: {myFirm.email}</div>}
+                      {myFirm.location && <div>Location: {myFirm.location}</div>}
+                      {myFirm.services && myFirm.services.length > 0 && (
+                        <div>Services: {myFirm.services.join(', ')}</div>
+                      )}
+                      {myFirm.years_experience != null && (
+                        <div>Experience: {myFirm.years_experience} years</div>
+                      )}
+                      {(myFirm.price_per_m2_min || myFirm.price_per_m2_max) && (
+                        <div>
+                          Price range: ${myFirm.price_per_m2_min || 0}–$
+                          {myFirm.price_per_m2_max || 0} per m²
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className={`text-xs px-2 py-1 rounded ${getBadgeClass(myFirm)}`}>
+                      {getPlanLabel(myFirm)}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span
-                    className={`text-xs px-2 py-1 rounded ${
-                      myListing.subscription_tier === 'premium'
-                        ? 'bg-[#F47B20] text-white'
-                        : 'bg-gray-200 text-gray-700'
-                    }`}
+
+                <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => router.push('/dashboard/architects/new')}
+                    className="bg-[#F47B20] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
                   >
-                    {myListing.subscription_tier === 'premium' ? 'Premium' : 'Standard'}
-                  </span>
+                    Edit Firm
+                  </button>
+                  <button
+                    onClick={() => router.push('/dashboard/subscription?category=architect')}
+                    className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
+                  >
+                    {myFirm.subscription_status === 'active' ? 'Change Plan' : 'Choose a Plan'}
+                  </button>
                 </div>
               </div>
-              <div className="flex gap-2 pt-3 border-t border-gray-100">
-                <button
-                  onClick={() => router.push('/dashboard/architects/new')}
-                  className="bg-[#F47B20] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
-                >
-                  Edit Listing
-                </button>
-                <button
-                  onClick={() => router.push('/dashboard/subscription?category=architect')}
-                  className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
-                >
-                  Change Plan
-                </button>
-              </div>
-            </div>
+
+              {myFirm.subscription_status !== 'active' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                  <div className="font-semibold text-amber-900 mb-1">
+                    Your firm is not subscribed
+                  </div>
+                  <p className="text-sm text-amber-800 mb-3">
+                    Your firm appears in the marketplace. To also appear on template
+                    BOQ documents, choose a subscription plan.
+                  </p>
+                  <button
+                    onClick={() => router.push('/dashboard/subscription?category=architect')}
+                    className="bg-[#F47B20] text-white px-5 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
+                  >
+                    Choose a Plan
+                  </button>
+                </div>
+              )}
+
+              {myFirm.subscription_status === 'active' && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                  <div className="font-semibold text-green-900 mb-1">
+                    Your firm is active
+                  </div>
+                  <p className="text-sm text-green-800">
+                    {myFirm.subscription_tier === 'premium' &&
+                    myFirm.subscription_coverage === 'national'
+                      ? 'You appear on template BOQ documents in all 47 cities.'
+                      : myFirm.subscription_tier === 'premium'
+                      ? 'You appear on template BOQ documents in your city.'
+                      : 'You appear in the marketplace directory. Upgrade to appear on template BOQ documents.'}
+                  </p>
+                </div>
+              )}
+            </>
           ) : (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-              <div className="font-semibold text-amber-900 mb-1">
-                You do not have a listing yet
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 mb-6">
+              <div className="font-semibold text-amber-900 mb-2 text-lg">
+                You have not created a firm listing yet
               </div>
-              <p className="text-sm text-amber-800 mb-3">
-                Create your architect listing to appear in the marketplace and on template BOQs.
+              <p className="text-sm text-amber-800 mb-4">
+                Create your firm listing to appear in the marketplace and on template
+                BOQ documents.
               </p>
               <button
                 onClick={() => router.push('/dashboard/architects/new')}
-                className="bg-[#F47B20] text-white px-5 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
+                className="bg-[#F47B20] text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
               >
                 Create Listing
               </button>
@@ -152,54 +212,17 @@ export default function ArchitectsPage() {
             </div>
           )}
 
-          <h2 className="text-lg font-bold text-[#2C3E50] mb-4">
-            Listed Architects
-          </h2>
-
-          {architects.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-              <p className="text-gray-500">No architects listed yet.</p>
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-2 gap-4">
-              {architects.map((arch) => (
-                <div
-                  key={arch.id}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
-                >
-                  <h3 className="font-bold text-[#2C3E50]">
-                    {arch.firm_name}
-                    {arch.subscription_tier === 'premium' && (
-                      <span className="ml-2 text-xs bg-[#F47B20] text-white px-2 py-0.5 rounded">
-                        Featured
-                      </span>
-                    )}
-                  </h3>
-                  {arch.contact_person && (
-                    <p className="text-xs text-gray-500 mt-0.5">{arch.contact_person}</p>
-                  )}
-                  {arch.services && arch.services.length > 0 && (
-                    <p className="text-xs text-gray-600 mt-1">
-                      {arch.services.join(', ')}
-                    </p>
-                  )}
-                  {(arch.price_per_m2_min || arch.price_per_m2_max) && (
-                    <p className="text-xs text-gray-600 mt-1">
-                      ${arch.price_per_m2_min || 0}–${arch.price_per_m2_max || 0} per m²
-                    </p>
-                  )}
-                  <div className="mt-2 text-xs text-gray-500 space-y-0.5">
-                    {arch.phone && <div>Tel: {arch.phone}</div>}
-                    {arch.email && <div>Email: {arch.email}</div>}
-                    {arch.location && <div>Location: {arch.location}</div>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-blue-900">
+            <div className="font-semibold mb-1">How it works</div>
+            <p>
+              Your firm is visible in the marketplace for homeowners and contractors.
+              When you subscribe to a plan, your firm also appears on template BOQ
+              documents generated in your city (or all cities for the national plan).
+            </p>
+          </div>
 
         </div>
       </div>
     </div>
   );
-        }
+         }
