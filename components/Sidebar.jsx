@@ -5,14 +5,12 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-// ------------------------------------------------------------
-// Sidebar items per role
-// ------------------------------------------------------------
 const SIDEBAR_ITEMS = {
   client: [
     { label: 'Dashboard',           href: '/dashboard' },
     { label: 'New BOQ',             href: '/dashboard/new-project' },
     { label: 'BOQ Without a Plan',  href: '/dashboard/template' },
+    { label: 'Find Providers',      href: '/dashboard/find' },
     { label: 'Jobs',                href: '/dashboard/jobs' },
     { label: 'My Projects',         href: '/dashboard/projects' },
     { label: 'Settings',            href: '/dashboard/settings' },
@@ -50,9 +48,6 @@ const SIDEBAR_ITEMS = {
   ],
 };
 
-// ------------------------------------------------------------
-// Which URL prefix identifies the active page
-// ------------------------------------------------------------
 function isActive(currentPath, href) {
   if (href === '/dashboard') {
     return currentPath === '/dashboard';
@@ -96,7 +91,6 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile header */}
       <div className="md:hidden bg-[#2C3E50] text-white p-4 flex justify-between items-center sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-sm">
@@ -113,7 +107,6 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#2C3E50] text-white p-4 border-t border-[#F47B20]/30">
           <nav className="space-y-3">
@@ -124,9 +117,7 @@ export default function Sidebar() {
                   key={item.href}
                   href={item.href}
                   className={`block py-3 px-4 rounded-lg transition font-medium ${
-                    active
-                      ? 'bg-[#F47B20]'
-                      : 'hover:bg-[#F47B20]/20'
+                    active ? 'bg-[#F47B20]' : 'hover:bg-[#F47B20]/20'
                   }`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
@@ -144,7 +135,6 @@ export default function Sidebar() {
         </div>
       )}
 
-      {/* Desktop sidebar */}
       <div className="fixed left-0 top-0 h-full w-64 bg-[#2C3E50] text-white p-6 hidden md:block overflow-y-auto">
         <div className="flex items-center gap-2 mb-8">
           <div className="w-8 h-8 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-sm">
@@ -161,9 +151,7 @@ export default function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={`block py-2.5 px-4 rounded-lg transition font-medium text-sm ${
-                  active
-                    ? 'bg-[#F47B20]'
-                    : 'hover:bg-[#F47B20]/20'
+                  active ? 'bg-[#F47B20]' : 'hover:bg-[#F47B20]/20'
                 }`}
               >
                 {item.label}
@@ -180,4 +168,4 @@ export default function Sidebar() {
       </div>
     </>
   );
-    }
+     }
