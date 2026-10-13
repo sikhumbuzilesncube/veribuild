@@ -1,0 +1,305 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
+import { supabase } from '@/lib/supabase';
+import Sidebar from '@/components/Sidebar';
+import { CITIES } from '@/lib/cities';
+
+const CATEGORIES = [
+  { key: 'hardware',     label: 'Hardware Stores',       table: 'hardware_stores',       nameField: 'store_name' },
+  { key: 'construction', label: 'Construction Companies', table: 'construction_companies', nameField: 'company_name' },
+  { key: 'architects',   label: 'Architects',            table: 'architects',            nameField: 'firm_name' },
+  { key: 'workers',      label: 'Skilled Workers',       table: 'workers',               nameField: 'full_name' },
+];
+
+function getTierRank(item) {
+  if (item.subscription_status !== 'active') return 2;
+  if (item.subscription_tier === 'premium') return 0;
+  return 1;
+}
+
+function getTierLabel(item) {
+  if (item.subscription_status !== 'active') return 'Not Subscribed';
+  if (item.subscription_tier === 'premium') {
+    return item.subscription_coverage === 'national'
+      ? 'Premium · National'
+      : 'Premium · Local';
+  }
+  return 'Standard';
+}
+
+function getTierBadgeClass(item) {
+  if (item.subscription_status !== 'active') {
+    return 'bg-gray-100 text-gray-700';
+  }
+  if (item.subscription_tier === 'premium') {
+    return 'bg-[#F47B20] text-white';
+  }
+  return 'bg-blue-100 text-blue-800';
+}
+
+export default function FindPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <FindContent />
+    </Suspense>
+  );
+}
+
+function FindContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialCategory = searchParams.get('category') || 'hardware';
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [activeCategory, setActiveCategory] = useState(initialCategory);
+  const [cityFilter, setCityFilter] = useState('');
+  const [allData, setAllData] = useState({});
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  useEffect(() => {
+    async function loadAll() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/login');
+        return;
+      }
+
+      const result = {};
+
+      for (const cat of CATEGORIES) {
+        const { data, error: fetchError } = await supabase
+          .from(cat.table)
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (fetchError) {
+          console.error(`Error loading ${cat.table}:`, fetchError);
+          result[cat.key] = [];
+        } else {
+          result[cat.key] = data || [];
+        }
+      }
+
+      setAllData(result);
+      setDataLoaded(true);
+      setLoading(false);
+    }
+    loadAll();
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-[#F47B20] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading providers...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const currentCat = CATEGORIES.find((c) => c.key === activeCategory);
+  const rawList = allData[activeCategory] || [];
+
+  // Filter by city, unless "All cities" is selected
+  const cityFiltered = cityFilter
+    ? rawList.filter((item) => String(item.city_id) === String(cityFilter))
+    : rawList;
+
+  // Sort: Premium first, then Standard, then Not Subscribed. Alphabetical inside.
+  const sorted = [...cityFiltered].sort((a, b) => {
+    const rankA = getTierRank(a);
+    const rankB = getTierRank(b);
+    if (rankA !== rankB) return rankA - rankB;
+    const nameA = String(a[currentCat.nameField] || '').toLowerCase();
+    const nameB = String(b[currentCat.nameField] || '').toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Sidebar />
+
+      <div className="md:ml-64 p-4 sm:p-6">
+        <div className="max-w-5xl mx-auto">
+
+          <div className="mb-6">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="text-sm text-gray-600 hover:text-gray-800 mb-3"
+            >
+              ← Back to Dashboard
+            </button>
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] mb-2">
+              Find Providers
+            </h1>
+            <p className="text-gray-600 text-sm">
+              Browse hardware stores, construction companies, architects, and
+              skilled workers across Zimbabwe.
+            </p>
+          </div>
+
+          {/* Category tabs */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 mb-4 flex flex-wrap gap-2">
+            {CATEGORIES.map((cat) => {
+              const isActive = activeCategory === cat.key;
+              const count = (allData[cat.key] || []).length;
+              return (
+                <button
+                  key={cat.key}
+                  onClick={() => setActiveCategory(cat.key)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                    isActive
+                      ? 'bg-[#2C3E50] text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {cat.label}
+                  <span className={`ml-2 text-xs ${isActive ? 'text-gray-200' : 'text-gray-500'}`}>
+                    ({count})
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* City filter */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6 flex flex-wrap items-center gap-3">
+            <label className="text-sm font-medium text-gray-700">
+              Filter by city:
+            </label>
+            <select
+              value={cityFilter}
+              onChange={(e) => setCityFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none text-sm"
+            >
+              <option value="">All cities</option>
+              {CITIES.map((c) => (
+                <option key={c.id} value={String(c.id)}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            {cityFilter && (
+              <button
+                onClick={() => setCityFilter('')}
+                className="text-sm text-[#F47B20] hover:underline"
+              >
+                Clear filter
+              </button>
+            )}
+            <span className="text-xs text-gray-500 ml-auto">
+              {sorted.length} result{sorted.length === 1 ? '' : 's'}
+            </span>
+          </div>
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          {/* Results */}
+          {sorted.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+              <div className="text-6xl mb-4 text-gray-300">[ ]</div>
+              <p className="text-gray-500 mb-2">
+                No {currentCat.label.toLowerCase()} found
+                {cityFilter ? ' in that city' : ''}.
+              </p>
+              <p className="text-xs text-gray-400">
+                Try a different city or category.
+              </p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-4">
+              {sorted.map((item) => (
+                <ProviderCard key={item.id} item={item} category={currentCat} />
+              ))}
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProviderCard({ item, category }) {
+  const nameField = category.nameField;
+  const displayName = item[nameField] || 'Unnamed';
+  const cityName = CITIES.find((c) => c.id === item.city_id)?.name || '';
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="flex justify-between items-start mb-3">
+        <div className="flex-1">
+          <h3 className="font-bold text-[#2C3E50]">{displayName}</h3>
+          {item.contact_person && (
+            <p className="text-xs text-gray-500 mt-0.5">Contact: {item.contact_person}</p>
+          )}
+          {category.key === 'workers' && item.trade && (
+            <p className="text-xs text-gray-600 mt-1">
+              {item.trade}
+              {item.sub_trade ? ` — ${item.sub_trade}` : ''}
+            </p>
+          )}
+          {category.key === 'architects' && item.services && item.services.length > 0 && (
+            <p className="text-xs text-gray-600 mt-1">{item.services.join(', ')}</p>
+          )}
+          {category.key === 'construction' && item.ad_text && (
+            <p className="text-xs text-gray-600 mt-1 line-clamp-2">{item.ad_text}</p>
+          )}
+        </div>
+        <span className={`text-xs px-2 py-1 rounded whitespace-nowrap ml-2 ${getTierBadgeClass(item)}`}>
+          {getTierLabel(item)}
+        </span>
+      </div>
+
+      <div className="text-xs text-gray-500 space-y-0.5 pt-3 border-t border-gray-100">
+        {cityName && <div>Location: {cityName}{item.location ? ` — ${item.location}` : ''}</div>}
+        {item.phone && <div>Tel: {item.phone}</div>}
+        {item.email && <div>Email: {item.email}</div>}
+        {item.website && <div>Web: {item.website}</div>}
+        {category.key === 'workers' && item.daily_rate_usd != null && (
+          <div>Daily rate: ${item.daily_rate_usd}</div>
+        )}
+        {category.key === 'workers' && item.daily_rate_usd == null && (
+          <div>Daily rate: Rate on request</div>
+        )}
+        {category.key === 'architects' && item.years_experience != null && (
+          <div>Experience: {item.years_experience} years</div>
+        )}
+        {category.key === 'architects' &&
+          (item.price_per_m2_min || item.price_per_m2_max) && (
+            <div>
+              ${item.price_per_m2_min || 0}–${item.price_per_m2_max || 0} per m²
+            </div>
+          )}
+      </div>
+
+      <div className="flex gap-2 mt-3">
+        {item.phone && (
+          <a
+            href={`tel:${item.phone}`}
+            className="bg-[#F47B20] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#E06B10] transition"
+          >
+            Call
+          </a>
+        )}
+        {item.email && (
+          <a
+            href={`mailto:${item.email}`}
+            className="border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-50 transition"
+          >
+            Email
+          </a>
+        )}
+      </div>
+    </div>
+  );
+  }
