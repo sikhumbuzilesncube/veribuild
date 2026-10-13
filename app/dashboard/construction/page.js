@@ -5,11 +5,31 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 
+function getPlanLabel(company) {
+  if (!company) return 'No Plan';
+  if (company.subscription_status !== 'active') return 'No Plan';
+  if (company.subscription_tier === 'premium') {
+    return company.subscription_coverage === 'national'
+      ? 'Premium · National'
+      : 'Premium · Local';
+  }
+  return 'Standard';
+}
+
+function getBadgeClass(company) {
+  if (!company || company.subscription_status !== 'active') {
+    return 'bg-yellow-100 text-yellow-800';
+  }
+  if (company.subscription_tier === 'premium') {
+    return 'bg-[#F47B20] text-white';
+  }
+  return 'bg-blue-100 text-blue-800';
+}
+
 export default function ConstructionPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [companies, setCompanies] = useState([]);
-  const [myListing, setMyListing] = useState(null);
+  const [myCompany, setMyCompany] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -23,25 +43,17 @@ export default function ConstructionPage() {
       const { data, error: fetchError } = await supabase
         .from('construction_companies')
         .select('*')
-        .eq('subscription_status', 'active')
-        .order('company_name', { ascending: true });
+        .eq('user_id', session.user.id)
+        .maybeSingle();
 
       if (fetchError) {
-        console.error('Construction list error:', fetchError);
+        console.error('Company lookup error:', fetchError);
         setError(fetchError.message);
         setLoading(false);
         return;
       }
 
-      setCompanies(data || []);
-
-      const { data: mine } = await supabase
-        .from('construction_companies')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .maybeSingle();
-
-      setMyListing(mine || null);
+      setMyCompany(data || null);
       setLoading(false);
     }
     load();
@@ -52,7 +64,7 @@ export default function ConstructionPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-[#F47B20] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading construction companies...</p>
+          <p className="text-gray-600">Loading company...</p>
         </div>
       </div>
     );
@@ -63,7 +75,7 @@ export default function ConstructionPage() {
       <Sidebar />
 
       <div className="md:ml-64 p-4 sm:p-6">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-3xl mx-auto">
 
           <div className="mb-6">
             <button
@@ -73,10 +85,10 @@ export default function ConstructionPage() {
               ← Back to Dashboard
             </button>
             <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] mb-2">
-              Construction Companies
+              My Company
             </h1>
             <p className="text-gray-600 text-sm">
-              Builders, contractors, and civil works companies in Zimbabwe.
+              Manage your company listing and subscription.
             </p>
           </div>
 
@@ -93,54 +105,89 @@ export default function ConstructionPage() {
             </button>
           </div>
 
-          {myListing ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <h2 className="text-base font-bold text-[#2C3E50]">Your Company</h2>
-                  <p className="text-sm text-gray-600 mt-1">{myListing.company_name}</p>
-                  {myListing.location && (
-                    <p className="text-xs text-gray-500">{myListing.location}</p>
-                  )}
+          {myCompany ? (
+            <>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h2 className="text-base font-bold text-[#2C3E50]">Your Company</h2>
+                    <p className="text-lg text-gray-800 mt-1">{myCompany.company_name}</p>
+                    <div className="mt-2 text-xs text-gray-500 space-y-0.5">
+                      {myCompany.contact_person && <div>Contact: {myCompany.contact_person}</div>}
+                      {myCompany.phone && <div>Tel: {myCompany.phone}</div>}
+                      {myCompany.email && <div>Email: {myCompany.email}</div>}
+                      {myCompany.website && <div>Website: {myCompany.website}</div>}
+                      {myCompany.location && <div>Location: {myCompany.location}</div>}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className={`text-xs px-2 py-1 rounded ${getBadgeClass(myCompany)}`}>
+                      {getPlanLabel(myCompany)}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span
-                    className={`text-xs px-2 py-1 rounded ${
-                      myListing.subscription_tier === 'premium'
-                        ? 'bg-[#F47B20] text-white'
-                        : 'bg-gray-200 text-gray-700'
-                    }`}
+
+                <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => router.push('/dashboard/construction/new')}
+                    className="bg-[#F47B20] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
                   >
-                    {myListing.subscription_tier === 'premium' ? 'Premium' : 'Standard'}
-                  </span>
+                    Edit Company
+                  </button>
+                  <button
+                    onClick={() => router.push('/dashboard/subscription?category=construction')}
+                    className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
+                  >
+                    {myCompany.subscription_status === 'active' ? 'Change Plan' : 'Choose a Plan'}
+                  </button>
                 </div>
               </div>
-              <div className="flex gap-2 pt-3 border-t border-gray-100">
-                <button
-                  onClick={() => router.push('/dashboard/construction/new')}
-                  className="bg-[#F47B20] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
-                >
-                  Edit Listing
-                </button>
-                <button
-                  onClick={() => router.push('/dashboard/subscription?category=construction')}
-                  className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
-                >
-                  Change Plan
-                </button>
-              </div>
-            </div>
+
+              {myCompany.subscription_status !== 'active' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                  <div className="font-semibold text-amber-900 mb-1">
+                    Your company is not subscribed
+                  </div>
+                  <p className="text-sm text-amber-800 mb-3">
+                    Your company appears in the marketplace. To also appear on BOQ
+                    documents, choose a subscription plan.
+                  </p>
+                  <button
+                    onClick={() => router.push('/dashboard/subscription?category=construction')}
+                    className="bg-[#F47B20] text-white px-5 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
+                  >
+                    Choose a Plan
+                  </button>
+                </div>
+              )}
+
+              {myCompany.subscription_status === 'active' && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                  <div className="font-semibold text-green-900 mb-1">
+                    Your company is active
+                  </div>
+                  <p className="text-sm text-green-800">
+                    {myCompany.subscription_tier === 'premium' &&
+                    myCompany.subscription_coverage === 'national'
+                      ? 'You appear on BOQ documents in all 47 cities.'
+                      : myCompany.subscription_tier === 'premium'
+                      ? 'You appear on BOQ documents in your city.'
+                      : 'You appear in the marketplace directory. Upgrade to appear on BOQ documents.'}
+                  </p>
+                </div>
+              )}
+            </>
           ) : (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-              <div className="font-semibold text-amber-900 mb-1">
-                You do not have a listing yet
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 mb-6">
+              <div className="font-semibold text-amber-900 mb-2 text-lg">
+                You have not created a company listing yet
               </div>
-              <p className="text-sm text-amber-800 mb-3">
+              <p className="text-sm text-amber-800 mb-4">
                 Create your company listing to appear in the marketplace and on BOQ documents.
               </p>
               <button
                 onClick={() => router.push('/dashboard/construction/new')}
-                className="bg-[#F47B20] text-white px-5 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
+                className="bg-[#F47B20] text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
               >
                 Create Listing
               </button>
@@ -153,44 +200,17 @@ export default function ConstructionPage() {
             </div>
           )}
 
-          <h2 className="text-lg font-bold text-[#2C3E50] mb-4">
-            Listed Companies
-          </h2>
-
-          {companies.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-              <p className="text-gray-500">No construction companies listed yet.</p>
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-2 gap-4">
-              {companies.map((company) => (
-                <div
-                  key={company.id}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
-                >
-                  <h3 className="font-bold text-[#2C3E50]">
-                    {company.company_name}
-                    {company.subscription_tier === 'premium' && (
-                      <span className="ml-2 text-xs bg-[#F47B20] text-white px-2 py-0.5 rounded">
-                        Featured
-                      </span>
-                    )}
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {company.ad_text || 'No description available'}
-                  </p>
-                  <div className="mt-2 text-xs text-gray-500 space-y-0.5">
-                    {company.phone && <div>Tel: {company.phone}</div>}
-                    {company.email && <div>Email: {company.email}</div>}
-                    {company.location && <div>Location: {company.location}</div>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-blue-900">
+            <div className="font-semibold mb-1">How it works</div>
+            <p>
+              Your company is visible in the marketplace for homeowners and contractors.
+              When you subscribe to a plan, your company also appears on BOQ documents
+              generated in your city (or all cities for the national plan).
+            </p>
+          </div>
 
         </div>
       </div>
     </div>
   );
-                }
+  }
