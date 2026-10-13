@@ -104,10 +104,6 @@ export default function NewConstructionListing() {
         city_id: parseInt(formData.city_id, 10) || 1,
         location: formData.location.trim() || null,
         ad_text: formData.ad_text.trim() || null,
-        subscription_tier: 'standard',
-        subscription_coverage: 'local',
-        subscription_status: 'active',
-        featured_city_ids: [],
       };
 
       let result;
@@ -117,7 +113,15 @@ export default function NewConstructionListing() {
           .update(payload)
           .eq('id', existingListing.id);
       } else {
-        result = await supabase.from('construction_companies').insert([payload]);
+        result = await supabase.from('construction_companies').insert([
+          {
+            ...payload,
+            subscription_tier: null,
+            subscription_coverage: null,
+            subscription_status: 'none',
+            featured_city_ids: [],
+          },
+        ]);
       }
 
       if (result.error) {
@@ -155,7 +159,7 @@ export default function NewConstructionListing() {
             onClick={() => router.push('/dashboard/construction')}
             className="text-sm text-gray-600 hover:text-gray-800 mb-3"
           >
-            ← Back to Construction
+            ← Back to My Company
           </button>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] mb-2">
             {existingListing ? 'Edit Your Company' : 'List Your Company'}
@@ -270,7 +274,7 @@ export default function NewConstructionListing() {
           </div>
 
           <p className="text-xs text-gray-500 text-center">
-            Your listing is created with the Standard tier by default. You can upgrade later from the Subscription page.
+            After creating your listing, choose a subscription plan to appear on BOQ documents.
           </p>
 
         </form>
@@ -290,7 +294,7 @@ function Section({ title, children }) {
   );
 }
 
-function Input({ label, name, value, onChange, placeholder, required, type = 'text', step }) {
+function Input({ label, name, value, onChange, placeholder, required, type = 'text' }) {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -303,7 +307,6 @@ function Input({ label, name, value, onChange, placeholder, required, type = 'te
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        step={step}
         className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition text-sm ${
           required && !value ? 'border-red-400 bg-red-50' : 'border-gray-300'
         }`}
@@ -330,4 +333,4 @@ function Select({ label, name, value, onChange, options }) {
       </select>
     </div>
   );
-            }
+    }
