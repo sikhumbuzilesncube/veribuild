@@ -8,10 +8,10 @@ import Sidebar from '@/components/Sidebar';
 import { CITIES } from '@/lib/cities';
 
 const CATEGORIES = [
-  { key: 'hardware',     label: 'Hardware Stores',       table: 'hardware_stores',       nameField: 'store_name' },
+  { key: 'hardware',     label: 'Hardware Stores',        table: 'hardware_stores',       nameField: 'store_name' },
   { key: 'construction', label: 'Construction Companies', table: 'construction_companies', nameField: 'company_name' },
-  { key: 'architects',   label: 'Architects',            table: 'architects',            nameField: 'firm_name' },
-  { key: 'workers',      label: 'Skilled Workers',       table: 'workers',               nameField: 'full_name' },
+  { key: 'architects',   label: 'Architects',             table: 'architects',            nameField: 'firm_name' },
+  { key: 'workers',      label: 'Skilled Workers',        table: 'workers',               nameField: 'full_name' },
 ];
 
 function getTierRank(item) {
@@ -40,6 +40,20 @@ function getTierBadgeClass(item) {
   return 'bg-blue-100 text-blue-800';
 }
 
+// Convert any phone format to WhatsApp digits
+function toWhatsAppNumber(phone) {
+  if (!phone) return '';
+  // Keep only digits and a leading plus sign
+  let cleaned = String(phone).replace(/[^\d+]/g, '');
+  // Strip leading plus for wa.me format
+  cleaned = cleaned.replace(/^\+/, '');
+  // Zimbabwe: if it starts with 0, replace with 263
+  if (cleaned.startsWith('0')) {
+    cleaned = '263' + cleaned.slice(1);
+  }
+  return cleaned;
+}
+
 export default function FindPage() {
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
@@ -58,7 +72,6 @@ function FindContent() {
   const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [cityFilter, setCityFilter] = useState('');
   const [allData, setAllData] = useState({});
-  const [dataLoaded, setDataLoaded] = useState(false);
 
   useEffect(() => {
     async function loadAll() {
@@ -85,7 +98,6 @@ function FindContent() {
       }
 
       setAllData(result);
-      setDataLoaded(true);
       setLoading(false);
     }
     loadAll();
@@ -105,12 +117,10 @@ function FindContent() {
   const currentCat = CATEGORIES.find((c) => c.key === activeCategory);
   const rawList = allData[activeCategory] || [];
 
-  // Filter by city, unless "All cities" is selected
   const cityFiltered = cityFilter
     ? rawList.filter((item) => String(item.city_id) === String(cityFilter))
     : rawList;
 
-  // Sort: Premium first, then Standard, then Not Subscribed. Alphabetical inside.
   const sorted = [...cityFiltered].sort((a, b) => {
     const rankA = getTierRank(a);
     const rankB = getTierRank(b);
@@ -143,7 +153,6 @@ function FindContent() {
             </p>
           </div>
 
-          {/* Category tabs */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 mb-4 flex flex-wrap gap-2">
             {CATEGORIES.map((cat) => {
               const isActive = activeCategory === cat.key;
@@ -167,7 +176,6 @@ function FindContent() {
             })}
           </div>
 
-          {/* City filter */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6 flex flex-wrap items-center gap-3">
             <label className="text-sm font-medium text-gray-700">
               Filter by city:
@@ -203,7 +211,6 @@ function FindContent() {
             </div>
           )}
 
-          {/* Results */}
           {sorted.length === 0 ? (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
               <div className="text-6xl mb-4 text-gray-300">[ ]</div>
@@ -233,6 +240,7 @@ function ProviderCard({ item, category }) {
   const nameField = category.nameField;
   const displayName = item[nameField] || 'Unnamed';
   const cityName = CITIES.find((c) => c.id === item.city_id)?.name || '';
+  const whatsappNumber = toWhatsAppNumber(item.phone);
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
@@ -282,13 +290,23 @@ function ProviderCard({ item, category }) {
           )}
       </div>
 
-      <div className="flex gap-2 mt-3">
+      <div className="flex flex-wrap gap-2 mt-3">
         {item.phone && (
           <a
             href={`tel:${item.phone}`}
             className="bg-[#F47B20] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#E06B10] transition"
           >
             Call
+          </a>
+        )}
+        {whatsappNumber && (
+          <a
+            href={`https://wa.me/${whatsappNumber}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-[#25D366] text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#1ebe5a] transition"
+          >
+            WhatsApp
           </a>
         )}
         {item.email && (
@@ -302,4 +320,4 @@ function ProviderCard({ item, category }) {
       </div>
     </div>
   );
-  }
+}
