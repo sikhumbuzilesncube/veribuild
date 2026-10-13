@@ -35,7 +35,6 @@ export default function NewArchitectListing() {
     price_per_m2_max: '',
     years_experience: '',
     description: '',
-    portfolio_link: '',
   });
 
   useEffect(() => {
@@ -54,14 +53,27 @@ export default function NewArchitectListing() {
 
       if (data) {
         setExistingListing(data);
+        setFormData({
+          firm_name: data.firm_name || '',
+          contact_person: data.contact_person || '',
+          phone: data.phone || '',
+          email: data.email || '',
+          city_id: String(data.city_id || 1),
+          location: data.location || '',
+          services: data.services || [],
+          price_per_m2_min: data.price_per_m2_min != null ? String(data.price_per_m2_min) : '',
+          price_per_m2_max: data.price_per_m2_max != null ? String(data.price_per_m2_max) : '',
+          years_experience: data.years_experience != null ? String(data.years_experience) : '',
+          description: data.description || '',
+        });
       } else {
         const metadata = session.user.user_metadata || {};
         setFormData((prev) => ({
           ...prev,
+          firm_name: metadata.company || '',
           contact_person: metadata.full_name || '',
           email: session.user.email || '',
           phone: metadata.phone || '',
-          city_id: '1',
         }));
       }
 
@@ -115,15 +127,16 @@ export default function NewArchitectListing() {
         city_id: parseInt(formData.city_id, 10) || 1,
         location: formData.location.trim() || null,
         services: formData.services || [],
-        price_per_m2_min: formData.price_per_m2_min ? parseFloat(formData.price_per_m2_min) : null,
-        price_per_m2_max: formData.price_per_m2_max ? parseFloat(formData.price_per_m2_max) : null,
-        years_experience: formData.years_experience ? parseInt(formData.years_experience, 10) : null,
+        price_per_m2_min: formData.price_per_m2_min
+          ? parseFloat(formData.price_per_m2_min)
+          : null,
+        price_per_m2_max: formData.price_per_m2_max
+          ? parseFloat(formData.price_per_m2_max)
+          : null,
+        years_experience: formData.years_experience
+          ? parseInt(formData.years_experience, 10)
+          : null,
         description: formData.description.trim() || null,
-        subscription_tier: 'standard',
-        subscription_coverage: 'local',
-        subscription_status: 'active',
-        featured_city_ids: [],
-        is_verified: false,
       };
 
       let result;
@@ -133,7 +146,16 @@ export default function NewArchitectListing() {
           .update(payload)
           .eq('id', existingListing.id);
       } else {
-        result = await supabase.from('architects').insert([payload]);
+        result = await supabase.from('architects').insert([
+          {
+            ...payload,
+            subscription_tier: null,
+            subscription_coverage: null,
+            subscription_status: 'none',
+            featured_city_ids: [],
+            is_verified: false,
+          },
+        ]);
       }
 
       if (result.error) {
@@ -171,10 +193,10 @@ export default function NewArchitectListing() {
             onClick={() => router.push('/dashboard/architects')}
             className="text-sm text-gray-600 hover:text-gray-800 mb-3"
           >
-            ← Back to Architects
+            ← Back to My Firm
           </button>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] mb-2">
-            {existingListing ? 'Edit Your Listing' : 'Create Your Listing'}
+            {existingListing ? 'Edit Your Firm' : 'Create Your Firm Listing'}
           </h1>
           <p className="text-gray-600 text-sm">
             Add your firm's details to appear in the marketplace and on template BOQ documents.
@@ -310,18 +332,6 @@ export default function NewArchitectListing() {
                 placeholder="Describe your firm, the types of projects you handle, and what makes you a good choice."
               />
             </div>
-            <div className="mt-4">
-              <Input
-                label="Portfolio Link (optional)"
-                name="portfolio_link"
-                value={formData.portfolio_link}
-                onChange={handleChange}
-                placeholder="https://yourportfolio.com"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Note: the portfolio link is stored but not yet displayed on listings. It will be shown once the profile page is built.
-              </p>
-            </div>
           </Section>
 
           {error && (
@@ -348,7 +358,7 @@ export default function NewArchitectListing() {
           </div>
 
           <p className="text-xs text-gray-500 text-center">
-            Your listing is created with the Standard tier by default. You can upgrade later from the Subscription page.
+            After creating your listing, choose a subscription plan to appear on template BOQ documents.
           </p>
 
         </form>
@@ -408,4 +418,4 @@ function Select({ label, name, value, onChange, options }) {
       </select>
     </div>
   );
-                                                         }
+    }
