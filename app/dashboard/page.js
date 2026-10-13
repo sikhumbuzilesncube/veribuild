@@ -110,6 +110,8 @@ export default function Dashboard() {
     );
   }
 
+  const isClient = userType === 'client';
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Sidebar />
@@ -179,6 +181,64 @@ export default function Dashboard() {
             <p className="text-2xl md:text-3xl font-bold text-[#2C3E50]">{stats.active}</p>
           </div>
         </div>
+
+        {isClient && (
+          <div className="mb-6 md:mb-8">
+            <h2 className="text-base md:text-lg font-bold text-[#2C3E50] mb-3">
+              Find Providers
+            </h2>
+            <p className="text-xs md:text-sm text-gray-500 mb-3">
+              Browse hardware stores, construction companies, architects, and
+              skilled workers across Zimbabwe.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <button
+                onClick={() => router.push('/dashboard/find?category=hardware')}
+                className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-[#F47B20] transition"
+              >
+                <div className="font-bold text-[#2C3E50] mb-1 text-sm md:text-base">
+                  Hardware Stores
+                </div>
+                <div className="text-xs text-gray-500">
+                  Building supplies and materials
+                </div>
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/find?category=construction')}
+                className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-[#F47B20] transition"
+              >
+                <div className="font-bold text-[#2C3E50] mb-1 text-sm md:text-base">
+                  Construction
+                </div>
+                <div className="text-xs text-gray-500">
+                  Builders and contractors
+                </div>
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/find?category=architects')}
+                className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-[#F47B20] transition"
+              >
+                <div className="font-bold text-[#2C3E50] mb-1 text-sm md:text-base">
+                  Architects
+                </div>
+                <div className="text-xs text-gray-500">
+                  Plans and drawings
+                </div>
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/find?category=workers')}
+                className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-[#F47B20] transition"
+              >
+                <div className="font-bold text-[#2C3E50] mb-1 text-sm md:text-base">
+                  Skilled Workers
+                </div>
+                <div className="text-xs text-gray-500">
+                  Trades and labour
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
           <h2 className="text-base md:text-lg font-bold text-[#2C3E50] mb-4">
@@ -261,4 +321,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-      }
+}
