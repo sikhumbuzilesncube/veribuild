@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { CITIES } from '@/lib/cities';
+import ImageUploader from '@/components/ImageUploader';
+import PhotoUploader from '@/components/PhotoUploader';
 
 const SERVICE_OPTIONS = [
   'Architectural drawings',
@@ -22,6 +24,7 @@ export default function NewArchitectListing() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [existingListing, setExistingListing] = useState(null);
+  const [userId, setUserId] = useState(null);
 
   const [formData, setFormData] = useState({
     firm_name: '',
@@ -35,6 +38,8 @@ export default function NewArchitectListing() {
     price_per_m2_max: '',
     years_experience: '',
     description: '',
+    avatar_url: '',
+    photos: [],
   });
 
   useEffect(() => {
@@ -44,6 +49,8 @@ export default function NewArchitectListing() {
         router.push('/login');
         return;
       }
+
+      setUserId(session.user.id);
 
       const { data } = await supabase
         .from('architects')
@@ -65,6 +72,8 @@ export default function NewArchitectListing() {
           price_per_m2_max: data.price_per_m2_max != null ? String(data.price_per_m2_max) : '',
           years_experience: data.years_experience != null ? String(data.years_experience) : '',
           description: data.description || '',
+          avatar_url: data.avatar_url || '',
+          photos: Array.isArray(data.photos) ? data.photos : [],
         });
       } else {
         const metadata = session.user.user_metadata || {};
@@ -137,6 +146,8 @@ export default function NewArchitectListing() {
           ? parseInt(formData.years_experience, 10)
           : null,
         description: formData.description.trim() || null,
+        avatar_url: formData.avatar_url || null,
+        photos: Array.isArray(formData.photos) ? formData.photos : [],
       };
 
       let result;
@@ -204,6 +215,34 @@ export default function NewArchitectListing() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+
+          <Section title="Firm Logo and Gallery">
+            <div className="space-y-6">
+              <ImageUploader
+                imageUrl={formData.avatar_url}
+                onChange={(url) => setFormData((prev) => ({ ...prev, avatar_url: url || '' }))}
+                userId={userId}
+                prefix="avatar"
+                displayName={formData.firm_name || formData.contact_person}
+                shape="circle"
+                label="Profile Photo"
+                hint="A headshot or firm logo. JPG, PNG, or WebP. Max 2 MB."
+              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Portfolio Photos
+                </label>
+                <PhotoUploader
+                  photos={formData.photos}
+                  onChange={(next) => setFormData((prev) => ({ ...prev, photos: next }))}
+                  userId={userId}
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Up to 5 examples of your work. First photo appears largest.
+                </p>
+              </div>
+            </div>
+          </Section>
 
           <Section title="Firm Details">
             <div className="grid md:grid-cols-2 gap-4">
@@ -418,4 +457,4 @@ function Select({ label, name, value, onChange, options }) {
       </select>
     </div>
   );
-    }
+      }
