@@ -5,17 +5,46 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
+import Avatar from '@/components/Avatar';
 import { CITIES } from '@/lib/cities';
 
 const CATEGORIES = [
-  { key: 'hardware',     label: 'Hardware Stores',        table: 'hardware_stores',       nameField: 'store_name' },
-  { key: 'construction', label: 'Construction Companies', table: 'construction_companies', nameField: 'company_name' },
-  { key: 'architects',   label: 'Architects',             table: 'architects',            nameField: 'firm_name' },
-  { key: 'workers',      label: 'Skilled Workers',        table: 'workers',               nameField: 'full_name' },
+  {
+    key: 'hardware',
+    label: 'Hardware Stores',
+    table: 'hardware_stores',
+    nameField: 'store_name',
+    imageField: 'logo_url',
+    shape: 'square',
+  },
+  {
+    key: 'construction',
+    label: 'Construction Companies',
+    table: 'construction_companies',
+    nameField: 'company_name',
+    imageField: 'logo_url',
+    shape: 'square',
+  },
+  {
+    key: 'architects',
+    label: 'Architects',
+    table: 'architects',
+    nameField: 'firm_name',
+    imageField: 'avatar_url',
+    shape: 'circle',
+  },
+  {
+    key: 'workers',
+    label: 'Skilled Workers',
+    table: 'workers',
+    nameField: 'full_name',
+    imageField: 'avatar_url',
+    shape: 'circle',
+  },
 ];
 
-// Categories where a full profile page is worth showing
-const CATEGORIES_WITH_PROFILE = ['workers', 'architects'];
+// All four categories now have a full profile page
+const CATEGORIES_WITH_PROFILE = ['workers', 'architects', 'hardware', 'construction'];
 
 function getTierRank(item) {
   if (item.subscription_status !== 'active') return 2;
@@ -248,6 +277,7 @@ function ProviderCard({ item, category, showProfileButton }) {
   const displayName = item[nameField] || 'Unnamed';
   const cityName = CITIES.find((c) => c.id === item.city_id)?.name || '';
   const whatsappNumber = toWhatsAppNumber(item.phone);
+  const imageUrl = category.imageField ? item[category.imageField] : null;
 
   const handleViewProfile = () => {
     router.push(`/dashboard/find/${category.key}/${item.id}`);
@@ -255,26 +285,34 @@ function ProviderCard({ item, category, showProfileButton }) {
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-      <div className="flex justify-between items-start mb-3">
-        <div className="flex-1">
-          <h3 className="font-bold text-[#2C3E50]">{displayName}</h3>
-          {item.contact_person && (
-            <p className="text-xs text-gray-500 mt-0.5">Contact: {item.contact_person}</p>
-          )}
-          {category.key === 'workers' && item.trade && (
-            <p className="text-xs text-gray-600 mt-1">
-              {item.trade}
-              {item.sub_trade ? ` — ${item.sub_trade}` : ''}
-            </p>
-          )}
-          {category.key === 'architects' && item.services && item.services.length > 0 && (
-            <p className="text-xs text-gray-600 mt-1">{item.services.join(', ')}</p>
-          )}
-          {category.key === 'construction' && item.ad_text && (
-            <p className="text-xs text-gray-600 mt-1 line-clamp-2">{item.ad_text}</p>
-          )}
+      <div className="flex justify-between items-start mb-3 gap-3">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <Avatar
+            name={displayName}
+            imageUrl={imageUrl}
+            size={48}
+            shape={category.shape}
+          />
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-[#2C3E50] truncate">{displayName}</h3>
+            {item.contact_person && (
+              <p className="text-xs text-gray-500 mt-0.5">Contact: {item.contact_person}</p>
+            )}
+            {category.key === 'workers' && item.trade && (
+              <p className="text-xs text-gray-600 mt-1">
+                {item.trade}
+                {item.sub_trade ? ` — ${item.sub_trade}` : ''}
+              </p>
+            )}
+            {category.key === 'architects' && item.services && item.services.length > 0 && (
+              <p className="text-xs text-gray-600 mt-1">{item.services.join(', ')}</p>
+            )}
+            {category.key === 'construction' && item.ad_text && (
+              <p className="text-xs text-gray-600 mt-1 line-clamp-2">{item.ad_text}</p>
+            )}
+          </div>
         </div>
-        <span className={`text-xs px-2 py-1 rounded whitespace-nowrap ml-2 ${getTierBadgeClass(item)}`}>
+        <span className={`text-xs px-2 py-1 rounded whitespace-nowrap ${getTierBadgeClass(item)}`}>
           {getTierLabel(item)}
         </span>
       </div>
