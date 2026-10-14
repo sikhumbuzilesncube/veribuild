@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
+import Avatar from '@/components/Avatar';
+import PhotoGallery from '@/components/PhotoGallery';
 import { CITIES } from '@/lib/cities';
 
 const CATEGORY_CONFIG = {
@@ -12,24 +14,36 @@ const CATEGORY_CONFIG = {
     nameField: 'store_name',
     label: 'Hardware Store',
     backHref: '/dashboard/find?category=hardware',
+    imageField: 'logo_url',
+    shape: 'square',
+    hasGallery: false,
   },
   construction: {
     table: 'construction_companies',
     nameField: 'company_name',
     label: 'Construction Company',
     backHref: '/dashboard/find?category=construction',
+    imageField: 'logo_url',
+    shape: 'square',
+    hasGallery: true,
   },
   architects: {
     table: 'architects',
     nameField: 'firm_name',
     label: 'Architect',
     backHref: '/dashboard/find?category=architects',
+    imageField: 'avatar_url',
+    shape: 'circle',
+    hasGallery: true,
   },
   workers: {
     table: 'workers',
     nameField: 'full_name',
     label: 'Skilled Worker',
     backHref: '/dashboard/find?category=workers',
+    imageField: 'avatar_url',
+    shape: 'circle',
+    hasGallery: true,
   },
 };
 
@@ -153,6 +167,8 @@ export default function ProviderProfilePage() {
   const displayName = provider[nameField] || 'Unnamed';
   const cityName = CITIES.find((c) => c.id === provider.city_id)?.name || '';
   const whatsappNumber = toWhatsAppNumber(provider.phone);
+  const imageUrl = config.imageField ? provider[config.imageField] : null;
+  const photos = Array.isArray(provider.photos) ? provider.photos : [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -173,18 +189,26 @@ export default function ProviderProfilePage() {
           {/* Header */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <div className="flex justify-between items-start mb-4">
-              <div className="flex-1">
-                <span className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
-                  {config.label}
-                </span>
-                <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] mt-1">
-                  {displayName}
-                </h1>
-                {provider.contact_person && (
-                  <p className="text-sm text-gray-600 mt-1">
-                    Contact: {provider.contact_person}
-                  </p>
-                )}
+              <div className="flex items-start gap-4 flex-1">
+                <Avatar
+                  name={displayName}
+                  imageUrl={imageUrl}
+                  size={80}
+                  shape={config.shape}
+                />
+                <div className="flex-1">
+                  <span className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
+                    {config.label}
+                  </span>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] mt-1">
+                    {displayName}
+                  </h1>
+                  {provider.contact_person && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      Contact: {provider.contact_person}
+                    </p>
+                  )}
+                </div>
               </div>
               <span className={`text-xs px-3 py-1.5 rounded ${getTierBadgeClass(provider)}`}>
                 {getTierLabel(provider)}
@@ -246,6 +270,14 @@ export default function ProviderProfilePage() {
               )}
             </DetailGrid>
           </Section>
+
+          {/* Photo gallery (workers, architects, construction) */}
+          {config.hasGallery && photos.length > 0 && (
+            <PhotoGallery
+              photos={photos}
+              title={category === 'construction' ? 'Our Work' : 'Work Photos'}
+            />
+          )}
 
           {/* Worker-specific */}
           {category === 'workers' && (
@@ -462,4 +494,4 @@ function ProductsList({ storeId }) {
       </table>
     </div>
   );
-    }
+      }
