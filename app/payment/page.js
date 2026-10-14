@@ -22,7 +22,6 @@ export default function PaymentPage() {
   const amount = searchParams.get('amount') || '15';
   const selectedPlan = PLAN_DETAILS[userType] || PLAN_DETAILS.hardware;
 
-  // Load logged-in user
   useEffect(() => {
     const loadUser = async () => {
       try {
@@ -51,7 +50,7 @@ export default function PaymentPage() {
       // Generate reference
       const reference = `VB-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`.toUpperCase();
 
-      // Save payment record via SERVER API (bypasses RLS)
+      // Step 1: Create payment record via server API (bypasses RLS)
       const createResponse = await fetch('/api/paynow/create-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -72,13 +71,47 @@ export default function PaymentPage() {
 
       console.log('Payment record created:', createData);
 
-      // Build Paynow Custom Form URL
-      const payload = `id=27343&amount=${amount}&amount_quantity=0.00&l=1&reference=${reference}`;
-      const encoded = btoa(payload);
-      const paynowUrl = `https://www.paynow.co.zw/Payment/BillPaymentLink/?q=${encoded}`;
+      // Step 2: Initiate payment via SDK
+      const sdkResponse = await fetch('/api/paynow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: parseFloat(amount),
+          customerEmail: user.email,
+          customerFirstName: user.user_metadata?.full_name || 'Customer',
+          customerLastName: '',
+          customerPhone: user.user_metadata?.phone || '',
+          planType: userType,
+          planName: selectedPlan.name,
+          planDuration: selectedPlan.duration,
+          userId: user.id,
+          reference: reference,
+        }),
+      });
 
-      // Redirect to Paynow
-      window.location.href = paynowUrl;
+      const sdkData = await sdkResponse.json();
+
+      if (!sdkResponse.ok) {
+        throw new Error(sdkData.error || 'Could not initiate payment');
+      }
+
+      console.log('SDK response:', sdkData);
+
+      // Store reference for later use
+      if (sdkData.reference) {
+        localStorage.setItem('paynow_reference', sdkData.reference);
+      }
+      if (sdkData.pollUrl) {
+        localStorage.setItem('paynow_pollUrl', sdkData.pollUrl);
+      }
+
+      // Step 3: Redirect to Paynow
+      if (sdkData.redirectUrl) {
+        window.location.href = sdkData.redirectUrl;
+        return;
+      }
+
+      throw new Error('No payment URL received from Paynow');
 
     } catch (err) {
       console.error('Payment error:', err);
@@ -151,7 +184,7 @@ export default function PaymentPage() {
 
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
             <p className="text-xs text-yellow-700">
-              You'll be redirected to <strong>Paynow</strong> to complete your payment.
+              You'll be redirected to <strong>Paynow</strong> to complete your payment securely.
             </p>
           </div>
 
@@ -193,4 +226,4 @@ export default function PaymentPage() {
       </div>
     </div>
   );
-}
+         }
