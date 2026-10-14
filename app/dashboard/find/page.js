@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -43,8 +43,30 @@ const CATEGORIES = [
   },
 ];
 
-// All four categories now have a full profile page
 const CATEGORIES_WITH_PROFILE = ['workers', 'architects', 'hardware', 'construction'];
+
+const WORKER_TRADES = [
+  'Mason',
+  'Carpenter',
+  'Plumber',
+  'Electrician',
+  'Tiler',
+  'Painter',
+  'Roofer',
+  'Welder',
+  'Steel fixer',
+  'General labourer',
+  'Site supervisor',
+  'Other',
+];
+
+const EXPERIENCE_BUCKETS = [
+  { value: '', label: 'Any experience' },
+  { value: '1', label: '1+ year' },
+  { value: '3', label: '3+ years' },
+  { value: '5', label: '5+ years' },
+  { value: '10', label: '10+ years' },
+];
 
 function getTierRank(item) {
   if (item.subscription_status !== 'active') return 2;
@@ -98,8 +120,13 @@ function FindContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeCategory, setActiveCategory] = useState(initialCategory);
-  const [cityFilter, setCityFilter] = useState('');
   const [allData, setAllData] = useState({});
+
+  // Filters
+  const [cityFilter, setCityFilter] = useState('');
+  const [tradeFilter, setTradeFilter] = useState('');
+  const [experienceFilter, setExperienceFilter] = useState('');
+  const [serviceFilter, setServiceFilter] = useState('');
 
   useEffect(() => {
     async function loadAll() {
@@ -131,6 +158,24 @@ function FindContent() {
     loadAll();
   }, [router]);
 
+  // Reset secondary filters when switching tabs
+  useEffect(() => {
+    setTradeFilter('');
+    setExperienceFilter('');
+    setServiceFilter('');
+  }, [activeCategory]);
+
+  // Union of all architect services for the filter dropdown
+  const architectServices = useMemo(() => {
+    const set = new Set();
+    (allData.architects || []).forEach((a) => {
+      (a.services || []).forEach((s) => {
+        if (s && typeof s === 'string') set.add(s);
+      });
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [allData.architects]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -145,11 +190,32 @@ function FindContent() {
   const currentCat = CATEGORIES.find((c) => c.key === activeCategory);
   const rawList = allData[activeCategory] || [];
 
-  const cityFiltered = cityFilter
-    ? rawList.filter((item) => String(item.city_id) === String(cityFilter))
-    : rawList;
+  // Apply filters
+  let filtered = rawList;
 
-  const sorted = [...cityFiltered].sort((a, b) => {
+  if (cityFilter) {
+    filtered = filtered.filter((item) => String(item.city_id) === String(cityFilter));
+  }
+
+  if (activeCategory === 'workers') {
+    if (tradeFilter) {
+      filtered = filtered.filter((item) => item.trade === tradeFilter);
+    }
+    if (experienceFilter) {
+      const min = parseInt(experienceFilter, 10);
+      filtered = filtered.filter(
+        (item) => (item.years_experience || 0) >= min
+      );
+    }
+  }
+
+  if (activeCategory === 'architects' && serviceFilter) {
+    filtered = filtered.filter(
+      (item) => Array.isArray(item.services) && item.services.includes(serviceFilter)
+    );
+  }
+
+  const sorted = [...filtered].sort((a, b) => {
     const rankA = getTierRank(a);
     const rankB = getTierRank(b);
     if (rankA !== rankB) return rankA - rankB;
@@ -159,6 +225,16 @@ function FindContent() {
   });
 
   const showProfileButton = CATEGORIES_WITH_PROFILE.includes(activeCategory);
+
+  const hasActiveFilter =
+    cityFilter || tradeFilter || experienceFilter || serviceFilter;
+
+  const clearAllFilters = () => {
+    setCityFilter('');
+    setTradeFilter('');
+    setExperienceFilter('');
+    setServiceFilter('');
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -206,33 +282,101 @@ function FindContent() {
             })}
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6 flex flex-wrap items-center gap-3">
-            <label className="text-sm font-medium text-gray-700">
-              Filter by city:
-            </label>
-            <select
-              value={cityFilter}
-              onChange={(e) => setCityFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none text-sm"
-            >
-              <option value="">All cities</option>
-              {CITIES.map((c) => (
-                <option key={c.id} value={String(c.id)}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            {cityFilter && (
-              <button
-                onClick={() => setCityFilter('')}
-                className="text-sm text-[#F47B20] hover:underline"
-              >
-                Clear filter
-              </button>
-            )}
-            <span className="text-xs text-gray-500 ml-auto">
-              {sorted.length} result{sorted.length === 1 ? '' : 's'}
-            </span>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  City
+                </label>
+                <select
+                  value={cityFilter}
+                  onChange={(e) => setCityFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none text-sm"
+                >
+                  <option value="">All cities</option>
+                  {CITIES.map((c) => (
+                    <option key={c.id} value={String(c.id)}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {activeCategory === 'workers' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Trade
+                    </label>
+                    <select
+                      value={tradeFilter}
+                      onChange={(e) => setTradeFilter(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none text-sm"
+                    >
+                      <option value="">All trades</option>
+                      {WORKER_TRADES.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Experience
+                    </label>
+                    <select
+                      value={experienceFilter}
+                      onChange={(e) => setExperienceFilter(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none text-sm"
+                    >
+                      {EXPERIENCE_BUCKETS.map((b) => (
+                        <option key={b.value} value={b.value}>
+                          {b.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {activeCategory === 'architects' && architectServices.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Service
+                  </label>
+                  <select
+                    value={serviceFilter}
+                    onChange={(e) => setServiceFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none text-sm"
+                  >
+                    <option value="">All services</option>
+                    {architectServices.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+              {hasActiveFilter ? (
+                <button
+                  onClick={clearAllFilters}
+                  className="text-sm text-[#F47B20] hover:underline"
+                >
+                  Clear all filters
+                </button>
+              ) : (
+                <span className="text-xs text-gray-400">No filters applied</span>
+              )}
+              <span className="text-xs text-gray-500">
+                {sorted.length} result{sorted.length === 1 ? '' : 's'}
+              </span>
+            </div>
           </div>
 
           {error && (
@@ -246,11 +390,21 @@ function FindContent() {
               <div className="text-6xl mb-4 text-gray-300">[ ]</div>
               <p className="text-gray-500 mb-2">
                 No {currentCat.label.toLowerCase()} found
-                {cityFilter ? ' in that city' : ''}.
+                {hasActiveFilter ? ' matching your filters' : ''}.
               </p>
-              <p className="text-xs text-gray-400">
-                Try a different city or category.
-              </p>
+              {hasActiveFilter && (
+                <button
+                  onClick={clearAllFilters}
+                  className="mt-3 text-sm text-[#F47B20] hover:underline"
+                >
+                  Clear all filters
+                </button>
+              )}
+              {!hasActiveFilter && (
+                <p className="text-xs text-gray-400">
+                  Try a different city or category.
+                </p>
+              )}
             </div>
           ) : (
             <div className="grid md:grid-cols-2 gap-4">
@@ -377,4 +531,4 @@ function ProviderCard({ item, category, showProfileButton }) {
       </div>
     </div>
   );
-      }
+    }
