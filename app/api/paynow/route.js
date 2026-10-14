@@ -6,15 +6,17 @@ export async function POST(request) {
     const body = await request.json();
     console.log('Paynow payment request received:', body);
 
-    const {
-      amount,
-      customerEmail,
+    const { 
+      amount, 
+      customerEmail, 
+      customerFirstName, 
+      customerLastName,
       customerPhone,
-      planType,
-      planName,
-      planDuration,
+      planType, 
+      planName, 
+      planDuration, 
       userId,
-      paymentMethod,
+      paymentMethod 
     } = body;
 
     if (!amount) {
@@ -33,6 +35,8 @@ export async function POST(request) {
     const result = await initiatePayment({
       amount: parsedAmount,
       customerEmail,
+      customerFirstName: customerFirstName || 'Customer',
+      customerLastName: customerLastName || 'User',
       customerPhone: customerPhone || '',
       planType: planType || 'hardware',
       planName: planName || 'Hardware Store',
@@ -71,4 +75,4 @@ export async function OPTIONS() {
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
   });
-                               }
+  }
