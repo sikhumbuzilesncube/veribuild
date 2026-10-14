@@ -1,7 +1,7 @@
 /**
  * Paynow Payment Integration
  * For VeriBuild - A Product of GateKeeperAI
- * With automatic fallback from mobile push to redirect
+ * Using SDK integration (ID: 25438) with full webhook support
  */
 
 let Paynow;
@@ -13,8 +13,9 @@ try {
 }
 
 const PAYNOW_CONFIG = {
-  integrationId: process.env.PAYNOW_INTEGRATION_ID || '25439',
-  integrationKey: process.env.PAYNOW_INTEGRATION_KEY || '6d2661a1-2d18-4b83-8ae5-37dd0860b461',
+  // Use the SDK integration (25438), falling back to old config
+  integrationId: process.env.PAYNOW_SDK_INTEGRATION_ID || '25438',
+  integrationKey: process.env.PAYNOW_SDK_INTEGRATION_KEY || process.env.PAYNOW_INTEGRATION_KEY || '',
   resultUrl: process.env.PAYNOW_RESULT_URL || `${process.env.NEXT_PUBLIC_APP_URL}/api/paynow/webhook`,
   returnUrl: process.env.PAYNOW_RETURN_URL || `${process.env.NEXT_PUBLIC_APP_URL}/payment/success`,
 };
@@ -33,8 +34,7 @@ function generateReference() {
 }
 
 /**
- * Initiate a payment with automatic fallback
- * Tries sendMobile first; if it fails, falls back to send (redirect)
+ * Initiate a payment with Paynow via SDK
  */
 export async function initiatePayment(paymentData) {
   console.log('=== PAYNOW INITIATE START ===');
@@ -46,7 +46,7 @@ export async function initiatePayment(paymentData) {
 
     const reference = generateReference();
     console.log('Reference:', reference);
-    console.log('Method:', paymentData.paymentMethod);
+    console.log('Integration ID:', PAYNOW_CONFIG.integrationId);
 
     const paynow = getPaynowInstance();
     const payment = paynow.createPayment(reference, paymentData.customerEmail);
@@ -59,7 +59,8 @@ export async function initiatePayment(paymentData) {
     let response;
     let isMobile = false;
 
-    const mobileMethods = ['ecocash', 'onemoney', 'innbucks', 'telecash'];
+    // Mobile methods
+    const mobileMethods = ['ecocash', 'onemoney'];
     const method = (paymentData.paymentMethod || '').toLowerCase();
 
     if (mobileMethods.includes(method) && paymentData.customerPhone) {
@@ -74,7 +75,6 @@ export async function initiatePayment(paymentData) {
         } else {
           console.log('sendMobile FAILED:', response.error);
           console.log('Falling back to redirect flow...');
-          // Try the redirect flow
           const fallbackPayment = paynow.createPayment(reference, paymentData.customerEmail);
           fallbackPayment.add(
             `${paymentData.planName} - ${paymentData.planDuration} Subscription`,
@@ -101,13 +101,15 @@ export async function initiatePayment(paymentData) {
     }
 
     console.log('Final response success:', response.success);
+    console.log('Redirect URL:', response.redirectUrl);
+    console.log('Poll URL:', response.pollUrl);
     console.log('isMobile:', isMobile);
 
     if (!response.success) {
       throw new Error(response.error || 'Paynow rejected the payment request');
     }
 
-    // Store payment record
+    // Store payment record in DB via service role
     try {
       const { createClient } = await import('@supabase/supabase-js');
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -115,21 +117,43 @@ export async function initiatePayment(paymentData) {
 
       if (supabaseUrl && supabaseServiceKey) {
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
-        await supabase.from('payments').insert({
-          user_id: paymentData.userId || null,
-          amount: parseFloat(paymentData.amount),
-          currency: 'USD',
-          payment_method: paymentData.planType,
-          payment_status: 'pending',
-          transaction_reference: reference,
-          payment_proof_url: response.pollUrl,
-          provider: 'paynow',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
+
+        // Check if payment record already exists (created by create-payment route)
+        const { data: existing } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('transaction_reference', reference)
+          .maybeSingle();
+
+        if (existing) {
+          // Update with poll URL
+          await supabase
+            .from('payments')
+            .update({
+              payment_proof_url: response.pollUrl,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existing.id);
+          console.log('Updated existing payment record with poll URL');
+        } else {
+          // Create new record
+          await supabase.from('payments').insert({
+            user_id: paymentData.userId || null,
+            amount: parseFloat(paymentData.amount),
+            currency: 'USD',
+            payment_method: paymentData.planType,
+            payment_status: 'pending',
+            transaction_reference: reference,
+            payment_proof_url: response.pollUrl,
+            provider: 'paynow',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+          console.log('Created new payment record');
+        }
       }
     } catch (dbError) {
-      console.error('DB storage error:', dbError.message);
+      console.error('DB storage error (non-blocking):', dbError.message);
     }
 
     console.log('=== PAYNOW INITIATE SUCCESS ===');
@@ -150,12 +174,17 @@ export async function initiatePayment(paymentData) {
   }
 }
 
+/**
+ * Check payment status using poll URL
+ */
 export async function checkPaymentStatus(pollUrl) {
   try {
     if (!pollUrl) throw new Error('Poll URL is required');
 
     const paynow = getPaynowInstance();
     const status = await paynow.pollTransaction(pollUrl);
+
+    console.log('Paynow status:', JSON.stringify(status));
 
     return {
       success: true,
