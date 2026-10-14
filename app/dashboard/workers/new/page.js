@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { CITIES } from '@/lib/cities';
+import ImageUploader from '@/components/ImageUploader';
+import PhotoUploader from '@/components/PhotoUploader';
 
 const TRADES = [
   'Mason',
@@ -33,6 +35,7 @@ export default function NewWorkerProfile() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [existingProfile, setExistingProfile] = useState(null);
+  const [userId, setUserId] = useState(null);
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -48,6 +51,8 @@ export default function NewWorkerProfile() {
     about_me: '',
     portfolio_link: '',
     references_text: '',
+    avatar_url: '',
+    photos: [],
   });
 
   useEffect(() => {
@@ -57,6 +62,8 @@ export default function NewWorkerProfile() {
         router.push('/login');
         return;
       }
+
+      setUserId(session.user.id);
 
       const { data } = await supabase
         .from('workers')
@@ -80,6 +87,8 @@ export default function NewWorkerProfile() {
           about_me: data.about_me || '',
           portfolio_link: data.portfolio_link || '',
           references_text: data.references_text || '',
+          avatar_url: data.avatar_url || '',
+          photos: Array.isArray(data.photos) ? data.photos : [],
         });
       } else {
         const metadata = session.user.user_metadata || {};
@@ -143,6 +152,8 @@ export default function NewWorkerProfile() {
         about_me: formData.about_me.trim() || null,
         portfolio_link: formData.portfolio_link.trim() || null,
         references_text: formData.references_text.trim() || null,
+        avatar_url: formData.avatar_url || null,
+        photos: Array.isArray(formData.photos) ? formData.photos : [],
       };
 
       let result;
@@ -209,6 +220,34 @@ export default function NewWorkerProfile() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+
+          <Section title="Profile Photo and Gallery">
+            <div className="space-y-6">
+              <ImageUploader
+                imageUrl={formData.avatar_url}
+                onChange={(url) => setFormData((prev) => ({ ...prev, avatar_url: url || '' }))}
+                userId={userId}
+                prefix="avatar"
+                displayName={formData.full_name}
+                shape="circle"
+                label="Profile Photo"
+                hint="A clear headshot. JPG, PNG, or WebP. Max 2 MB."
+              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Work Photos
+                </label>
+                <PhotoUploader
+                  photos={formData.photos}
+                  onChange={(next) => setFormData((prev) => ({ ...prev, photos: next }))}
+                  userId={userId}
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Up to 5 photos of completed jobs. First photo appears largest.
+                </p>
+              </div>
+            </div>
+          </Section>
 
           <Section title="Personal Details">
             <div className="grid md:grid-cols-2 gap-4">
@@ -434,4 +473,4 @@ function Select({ label, name, value, onChange, options }) {
       </select>
     </div>
   );
-}
+   }
