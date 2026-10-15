@@ -97,7 +97,11 @@ export default function Sidebar() {
   const [userType, setUserType] = useState('client');
   const [loading, setLoading] = useState(true);
   const [urgentCount, setUrgentCount] = useState(0);
+  const [myWorkerId, setMyWorkerId] = useState(null);
+  const [myTrade, setMyTrade] = useState(null);
+  const [myCityId, setMyCityId] = useState(null);
 
+  // Initial load
   useEffect(() => {
     async function loadUserType() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -110,7 +114,6 @@ export default function Sidebar() {
       const resolvedType = type in SIDEBAR_ITEMS ? type : 'client';
       setUserType(resolvedType);
 
-      // Load urgent job count for workers only
       if (resolvedType === 'worker') {
         const { data: workerRow } = await supabase
           .from('workers')
@@ -119,6 +122,10 @@ export default function Sidebar() {
           .maybeSingle();
 
         if (workerRow && workerRow.trade && workerRow.city_id) {
+          setMyWorkerId(workerRow.id);
+          setMyTrade(workerRow.trade);
+          setMyCityId(workerRow.city_id);
+
           const { data: jobsData } = await supabase
             .from('job_requests')
             .select('id, urgency, created_at, status')
@@ -135,6 +142,67 @@ export default function Sidebar() {
     }
     loadUserType();
   }, []);
+
+  // Realtime subscription for workers
+  useEffect(() => {
+    if (!myTrade || !myCityId) return;
+
+    const channel = supabase
+      .channel('sidebar-urgent-jobs')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'job_requests' },
+        (payload) => {
+          const job = payload.new;
+          if (
+            job &&
+            job.status === 'open' &&
+            job.trade === myTrade &&
+            job.city_id === myCityId &&
+            !isExpired(job)
+          ) {
+            setUrgentCount((prev) => prev + 1);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'job_requests' },
+        (payload) => {
+          const job = payload.new;
+          const old = payload.old;
+          if (!job) return;
+
+          // If a job that was open and visible is no longer open, decrement
+          if (
+            old &&
+            old.status === 'open' &&
+            job.status !== 'open' &&
+            job.trade === myTrade &&
+            job.city_id === myCityId
+          ) {
+            setUrgentCount((prev) => Math.max(0, prev - 1));
+          }
+
+          // If a job was re-opened (unlikely but safe), increment
+          if (
+            old &&
+            old.status !== 'open' &&
+            job.status === 'open' &&
+            job.trade === myTrade &&
+            job.city_id === myCityId &&
+            !isExpired(job)
+          ) {
+            setUrgentCount((prev) => prev + 1);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [myTrade, myCityId]);
 
   const items = SIDEBAR_ITEMS[userType] || SIDEBAR_ITEMS.client;
 
@@ -240,4 +308,4 @@ export default function Sidebar() {
       </div>
     </>
   );
-    }
+     }
