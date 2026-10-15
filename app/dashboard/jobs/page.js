@@ -146,13 +146,11 @@ export default function JobsPage() {
       const meta = session.user.user_metadata || {};
       setMetadata(meta);
 
-      // Prefill urgent form phone from metadata
       setUrgentForm((prev) => ({
         ...prev,
         contact_phone: meta.phone || '',
       }));
 
-      // Load projects (completed only, for the project jobs tab)
       const { data: projectsData } = await supabase
         .from('projects')
         .select('id, project_name, status')
@@ -345,7 +343,7 @@ export default function JobsPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div>
             <h1 className="text-3xl font-bold text-[#2C3E50]">Jobs</h1>
             <p className="text-gray-600">Post jobs and find skilled workers</p>
@@ -786,7 +784,7 @@ function UrgentJobCard({ job, expired, cityName, claimedById, onCancel }) {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-      <div className="flex justify-between items-start gap-3 mb-3">
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-bold text-[#2C3E50]">{job.trade}</span>
           <span className={`text-xs px-2 py-0.5 rounded ${getUrgencyBadgeClass(job.urgency)}`}>
@@ -867,4 +865,4 @@ function UrgentJobCard({ job, expired, cityName, claimedById, onCancel }) {
       )}
     </div>
   );
-    }
+  }
