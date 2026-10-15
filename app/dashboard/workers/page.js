@@ -25,6 +25,8 @@ export default function WorkersPage() {
   const [myProfile, setMyProfile] = useState(null);
   const [error, setError] = useState('');
   const [urgentCount, setUrgentCount] = useState(0);
+  const [myTrade, setMyTrade] = useState(null);
+  const [myCityId, setMyCityId] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -49,8 +51,10 @@ export default function WorkersPage() {
 
       setMyProfile(data || null);
 
-      // Load open urgent jobs matching this worker's trade and city
       if (data && data.trade && data.city_id) {
+        setMyTrade(data.trade);
+        setMyCityId(data.city_id);
+
         const { data: jobsData } = await supabase
           .from('job_requests')
           .select('id, urgency, created_at, status')
@@ -66,6 +70,65 @@ export default function WorkersPage() {
     }
     load();
   }, [router]);
+
+  // Realtime subscription
+  useEffect(() => {
+    if (!myTrade || !myCityId) return;
+
+    const channel = supabase
+      .channel('worker-dashboard-urgent-jobs')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'job_requests' },
+        (payload) => {
+          const job = payload.new;
+          if (
+            job &&
+            job.status === 'open' &&
+            job.trade === myTrade &&
+            job.city_id === myCityId &&
+            !isExpired(job)
+          ) {
+            setUrgentCount((prev) => prev + 1);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'job_requests' },
+        (payload) => {
+          const job = payload.new;
+          const old = payload.old;
+          if (!job) return;
+
+          if (
+            old &&
+            old.status === 'open' &&
+            job.status !== 'open' &&
+            job.trade === myTrade &&
+            job.city_id === myCityId
+          ) {
+            setUrgentCount((prev) => Math.max(0, prev - 1));
+          }
+
+          if (
+            old &&
+            old.status !== 'open' &&
+            job.status === 'open' &&
+            job.trade === myTrade &&
+            job.city_id === myCityId &&
+            !isExpired(job)
+          ) {
+            setUrgentCount((prev) => prev + 1);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [myTrade, myCityId]);
 
   if (loading) {
     return (
@@ -276,4 +339,4 @@ export default function WorkersPage() {
       </div>
     </div>
   );
-  }
+    }
