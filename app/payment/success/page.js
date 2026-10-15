@@ -15,11 +15,13 @@ export default function PaymentSuccessPage() {
     setReference(ref);
 
     if (ref) {
-      fetch(`/api/paynow/status?reference=${encodeURIComponent(ref)}`)
+      // Call /verify (which polls Paynow) instead of /status
+      fetch(`/api/paynow/verify?reference=${encodeURIComponent(ref)}`)
         .then(res => res.json())
         .then(data => {
-          if (data.success) {
-            setStatus(data.paid ? 'Paid' : data.status);
+          console.log('Verify result:', data);
+          if (data.success || data.status) {
+            setStatus(data.status);
           }
         })
         .catch(err => console.error('Status check error:', err))
@@ -32,7 +34,7 @@ export default function PaymentSuccessPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="px-6 py-5 text-center" style={{ backgroundColor: '#E65A00' }}>
+        <div className="px-6 py-5 text-center" style={{ backgroundColor: '#F47B20' }}>
           <h1 className="text-white text-2xl font-bold tracking-tight">VeriBuild</h1>
           <p className="text-orange-100 text-xs font-medium tracking-wider mt-1">
             A PRODUCT OF GATEKEEPERAI
@@ -40,7 +42,7 @@ export default function PaymentSuccessPage() {
         </div>
 
         <div className="px-6 py-8 text-center">
-          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full mb-4" style={{ backgroundColor: '#E65A00' }}>
+          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full mb-4" style={{ backgroundColor: '#F47B20' }}>
             <span className="text-white text-3xl">✓</span>
           </div>
 
@@ -54,8 +56,8 @@ export default function PaymentSuccessPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Status</span>
-              <span className="text-sm font-medium" style={{ color: '#E65A00' }}>
-                {loading ? 'Checking...' : (status || 'Completed')}
+              <span className="text-sm font-medium" style={{ color: '#F47B20' }}>
+                {loading ? 'Verifying...' : (status || 'Completed')}
               </span>
             </div>
           </div>
@@ -63,9 +65,7 @@ export default function PaymentSuccessPage() {
           <Link
             href="/dashboard"
             className="inline-flex items-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-white w-full justify-center transition-colors"
-            style={{ backgroundColor: '#E65A00' }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#CC4F00'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#E65A00'}
+            style={{ backgroundColor: '#F47B20' }}
           >
             Go to Dashboard
           </Link>
@@ -80,4 +80,4 @@ export default function PaymentSuccessPage() {
       </div>
     </div>
   );
-        }
+  }
