@@ -1,25 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyPaynowHash } from '../../../../lib/paynow-hash';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-/**
- * Normalize a reference string — remove hidden characters, trim, uppercase
- */
-function normalizeRef(ref) {
-  if (!ref) return '';
-  return String(ref)
-    .replace(/[\u200B-\u200D\uFEFF]/g, '') // zero-width chars
-    .replace(/[\r\n\t]/g, '')                // whitespace chars
-    .trim()
-    .toUpperCase();
-}
-
 export async function POST(request) {
   console.log('=== PAYNOW WEBHOOK RECEIVED ===');
-  console.log('Timestamp:', new Date().toISOString());
-  console.log('Content-Type:', request.headers.get('content-type'));
 
   try {
     const contentType = request.headers.get('content-type') || '';
@@ -34,145 +21,77 @@ export async function POST(request) {
       }
     }
 
-    console.log('Raw webhook body:', JSON.stringify(data, null, 2));
-
-    const rawReference = data.reference || data.Reference || data.merchantref;
-    const reference = normalizeRef(rawReference);
-    const paynowRef = data.paynowreference || data.paynowReference;
-    const amount = data.amount || data.Amount;
+    // Never log the full payload. It contains customer details and the hash.
+    // Log only the reference and status for diagnostics.
+    const reference = data.reference || data.Reference;
     const status = data.status || data.Status;
-    const pollUrl = data.pollurl || data.pollUrl;
-
-    console.log('Normalized reference:', JSON.stringify(reference));
-    console.log('Raw reference:', JSON.stringify(rawReference));
-    console.log('Status:', status);
+    console.log('Webhook reference:', reference || '(missing)');
+    console.log('Webhook status:', status || '(missing)');
 
     if (!reference) {
-      console.error('❌ No reference in webhook');
+      // Nothing to do. Return 200 so Paynow does not keep retrying.
       return new NextResponse('ok', { status: 200 });
     }
 
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('❌ Supabase not configured');
+    // Verify the hash before trusting anything else in the payload.
+    const hashOk = verifyPaynowHash(data);
+    if (!hashOk) {
+      console.warn('Webhook rejected: hash verification failed for reference', reference);
+      // Return 200 so Paynow does not retry. Do not touch the database.
       return new NextResponse('ok', { status: 200 });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const statusLower = String(status || '').toLowerCase();
+    const isPaid = ['paid', 'completed', 'ok'].includes(statusLower);
 
-    // Try multiple matching strategies
-    let payment = null;
-    let matchStrategy = 'none';
-
-    // Strategy 1: exact match
-    const { data: exactMatch } = await supabase
+    const { data: payment } = await supabase
       .from('payments')
       .select('*')
       .eq('transaction_reference', reference)
       .maybeSingle();
 
-    if (exactMatch) {
-      payment = exactMatch;
-      matchStrategy = 'exact';
-    }
-
-    // Strategy 2: ilike match
     if (!payment) {
-      const { data: ilikeMatch } = await supabase
-        .from('payments')
-        .select('*')
-        .ilike('transaction_reference', reference)
-        .maybeSingle();
-
-      if (ilikeMatch) {
-        payment = ilikeMatch;
-        matchStrategy = 'ilike';
-      }
-    }
-
-    // Strategy 3: contains match
-    if (!payment) {
-      const { data: containsMatch } = await supabase
-        .from('payments')
-        .select('*')
-        .ilike('transaction_reference', `%${reference}%`)
-        .maybeSingle();
-
-      if (containsMatch) {
-        payment = containsMatch;
-        matchStrategy = 'contains';
-      }
-    }
-
-    if (!payment) {
-      console.error('❌ Payment not found for reference:', reference);
+      console.warn('Webhook: no payment row for reference', reference);
       return new NextResponse('ok', { status: 200 });
     }
 
-    console.log('✅ Payment found via strategy:', matchStrategy);
-    console.log('   Payment ID:', payment.id);
-    console.log('   Current status:', payment.payment_status);
-
-    // Determine paid status
-    const statusLower = String(status || '').toLowerCase();
-    const isPaid = ['paid', 'completed', 'ok', 'success'].includes(statusLower);
-
     if (isPaid) {
-      console.log('💰 Payment confirmed as PAID');
-
-      // Update payment
-      const { error: updateError } = await supabase
+      await supabase
         .from('payments')
         .update({
           payment_status: 'completed',
-          provider_code: paynowRef || null,
           webhook_received: true,
           webhook_data: data,
           updated_at: new Date().toISOString(),
         })
         .eq('id', payment.id);
 
-      if (updateError) {
-        console.error('❌ Update error:', updateError);
-      } else {
-        console.log('✅ Payment updated to completed');
-      }
-
-      // Check if subscription exists
-      const { data: existingSub } = await supabase
-        .from('subscriptions')
-        .select('id')
-        .eq('payment_id', payment.id)
-        .maybeSingle();
-
-      if (existingSub) {
-        console.log('ℹ️ Subscription already exists');
-      } else {
-        const startDate = new Date();
-        const endDate = new Date();
-        endDate.setDate(endDate.getDate() + 30);
-
-        const { error: subError } = await supabase
+      // Create subscription for subscription plans
+      const subscriptionPlans = ['hardware', 'construction', 'worker'];
+      if (subscriptionPlans.includes(payment.payment_method)) {
+        const { data: existingSub } = await supabase
           .from('subscriptions')
-          .insert({
+          .select('id')
+          .eq('payment_id', payment.id)
+          .maybeSingle();
+
+        if (!existingSub) {
+          const startDate = new Date();
+          const endDate = new Date();
+          endDate.setDate(endDate.getDate() + 30);
+
+          await supabase.from('subscriptions').insert({
             user_id: payment.user_id,
             subscription_type: payment.payment_method,
             status: 'active',
             start_date: startDate.toISOString().split('T')[0],
             end_date: endDate.toISOString().split('T')[0],
             payment_id: payment.id,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
           });
-
-        if (subError) {
-          console.error('❌ Subscription error:', subError);
-        } else {
-          console.log('✅ Subscription activated for user:', payment.user_id);
         }
       }
     } else if (['cancelled', 'failed', 'declined'].includes(statusLower)) {
-      console.log('❌ Payment failed:', status);
-
       await supabase
         .from('payments')
         .update({
@@ -182,21 +101,17 @@ export async function POST(request) {
           updated_at: new Date().toISOString(),
         })
         .eq('id', payment.id);
-    } else {
-      console.log('ℹ️ Status not actionable:', status);
     }
 
     return new NextResponse('ok', { status: 200 });
 
   } catch (error) {
-    console.error('❌ Webhook error:', error.message);
+    console.error('Webhook error:', error.message);
+    // Always return 200 so Paynow does not retry indefinitely on our bugs.
     return new NextResponse('ok', { status: 200 });
   }
 }
 
 export async function GET() {
-  return NextResponse.json(
-    { message: 'Paynow webhook endpoint is active' },
-    { status: 200 }
-  );
-    }
+  return NextResponse.json({ message: 'Paynow webhook active' });
+                  }
