@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { CITIES } from '@/lib/cities';
+import ImageUploader from '@/components/ImageUploader';
+import PhotoUploader from '@/components/PhotoUploader';
 
 export default function NewConstructionListing() {
   const router = useRouter();
@@ -12,6 +14,7 @@ export default function NewConstructionListing() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [existingListing, setExistingListing] = useState(null);
+  const [userId, setUserId] = useState(null);
 
   const [formData, setFormData] = useState({
     company_name: '',
@@ -22,6 +25,8 @@ export default function NewConstructionListing() {
     city_id: '1',
     location: '',
     ad_text: '',
+    logo_url: '',
+    photos: [],
   });
 
   useEffect(() => {
@@ -31,6 +36,8 @@ export default function NewConstructionListing() {
         router.push('/login');
         return;
       }
+
+      setUserId(session.user.id);
 
       const { data } = await supabase
         .from('construction_companies')
@@ -49,6 +56,8 @@ export default function NewConstructionListing() {
           city_id: String(data.city_id || 1),
           location: data.location || '',
           ad_text: data.ad_text || '',
+          logo_url: data.logo_url || '',
+          photos: Array.isArray(data.photos) ? data.photos : [],
         });
       } else {
         const metadata = session.user.user_metadata || {};
@@ -104,6 +113,8 @@ export default function NewConstructionListing() {
         city_id: parseInt(formData.city_id, 10) || 1,
         location: formData.location.trim() || null,
         ad_text: formData.ad_text.trim() || null,
+        logo_url: formData.logo_url || null,
+        photos: Array.isArray(formData.photos) ? formData.photos : [],
       };
 
       let result;
@@ -170,6 +181,34 @@ export default function NewConstructionListing() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+
+          <Section title="Company Logo and Gallery">
+            <div className="space-y-6">
+              <ImageUploader
+                imageUrl={formData.logo_url}
+                onChange={(url) => setFormData((prev) => ({ ...prev, logo_url: url || '' }))}
+                userId={userId}
+                prefix="logo"
+                displayName={formData.company_name}
+                shape="square"
+                label="Company Logo"
+                hint="A square logo works best. JPG, PNG, or WebP. Max 2 MB."
+              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Project Photos
+                </label>
+                <PhotoUploader
+                  photos={formData.photos}
+                  onChange={(next) => setFormData((prev) => ({ ...prev, photos: next }))}
+                  userId={userId}
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Up to 5 photos of completed projects. First photo appears largest.
+                </p>
+              </div>
+            </div>
+          </Section>
 
           <Section title="Company Details">
             <div className="grid md:grid-cols-2 gap-4">
