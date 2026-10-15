@@ -42,6 +42,17 @@ function timeAgo(iso) {
   return `${days} day${days === 1 ? '' : 's'} ago`;
 }
 
+function sortJobs(list) {
+  const copy = [...list];
+  copy.sort((a, b) => {
+    const rankA = getUrgencyOption(a.urgency).rank;
+    const rankB = getUrgencyOption(b.urgency).rank;
+    if (rankA !== rankB) return rankA - rankB;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+  return copy;
+}
+
 export default function WorkerUrgentJobsPage() {
   const router = useRouter();
 
@@ -55,7 +66,7 @@ export default function WorkerUrgentJobsPage() {
   const [cityFilter, setCityFilter] = useState('my_city');
   const [claimingId, setClaimingId] = useState(null);
 
-  const loadJobs = useCallback(async (workerRow) => {
+  const loadJobs = useCallback(async (workerRow, filter) => {
     if (!workerRow) return;
 
     let query = supabase
@@ -65,7 +76,7 @@ export default function WorkerUrgentJobsPage() {
       .eq('trade', workerRow.trade)
       .order('created_at', { ascending: false });
 
-    if (cityFilter === 'my_city') {
+    if (filter === 'my_city') {
       query = query.eq('city_id', workerRow.city_id);
     }
 
@@ -78,20 +89,10 @@ export default function WorkerUrgentJobsPage() {
       return;
     }
 
-    // Drop expired (client-side) — no cron yet
     const fresh = (data || []).filter((j) => !isExpired(j));
-
-    // Sort: ASAP first, then Today, then This Week, then newest within rank
-    fresh.sort((a, b) => {
-      const rankA = getUrgencyOption(a.urgency).rank;
-      const rankB = getUrgencyOption(b.urgency).rank;
-      if (rankA !== rankB) return rankA - rankB;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-
-    setJobs(fresh);
+    setJobs(sortJobs(fresh));
     setError('');
-  }, [cityFilter]);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -114,16 +115,86 @@ export default function WorkerUrgentJobsPage() {
       }
 
       setWorker(workerRow);
-      await loadJobs(workerRow);
+      await loadJobs(workerRow, cityFilter);
       setLoading(false);
     }
     load();
-  }, [router, loadJobs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
+
+  // Re-fetch when the filter changes (does not touch Realtime)
+  useEffect(() => {
+    if (!worker) return;
+    loadJobs(worker, cityFilter);
+  }, [cityFilter, worker, loadJobs]);
+
+  // Realtime subscription
+  useEffect(() => {
+    if (!worker || !worker.trade || !worker.city_id) return;
+
+    const matchesFilter = (job) => {
+      if (cityFilter === 'my_city') {
+        return job.city_id === worker.city_id;
+      }
+      return true;
+    };
+
+    const channel = supabase
+      .channel('worker-urgent-jobs-board')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'job_requests' },
+        (payload) => {
+          const job = payload.new;
+          if (
+            job &&
+            job.status === 'open' &&
+            job.trade === worker.trade &&
+            matchesFilter(job) &&
+            !isExpired(job)
+          ) {
+            // Prepend and re-sort
+            setJobs((prev) => {
+              if (prev.some((j) => j.id === job.id)) return prev;
+              return sortJobs([job, ...prev]);
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'job_requests' },
+        (payload) => {
+          const job = payload.new;
+          if (!job) return;
+
+          // If it became non-open, remove it from the board
+          if (job.status !== 'open') {
+            setJobs((prev) => prev.filter((j) => j.id !== job.id));
+            return;
+          }
+
+          // If it is still open and matches, update it in place (or add if missing)
+          if (job.trade === worker.trade && matchesFilter(job) && !isExpired(job)) {
+            setJobs((prev) => {
+              const exists = prev.some((j) => j.id === job.id);
+              if (!exists) return sortJobs([job, ...prev]);
+              return sortJobs(prev.map((j) => (j.id === job.id ? job : j)));
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [worker, cityFilter]);
 
   const handleRefresh = async () => {
     if (!worker) return;
     setRefreshing(true);
-    await loadJobs(worker);
+    await loadJobs(worker, cityFilter);
     setRefreshing(false);
   };
 
@@ -139,7 +210,6 @@ export default function WorkerUrgentJobsPage() {
     setMessage(null);
 
     try {
-      // Atomic claim: only succeeds if status is still 'open'
       const { data: updated, error: claimError } = await supabase
         .from('job_requests')
         .update({
@@ -159,12 +229,11 @@ export default function WorkerUrgentJobsPage() {
       }
 
       if (!updated || updated.length === 0) {
-        // Someone else got it first
         setMessage({
           type: 'error',
           text: 'This job was just taken by another worker. Refreshing the list.',
         });
-        await loadJobs(worker);
+        await loadJobs(worker, cityFilter);
         setClaimingId(null);
         return;
       }
@@ -174,7 +243,8 @@ export default function WorkerUrgentJobsPage() {
         text: 'Job claimed. Call the client now to confirm the details.',
       });
 
-      // Optimistically remove it from the list
+      // Remove locally; the UPDATE subscription would also remove it, but doing
+      // it immediately gives an instant visual response.
       setJobs((prev) => prev.filter((j) => j.id !== job.id));
     } catch (err) {
       console.error('Unexpected claim error:', err);
@@ -239,7 +309,6 @@ export default function WorkerUrgentJobsPage() {
           </p>
         </div>
 
-        {/* Filter + refresh bar */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6 flex flex-wrap items-center gap-3">
           <label className="text-sm font-medium text-gray-700">
             Show jobs in:
@@ -345,4 +414,4 @@ export default function WorkerUrgentJobsPage() {
       </div>
     </div>
   );
-    }
+      }
