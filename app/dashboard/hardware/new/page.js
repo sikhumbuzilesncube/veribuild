@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { CITIES } from '@/lib/cities';
+import ImageUploader from '@/components/ImageUploader';
 
 export default function NewHardwareStore() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function NewHardwareStore() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [existingStore, setExistingStore] = useState(null);
+  const [userId, setUserId] = useState(null);
 
   const [formData, setFormData] = useState({
     store_name: '',
@@ -20,6 +22,7 @@ export default function NewHardwareStore() {
     email: '',
     city_id: '1',
     location: '',
+    logo_url: '',
   });
 
   useEffect(() => {
@@ -29,6 +32,8 @@ export default function NewHardwareStore() {
         router.push('/login');
         return;
       }
+
+      setUserId(session.user.id);
 
       const { data } = await supabase
         .from('hardware_stores')
@@ -45,6 +50,7 @@ export default function NewHardwareStore() {
           email: data.email || '',
           city_id: String(data.city_id || 1),
           location: data.location || '',
+          logo_url: data.logo_url || '',
         });
       } else {
         const metadata = session.user.user_metadata || {};
@@ -98,6 +104,7 @@ export default function NewHardwareStore() {
         email: formData.email.trim() || null,
         city_id: parseInt(formData.city_id, 10) || 1,
         location: formData.location.trim() || null,
+        logo_url: formData.logo_url || null,
       };
 
       let result;
@@ -166,6 +173,19 @@ export default function NewHardwareStore() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+
+          <Section title="Store Logo">
+            <ImageUploader
+              imageUrl={formData.logo_url}
+              onChange={(url) => setFormData((prev) => ({ ...prev, logo_url: url || '' }))}
+              userId={userId}
+              prefix="logo"
+              displayName={formData.store_name}
+              shape="square"
+              label="Logo"
+              hint="A square logo works best. JPG, PNG, or WebP. Max 2 MB."
+            />
+          </Section>
 
           <Section title="Store Details">
             <div className="grid md:grid-cols-2 gap-4">
@@ -307,4 +327,4 @@ function Select({ label, name, value, onChange, options }) {
       </select>
     </div>
   );
-      }
+               }
