@@ -30,10 +30,18 @@ export default function Dashboard() {
 
       const user = session.user;
       const metadata = user.user_metadata || {};
+      const resolvedType = metadata.user_type || 'client';
+
+      // Hardware stores do not generate BOQs, so they are redirected
+      // to their store home. Every other role keeps this dashboard.
+      if (resolvedType === 'hardware') {
+        router.replace('/dashboard/hardware');
+        return;
+      }
 
       setUserName(metadata.full_name || user.email || 'User');
       setUserEmail(user.email || '');
-      setUserType(metadata.user_type || 'client');
+      setUserType(resolvedType);
 
       const { data: projectsData, error } = await supabase
         .from('projects')
@@ -124,11 +132,6 @@ export default function Dashboard() {
               Welcome back, {userName}!
             </p>
             <p className="text-xs md:text-sm text-gray-400">{userEmail}</p>
-            {userType === 'hardware' && (
-              <p className="text-xs md:text-sm text-blue-600 font-semibold">
-                Hardware Store Account
-              </p>
-            )}
             {userType === 'construction' && (
               <p className="text-xs md:text-sm text-green-600 font-semibold">
                 Construction Company Account
@@ -321,4 +324,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-}
+    }
