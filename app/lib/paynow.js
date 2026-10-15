@@ -13,7 +13,6 @@ try {
 }
 
 const PAYNOW_CONFIG = {
-  // Use the SDK integration (25438), falling back to old config
   integrationId: process.env.PAYNOW_SDK_INTEGRATION_ID || '25438',
   integrationKey: process.env.PAYNOW_SDK_INTEGRATION_KEY || process.env.PAYNOW_INTEGRATION_KEY || '',
   resultUrl: process.env.PAYNOW_RESULT_URL || `${process.env.NEXT_PUBLIC_APP_URL}/api/paynow/webhook`,
@@ -59,7 +58,6 @@ export async function initiatePayment(paymentData) {
     let response;
     let isMobile = false;
 
-    // Mobile methods
     const mobileMethods = ['ecocash', 'onemoney'];
     const method = (paymentData.paymentMethod || '').toLowerCase();
 
@@ -118,7 +116,6 @@ export async function initiatePayment(paymentData) {
       if (supabaseUrl && supabaseServiceKey) {
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-        // Check if payment record already exists (created by create-payment route)
         const { data: existing } = await supabase
           .from('payments')
           .select('id')
@@ -126,7 +123,6 @@ export async function initiatePayment(paymentData) {
           .maybeSingle();
 
         if (existing) {
-          // Update with poll URL
           await supabase
             .from('payments')
             .update({
@@ -136,7 +132,6 @@ export async function initiatePayment(paymentData) {
             .eq('id', existing.id);
           console.log('Updated existing payment record with poll URL');
         } else {
-          // Create new record
           await supabase.from('payments').insert({
             user_id: paymentData.userId || null,
             amount: parseFloat(paymentData.amount),
@@ -176,6 +171,7 @@ export async function initiatePayment(paymentData) {
 
 /**
  * Check payment status using poll URL
+ * FIXED: Paynow SDK returns 'status' field (string), NOT 'paid' (boolean)
  */
 export async function checkPaymentStatus(pollUrl) {
   try {
@@ -184,11 +180,22 @@ export async function checkPaymentStatus(pollUrl) {
     const paynow = getPaynowInstance();
     const status = await paynow.pollTransaction(pollUrl);
 
-    console.log('Paynow status:', JSON.stringify(status));
+    console.log('Paynow status raw:', JSON.stringify(status));
+
+    // Normalize the paid flag — SDK returns 'status' as string
+    const statusValue = String(status.status || '').toLowerCase();
+    const isPaid = 
+      statusValue === 'paid' ||
+      statusValue === 'completed' ||
+      statusValue === 'successful' ||
+      status.paid === true ||
+      status.paid === 'true';
+
+    console.log('Normalized paid:', isPaid, '(raw status:', statusValue, ')');
 
     return {
       success: true,
-      paid: status.paid || false,
+      paid: isPaid,
       status: status.status || 'Unknown',
       reference: status.reference || null,
       paynowReference: status.paynowReference || null,
