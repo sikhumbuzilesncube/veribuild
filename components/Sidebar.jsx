@@ -43,10 +43,25 @@ const SIDEBAR_ITEMS = {
   worker: [
     { label: 'Dashboard',           href: '/dashboard' },
     { label: 'My Profile',          href: '/dashboard/workers' },
+    { label: 'Urgent Jobs',         href: '/dashboard/workers/urgent-jobs', showUrgentBadge: true },
     { label: 'Subscription',        href: '/dashboard/subscription?category=worker' },
     { label: 'Settings',            href: '/dashboard/settings' },
   ],
 };
+
+const URGENCY_WINDOWS = {
+  asap: 48,
+  today: 24,
+  this_week: 168,
+};
+
+function isExpired(job) {
+  if (!job || job.status !== 'open') return false;
+  const hours = URGENCY_WINDOWS[job.urgency] || 24;
+  const created = new Date(job.created_at).getTime();
+  const cutoff = Date.now() - hours * 60 * 60 * 1000;
+  return created < cutoff;
+}
 
 function isActive(currentPath, href) {
   if (href === '/dashboard') {
@@ -56,12 +71,32 @@ function isActive(currentPath, href) {
   return currentPath.startsWith(base);
 }
 
+function HamburgerIcon() {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  );
+}
+
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userType, setUserType] = useState('client');
   const [loading, setLoading] = useState(true);
+  const [urgentCount, setUrgentCount] = useState(0);
 
   useEffect(() => {
     async function loadUserType() {
@@ -72,7 +107,30 @@ export default function Sidebar() {
       }
       const metadata = session.user.user_metadata || {};
       const type = metadata.user_type || 'client';
-      setUserType(type in SIDEBAR_ITEMS ? type : 'client');
+      const resolvedType = type in SIDEBAR_ITEMS ? type : 'client';
+      setUserType(resolvedType);
+
+      // Load urgent job count for workers only
+      if (resolvedType === 'worker') {
+        const { data: workerRow } = await supabase
+          .from('workers')
+          .select('id, trade, city_id')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+
+        if (workerRow && workerRow.trade && workerRow.city_id) {
+          const { data: jobsData } = await supabase
+            .from('job_requests')
+            .select('id, urgency, created_at, status')
+            .eq('status', 'open')
+            .eq('trade', workerRow.trade)
+            .eq('city_id', workerRow.city_id);
+
+          const live = (jobsData || []).filter((j) => !isExpired(j));
+          setUrgentCount(live.length);
+        }
+      }
+
       setLoading(false);
     }
     loadUserType();
@@ -89,6 +147,20 @@ export default function Sidebar() {
     return null;
   }
 
+  const renderLabel = (item) => {
+    const showBadge = item.showUrgentBadge && urgentCount > 0;
+    return (
+      <span className="flex items-center justify-between">
+        <span>{item.label}</span>
+        {showBadge && (
+          <span className="ml-2 bg-[#F47B20] text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[1.5rem] text-center">
+            {urgentCount}
+          </span>
+        )}
+      </span>
+    );
+  };
+
   return (
     <>
       <div className="md:hidden bg-[#2C3E50] text-white p-4 flex justify-between items-center sticky top-0 z-50">
@@ -100,10 +172,10 @@ export default function Sidebar() {
         </div>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="text-white text-3xl focus:outline-none"
+          className="text-white focus:outline-none"
           aria-label="Toggle menu"
         >
-          ☰
+          <HamburgerIcon />
         </button>
       </div>
 
@@ -121,7 +193,7 @@ export default function Sidebar() {
                   }`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  {item.label}
+                  {renderLabel(item)}
                 </Link>
               );
             })}
@@ -154,7 +226,7 @@ export default function Sidebar() {
                   active ? 'bg-[#F47B20]' : 'hover:bg-[#F47B20]/20'
                 }`}
               >
-                {item.label}
+                {renderLabel(item)}
               </Link>
             );
           })}
@@ -168,4 +240,4 @@ export default function Sidebar() {
       </div>
     </>
   );
-     }
+    }
