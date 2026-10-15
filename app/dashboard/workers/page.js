@@ -5,11 +5,26 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 
+const URGENCY_WINDOWS = {
+  asap: 48,
+  today: 24,
+  this_week: 168,
+};
+
+function isExpired(job) {
+  if (!job || job.status !== 'open') return false;
+  const hours = URGENCY_WINDOWS[job.urgency] || 24;
+  const created = new Date(job.created_at).getTime();
+  const cutoff = Date.now() - hours * 60 * 60 * 1000;
+  return created < cutoff;
+}
+
 export default function WorkersPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [myProfile, setMyProfile] = useState(null);
   const [error, setError] = useState('');
+  const [urgentCount, setUrgentCount] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -33,6 +48,20 @@ export default function WorkersPage() {
       }
 
       setMyProfile(data || null);
+
+      // Load open urgent jobs matching this worker's trade and city
+      if (data && data.trade && data.city_id) {
+        const { data: jobsData } = await supabase
+          .from('job_requests')
+          .select('id, urgency, created_at, status')
+          .eq('status', 'open')
+          .eq('trade', data.trade)
+          .eq('city_id', data.city_id);
+
+        const live = (jobsData || []).filter((j) => !isExpired(j));
+        setUrgentCount(live.length);
+      }
+
       setLoading(false);
     }
     load();
@@ -70,6 +99,29 @@ export default function WorkersPage() {
               Manage your profile and subscription. Only you see this page.
             </p>
           </div>
+
+          {urgentCount > 0 && (
+            <div className="bg-[#2C3E50] rounded-lg p-5 mb-6 text-white">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <h2 className="text-lg font-bold mb-1">
+                    {urgentCount} urgent job{urgentCount === 1 ? '' : 's'} near you
+                  </h2>
+                  <p className="text-sm text-gray-200">
+                    {urgentCount === 1
+                      ? `A client needs a ${myProfile?.trade || 'tradesperson'} in your city. First to claim gets the work.`
+                      : `Clients need ${myProfile?.trade || 'tradespeople'} in your city right now. First to claim gets the work.`}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push('/dashboard/workers/urgent-jobs')}
+                className="mt-4 bg-[#F47B20] text-white px-5 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
+              >
+                View Urgent Jobs
+              </button>
+            </div>
+          )}
 
           <div className="bg-gradient-to-r from-[#F47B20] to-[#E06B10] rounded-lg p-6 mb-6 text-white">
             <h2 className="text-lg font-bold mb-1">Promote Your Profile</h2>
@@ -224,4 +276,4 @@ export default function WorkersPage() {
       </div>
     </div>
   );
-      }
+    }
