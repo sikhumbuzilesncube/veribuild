@@ -42,6 +42,9 @@ const SIDEBAR_ITEMS = {
   ],
   worker: [
     { label: 'Dashboard',           href: '/dashboard' },
+    { label: 'New BOQ',             href: '/dashboard/new-project' },
+    { label: 'BOQ Without a Plan',  href: '/dashboard/template' },
+    { label: 'My Projects',         href: '/dashboard/projects' },
     { label: 'My Profile',          href: '/dashboard/workers' },
     { label: 'Urgent Jobs',         href: '/dashboard/workers/urgent-jobs', showUrgentBadge: true },
     { label: 'Subscription',        href: '/dashboard/subscription?category=worker' },
@@ -101,7 +104,6 @@ export default function Sidebar() {
   const [myTrade, setMyTrade] = useState(null);
   const [myCityId, setMyCityId] = useState(null);
 
-  // Initial load
   useEffect(() => {
     async function loadUserType() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -143,7 +145,6 @@ export default function Sidebar() {
     loadUserType();
   }, []);
 
-  // Realtime subscription for workers
   useEffect(() => {
     if (!myTrade || !myCityId) return;
 
@@ -173,7 +174,6 @@ export default function Sidebar() {
           const old = payload.old;
           if (!job) return;
 
-          // If a job that was open and visible is no longer open, decrement
           if (
             old &&
             old.status === 'open' &&
@@ -184,7 +184,6 @@ export default function Sidebar() {
             setUrgentCount((prev) => Math.max(0, prev - 1));
           }
 
-          // If a job was re-opened (unlikely but safe), increment
           if (
             old &&
             old.status !== 'open' &&
@@ -308,4 +307,4 @@ export default function Sidebar() {
       </div>
     </>
   );
-     }
+      }
