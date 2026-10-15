@@ -34,7 +34,7 @@ export async function GET(request) {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Step 1: Find the payment in our DB
+    // Step 1: Find payment in our DB
     let payment = null;
     let strategy = 'none';
 
@@ -72,7 +72,7 @@ export async function GET(request) {
 
     console.log('Payment found via strategy:', strategy, '- DB status:', payment.payment_status);
 
-    // Step 2: If already completed, just return the record
+    // Step 2: If already completed, return immediately
     if (payment.payment_status === 'completed') {
       return NextResponse.json({
         success: true,
@@ -89,7 +89,7 @@ export async function GET(request) {
       });
     }
 
-    // Step 3: If pending, poll Paynow for real status
+    // Step 3: If pending and has poll URL, poll Paynow
     if (payment.payment_proof_url) {
       console.log('Polling Paynow:', payment.payment_proof_url);
       
@@ -97,10 +97,15 @@ export async function GET(request) {
         const statusResult = await checkPaymentStatus(payment.payment_proof_url);
         console.log('Paynow poll result:', JSON.stringify(statusResult));
 
-        if (statusResult.paid) {
+        // FIXED: Check both 'paid' boolean and 'status' string
+        const isPaid = 
+          statusResult.paid === true ||
+          String(statusResult.status || '').toLowerCase() === 'paid' ||
+          String(statusResult.status || '').toLowerCase() === 'completed';
+
+        if (isPaid) {
           console.log('💰 Payment is PAID — updating DB');
 
-          // Update payment to completed
           await supabase
             .from('payments')
             .update({
@@ -141,6 +146,7 @@ export async function GET(request) {
             matchStrategy: strategy,
             reference: payment.transaction_reference,
             status: 'completed',
+            paid: true,
             amount: payment.amount,
             currency: payment.currency,
             method: payment.payment_method,
@@ -157,7 +163,7 @@ export async function GET(request) {
             matchStrategy: strategy,
             reference: payment.transaction_reference,
             status: statusResult.status || 'pending',
-            paid: statusResult.paid,
+            paid: false,
             amount: payment.amount,
             currency: payment.currency,
             method: payment.payment_method,
@@ -174,6 +180,7 @@ export async function GET(request) {
           matchStrategy: strategy,
           reference: payment.transaction_reference,
           status: 'pending',
+          paid: false,
           amount: payment.amount,
           currency: payment.currency,
           method: payment.payment_method,
@@ -184,19 +191,19 @@ export async function GET(request) {
       }
     }
 
-    // No poll URL — just return DB record
+    // No poll URL
     return NextResponse.json({
       success: true,
       matchStrategy: strategy,
       reference: payment.transaction_reference,
       status: payment.payment_status,
+      paid: payment.payment_status === 'completed',
       amount: payment.amount,
       currency: payment.currency,
       method: payment.payment_method,
       user_id: payment.user_id,
       webhook_received: payment.webhook_received,
       verified_via: 'database_only',
-      note: 'No poll URL available for Paynow verification',
     });
 
   } catch (error) {
@@ -206,4 +213,4 @@ export async function GET(request) {
       { status: 500 }
     );
   }
-  }
+      }
