@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 
+const TRIAL_LIMIT = 2;
+
 function getPlanLabel(firm) {
   if (!firm) return 'No Plan';
   if (firm.subscription_status !== 'active') return 'No Plan';
@@ -70,6 +72,9 @@ export default function ArchitectsPage() {
     );
   }
 
+  const trialUsed = myFirm?.boqs_generated_count || 0;
+  const trialRemaining = Math.max(0, TRIAL_LIMIT - trialUsed);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Sidebar />
@@ -91,6 +96,34 @@ export default function ArchitectsPage() {
               Manage your firm listing and subscription.
             </p>
           </div>
+
+          {myFirm && (
+            <div className="bg-[#2C3E50] rounded-lg p-5 mb-6 text-white">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h2 className="text-lg font-bold mb-1">
+                    Free trial BOQs: {trialRemaining} of {TRIAL_LIMIT} remaining
+                  </h2>
+                  {trialRemaining > 0 ? (
+                    <p className="text-sm text-gray-200">
+                      You can generate {trialRemaining} more BOQ{trialRemaining === 1 ? '' : 's'} free of charge.
+                      After that, each BOQ costs $10 with a plan or $5 without a plan.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-200">
+                      Your 2 free trial BOQs have been used. Each new BOQ costs $10 with a plan
+                      or $5 without a plan.
+                    </p>
+                  )}
+                </div>
+                {trialRemaining > 0 && (
+                  <div className="bg-[#F47B20] rounded-full w-14 h-14 flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-bold text-xl">{trialRemaining}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="bg-gradient-to-r from-[#F47B20] to-[#E06B10] rounded-lg p-6 mb-6 text-white">
             <h2 className="text-lg font-bold mb-1">Promote Your Firm</h2>
@@ -225,4 +258,4 @@ export default function ArchitectsPage() {
       </div>
     </div>
   );
-         }
+}
