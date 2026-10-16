@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 
+const TRIAL_LIMIT = 2;
+
 export default function Dashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -13,6 +15,7 @@ export default function Dashboard() {
   const [userEmail, setUserEmail] = useState('');
   const [userType, setUserType] = useState('client');
   const [projects, setProjects] = useState([]);
+  const [trialUsed, setTrialUsed] = useState(null);
   const [stats, setStats] = useState({
     total: 0,
     completed: 0,
@@ -42,6 +45,23 @@ export default function Dashboard() {
       setUserName(metadata.full_name || user.email || 'User');
       setUserEmail(user.email || '');
       setUserType(resolvedType);
+
+      // Load trial counter for construction and architect accounts
+      if (resolvedType === 'construction' || resolvedType === 'architect') {
+        const table = resolvedType === 'construction'
+          ? 'construction_companies'
+          : 'architects';
+
+        const { data: listingRow } = await supabase
+          .from(table)
+          .select('boqs_generated_count')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (listingRow) {
+          setTrialUsed(listingRow.boqs_generated_count || 0);
+        }
+      }
 
       const { data: projectsData, error } = await supabase
         .from('projects')
@@ -119,6 +139,11 @@ export default function Dashboard() {
   }
 
   const isClient = userType === 'client';
+  const showTrialCard =
+    (userType === 'construction' || userType === 'architect') && trialUsed != null;
+  const trialRemaining = showTrialCard
+    ? Math.max(0, TRIAL_LIMIT - trialUsed)
+    : 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -163,6 +188,34 @@ export default function Dashboard() {
             </Link>
           </div>
         </div>
+
+        {showTrialCard && (
+          <div className="bg-[#2C3E50] rounded-xl p-5 mb-6 text-white">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h2 className="text-lg font-bold mb-1">
+                  Free trial BOQs: {trialRemaining} of {TRIAL_LIMIT} remaining
+                </h2>
+                {trialRemaining > 0 ? (
+                  <p className="text-sm text-gray-200">
+                    You can generate {trialRemaining} more BOQ{trialRemaining === 1 ? '' : 's'} free of charge.
+                    After that, each BOQ costs $10 with a plan or $5 without a plan.
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-200">
+                    Your 2 free trial BOQs have been used. Each new BOQ costs $10 with a plan
+                    or $5 without a plan.
+                  </p>
+                )}
+              </div>
+              {trialRemaining > 0 && (
+                <div className="bg-[#F47B20] rounded-full w-14 h-14 flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-bold text-xl">{trialRemaining}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
           <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
@@ -324,4 +377,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-    }
+}
