@@ -1,41 +1,34 @@
 import { NextResponse } from 'next/server';
-import { initiatePayment } from '../../lib/paynow';
-import { getAuthenticatedUser } from '../../../lib/server-auth';
+import { initiatePayment } from '@/lib/paynow';
 
 export async function POST(request) {
   try {
-    const user = await getAuthenticatedUser(request);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = await request.json();
+    console.log('Paynow payment request:', body);
+
     const {
       amount,
       customerEmail,
       planType,
       planName,
       planDuration,
+      userId,
     } = body;
 
     if (!amount) {
       return NextResponse.json({ error: 'Amount is required' }, { status: 400 });
     }
-
-    // Prefer the authenticated user's email over whatever the client sent.
-    const resolvedEmail = user.email || customerEmail;
-    if (!resolvedEmail) {
+    if (!customerEmail) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
     const result = await initiatePayment({
       amount: parseFloat(amount),
-      customerEmail: resolvedEmail,
+      customerEmail,
       planType: planType || 'payment',
       planName: planName || 'Payment',
       planDuration: planDuration || '',
-      // Use the authenticated user id, not the client-supplied value.
-      userId: user.id,
+      userId: userId || null,
     });
 
     return NextResponse.json({
@@ -56,4 +49,4 @@ export async function POST(request) {
 
 export async function GET() {
   return NextResponse.json({ message: 'Paynow API endpoint' });
-}
+                                }
