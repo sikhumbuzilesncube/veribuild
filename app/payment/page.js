@@ -4,46 +4,51 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { SUBSCRIPTION_CATEGORIES, composePlanType } from '@/lib/subscriptions';
 
-const PAYMENT_TYPES = {
-  // Subscriptions
-  hardware: {
-    name: 'Hardware Store',
-    price: 15,
-    label: 'monthly subscription',
-    duration: 'monthly',
-    purpose: 'subscription',
-  },
-  construction: {
-    name: 'Construction Company',
-    price: 15,
-    label: 'monthly subscription',
-    duration: 'monthly',
-    purpose: 'subscription',
-  },
-  worker: {
-    name: 'Skilled Worker',
-    price: 5,
-    label: 'monthly subscription',
-    duration: 'monthly',
-    purpose: 'subscription',
-  },
-  // BOQ generation
-  boq_with_plan: {
+// ------------------------------------------------------------
+// Build the display map for every payment type.
+//
+// Subscription types are generated from SUBSCRIPTION_CATEGORIES so the
+// names, prices and labels stay in sync with the single source of truth.
+// BOQ types are listed explicitly.
+// ------------------------------------------------------------
+function buildPaymentTypes() {
+  const map = {};
+
+  for (const cat of SUBSCRIPTION_CATEGORIES) {
+    for (const plan of cat.plans) {
+      const typeKey = composePlanType(cat.key, plan.key);
+      map[typeKey] = {
+        name: cat.label,
+        price: plan.priceUsd,
+        label: `${plan.label} — monthly subscription`,
+        duration: 'monthly',
+        purpose: 'subscription',
+      };
+    }
+  }
+
+  map.boq_with_plan = {
     name: 'BOQ Generation',
     price: 10,
     label: 'with floor plan upload',
     duration: 'one-off',
     purpose: 'boq',
-  },
-  boq_without_plan: {
+  };
+
+  map.boq_without_plan = {
     name: 'BOQ Generation',
     price: 5,
     label: 'from a template',
     duration: 'one-off',
     purpose: 'boq',
-  },
-};
+  };
+
+  return map;
+}
+
+const PAYMENT_TYPES = buildPaymentTypes();
 
 const FALLBACK_TYPE = {
   name: 'Payment',
@@ -60,7 +65,7 @@ export default function PaymentPage() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  const type = searchParams.get('type') || 'hardware';
+  const type = searchParams.get('type') || 'hardware_starter';
   const amountParam = searchParams.get('amount');
   const projectId = searchParams.get('project_id');
 
