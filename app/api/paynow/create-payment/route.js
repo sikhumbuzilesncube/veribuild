@@ -4,9 +4,25 @@ import { createClient } from '@supabase/supabase-js';
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { userId, userEmail, amount, planType, reference } = body;
+    const {
+      userId,
+      userEmail,
+      amount,
+      planType,
+      reference,
+      projectId,
+      paymentPurpose,
+    } = body;
 
-    console.log('Create payment:', { userId, userEmail, amount, planType, reference });
+    console.log('Create payment:', {
+      userId,
+      userEmail,
+      amount,
+      planType,
+      reference,
+      projectId,
+      paymentPurpose,
+    });
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
@@ -30,6 +46,8 @@ export async function POST(request) {
         payment_status: 'pending',
         transaction_reference: reference,
         provider: 'paynow',
+        project_id: projectId ? parseInt(projectId, 10) : null,
+        payment_purpose: paymentPurpose || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -57,4 +75,4 @@ export async function POST(request) {
       { status: 500 }
     );
   }
-            }
+}
