@@ -1,48 +1,41 @@
 import { NextResponse } from 'next/server';
 import { initiatePayment } from '../../lib/paynow';
+import { getAuthenticatedUser } from '../../../lib/server-auth';
 
 export async function POST(request) {
   try {
-    const body = await request.json();
-    console.log('Paynow payment request received:', body);
+    const user = await getAuthenticatedUser(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    const { 
-      amount, 
-      customerEmail, 
-      customerFirstName, 
-      customerLastName,
-      customerPhone,
-      planType, 
-      planName, 
-      planDuration, 
-      userId,
-      paymentMethod 
+    const body = await request.json();
+    const {
+      amount,
+      customerEmail,
+      planType,
+      planName,
+      planDuration,
     } = body;
 
     if (!amount) {
       return NextResponse.json({ error: 'Amount is required' }, { status: 400 });
     }
 
-    if (!customerEmail) {
-      return NextResponse.json({ error: 'Customer email is required' }, { status: 400 });
-    }
-
-    const parsedAmount = parseFloat(amount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
+    // Prefer the authenticated user's email over whatever the client sent.
+    const resolvedEmail = user.email || customerEmail;
+    if (!resolvedEmail) {
+      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
     const result = await initiatePayment({
-      amount: parsedAmount,
-      customerEmail,
-      customerFirstName: customerFirstName || 'Customer',
-      customerLastName: customerLastName || 'User',
-      customerPhone: customerPhone || '',
-      planType: planType || 'hardware',
-      planName: planName || 'Hardware Store',
-      planDuration: planDuration || 'monthly',
-      userId: userId || null,
-      paymentMethod: paymentMethod || 'web',
+      amount: parseFloat(amount),
+      customerEmail: resolvedEmail,
+      planType: planType || 'payment',
+      planName: planName || 'Payment',
+      planDuration: planDuration || '',
+      // Use the authenticated user id, not the client-supplied value.
+      userId: user.id,
     });
 
     return NextResponse.json({
@@ -50,12 +43,10 @@ export async function POST(request) {
       redirectUrl: result.redirectUrl,
       pollUrl: result.pollUrl,
       reference: result.reference,
-      instructions: result.instructions,
-      isMobile: result.isMobile,
     });
 
   } catch (error) {
-    console.error('Paynow payment error:', error);
+    console.error('Paynow route error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to initiate payment' },
       { status: 500 }
@@ -64,15 +55,5 @@ export async function POST(request) {
 }
 
 export async function GET() {
-  return NextResponse.json({ message: 'Paynow API endpoint. Use POST to initiate payment.' });
+  return NextResponse.json({ message: 'Paynow API endpoint' });
 }
-
-export async function OPTIONS() {
-  return NextResponse.json({}, {
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  });
-  }
