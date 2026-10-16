@@ -5,10 +5,52 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
-const PLAN_DETAILS = {
-  hardware: { name: 'Hardware Store', price: 15, duration: 'monthly' },
-  construction: { name: 'Construction Company', price: 15, duration: 'monthly' },
-  worker: { name: 'Skilled Worker', price: 5, duration: 'monthly' },
+const PAYMENT_TYPES = {
+  // Subscriptions
+  hardware: {
+    name: 'Hardware Store',
+    price: 15,
+    label: 'monthly subscription',
+    duration: 'monthly',
+    purpose: 'subscription',
+  },
+  construction: {
+    name: 'Construction Company',
+    price: 15,
+    label: 'monthly subscription',
+    duration: 'monthly',
+    purpose: 'subscription',
+  },
+  worker: {
+    name: 'Skilled Worker',
+    price: 5,
+    label: 'monthly subscription',
+    duration: 'monthly',
+    purpose: 'subscription',
+  },
+  // BOQ generation
+  boq_with_plan: {
+    name: 'BOQ Generation',
+    price: 10,
+    label: 'with floor plan upload',
+    duration: 'one-off',
+    purpose: 'boq',
+  },
+  boq_without_plan: {
+    name: 'BOQ Generation',
+    price: 5,
+    label: 'from a template',
+    duration: 'one-off',
+    purpose: 'boq',
+  },
+};
+
+const FALLBACK_TYPE = {
+  name: 'Payment',
+  price: 0,
+  label: 'unknown payment type',
+  duration: '',
+  purpose: 'subscription',
 };
 
 export default function PaymentPage() {
@@ -18,9 +60,15 @@ export default function PaymentPage() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  const userType = searchParams.get('type') || 'hardware';
-  const amount = searchParams.get('amount') || '15';
-  const selectedPlan = PLAN_DETAILS[userType] || PLAN_DETAILS.hardware;
+  const type = searchParams.get('type') || 'hardware';
+  const amountParam = searchParams.get('amount');
+  const projectId = searchParams.get('project_id');
+
+  const typeConfig = PAYMENT_TYPES[type];
+  const typeUnknown = !typeConfig;
+
+  const config = typeConfig || FALLBACK_TYPE;
+  const amount = amountParam != null ? String(amountParam) : String(config.price);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -39,6 +87,11 @@ export default function PaymentPage() {
   const handlePayment = async () => {
     setError(null);
 
+    if (typeUnknown) {
+      setError('Unknown payment type. Please return to the previous page and try again.');
+      return;
+    }
+
     if (!user) {
       setError('Please log in to continue with payment');
       return;
@@ -47,10 +100,9 @@ export default function PaymentPage() {
     setLoading(true);
 
     try {
-      // Generate reference
       const reference = `VB-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`.toUpperCase();
 
-      // Step 1: Create payment record via server API (bypasses RLS)
+      // Step 1: Create payment record via server API
       const createResponse = await fetch('/api/paynow/create-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -58,8 +110,10 @@ export default function PaymentPage() {
           userId: user.id,
           userEmail: user.email,
           amount: parseFloat(amount),
-          planType: userType,
+          planType: type,
           reference: reference,
+          projectId: projectId || null,
+          paymentPurpose: config.purpose,
         }),
       });
 
@@ -78,13 +132,12 @@ export default function PaymentPage() {
         body: JSON.stringify({
           amount: parseFloat(amount),
           customerEmail: user.email,
-          customerFirstName: user.user_metadata?.full_name || 'Customer',
-          customerLastName: '',
-          customerPhone: user.user_metadata?.phone || '',
-          planType: userType,
-          planName: selectedPlan.name,
-          planDuration: selectedPlan.duration,
+          planType: type,
+          planName: config.name,
+          planDuration: config.label,
           userId: user.id,
+          projectId: projectId || null,
+          paymentPurpose: config.purpose,
           reference: reference,
         }),
       });
@@ -97,12 +150,17 @@ export default function PaymentPage() {
 
       console.log('SDK response:', sdkData);
 
-      // Store reference for later use
+      // Store reference and poll URL for the success page to use
       if (sdkData.reference) {
         localStorage.setItem('paynow_reference', sdkData.reference);
       }
       if (sdkData.pollUrl) {
         localStorage.setItem('paynow_pollUrl', sdkData.pollUrl);
+      }
+      if (projectId) {
+        localStorage.setItem('paynow_project_id', String(projectId));
+      } else {
+        localStorage.removeItem('paynow_project_id');
       }
 
       // Step 3: Redirect to Paynow
@@ -166,14 +224,16 @@ export default function PaymentPage() {
 
         <div className="px-6 py-6">
           <div className="text-center mb-5">
-            <h2 className="text-xl font-bold text-gray-900">{selectedPlan.name}</h2>
-            <p className="text-sm text-gray-600">{selectedPlan.duration} subscription</p>
+            <h2 className="text-xl font-bold text-gray-900">{config.name}</h2>
+            <p className="text-sm text-gray-600">{config.label}</p>
           </div>
 
           <div className="rounded-lg p-4 mb-5" style={{ backgroundColor: '#FFF3E8' }}>
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium text-gray-700">Amount</span>
-              <span className="text-2xl font-bold" style={{ color: '#F47B20' }}>${amount}.00 USD</span>
+              <span className="text-2xl font-bold" style={{ color: '#F47B20' }}>
+                ${amount}.00 USD
+              </span>
             </div>
           </div>
 
@@ -184,9 +244,18 @@ export default function PaymentPage() {
 
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
             <p className="text-xs text-yellow-700">
-              You'll be redirected to <strong>Paynow</strong> to complete your payment securely.
+              You&apos;ll be redirected to <strong>Paynow</strong> to complete your payment securely.
             </p>
           </div>
+
+          {typeUnknown && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-red-600">
+                Unknown payment type: <strong>{type}</strong>. Please return to the
+                previous page and try again.
+              </p>
+            </div>
+          )}
 
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
@@ -197,16 +266,19 @@ export default function PaymentPage() {
           <button
             type="button"
             onClick={handlePayment}
-            disabled={loading}
+            disabled={loading || typeUnknown}
             className="w-full flex justify-center items-center px-4 py-3 border border-transparent text-base font-semibold rounded-lg text-white transition-colors disabled:opacity-50"
             style={{ backgroundColor: '#F47B20' }}
           >
             {loading ? 'Processing...' : `Pay $${amount} Now`}
           </button>
 
-          <div className="mt-4 text-center">
-            <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
-              ← Back to Home
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <Link
+              href="/dashboard"
+              className="text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg px-4 py-2"
+            >
+              Cancel payment
             </Link>
           </div>
 
@@ -226,4 +298,4 @@ export default function PaymentPage() {
       </div>
     </div>
   );
-         }
+    }
