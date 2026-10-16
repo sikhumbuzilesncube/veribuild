@@ -14,6 +14,8 @@ const MAX_CONSTRUCTION = 2;
 const MAX_WORKERS = 2;
 const MAX_ARCHITECTS = 3;
 
+const TRIAL_LIMIT = 2;
+
 export default function BOQPage() {
   const router = useRouter();
   const params = useParams();
@@ -38,11 +40,13 @@ export default function BOQPage() {
         return;
       }
 
+      // Ownership check: only the project owner can load this BOQ.
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .select('*')
         .eq('id', projectId)
-        .single();
+        .eq('user_id', session.user.id)
+        .maybeSingle();
 
       if (projectError || !projectData) {
         setError('Project not found');
@@ -50,6 +54,61 @@ export default function BOQPage() {
         return;
       }
 
+      // ------------------------------------------------------------
+      // Payment gate
+      // ------------------------------------------------------------
+      const isTemplateBOQ = !projectData.file_url;
+      const planType = isTemplateBOQ ? 'boq_without_plan' : 'boq_with_plan';
+      const price = isTemplateBOQ ? 5 : 10;
+
+      // 1. Has this project already been paid for?
+      const { data: existingPayment } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('project_id', projectData.id)
+        .eq('payment_status', 'completed')
+        .eq('payment_purpose', 'boq')
+        .maybeSingle();
+
+      const isPaid = !!existingPayment;
+
+      // 2. If not paid, check trial eligibility for construction and architects
+      const userType = session.user.user_metadata?.user_type || 'client';
+      let trialAllowed = false;
+      let trialRowId = null;
+      let trialTable = null;
+
+      if (!isPaid && (userType === 'construction' || userType === 'architect')) {
+        trialTable = userType === 'construction'
+          ? 'construction_companies'
+          : 'architects';
+
+        const { data: listingRow } = await supabase
+          .from(trialTable)
+          .select('id, boqs_generated_count')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+
+        if (listingRow) {
+          const used = listingRow.boqs_generated_count || 0;
+          if (used < TRIAL_LIMIT) {
+            trialAllowed = true;
+            trialRowId = listingRow.id;
+          }
+        }
+      }
+
+      // 3. If not paid and no trial, redirect to the payment page
+      if (!isPaid && !trialAllowed) {
+        router.replace(
+          `/payment?type=${planType}&amount=${price}&project_id=${projectData.id}`
+        );
+        return;
+      }
+
+      // ------------------------------------------------------------
+      // Green light: generate the BOQ
+      // ------------------------------------------------------------
       setProject(projectData);
 
       let generated;
@@ -64,6 +123,26 @@ export default function BOQPage() {
         setError(`Failed to generate BOQ: ${err.message}`);
         setLoading(false);
         return;
+      }
+
+      // Increment the trial counter only after generation succeeds
+      if (!isPaid && trialAllowed && trialTable && trialRowId) {
+        try {
+          const { data: currentRow } = await supabase
+            .from(trialTable)
+            .select('boqs_generated_count')
+            .eq('id', trialRowId)
+            .single();
+
+          const currentCount = currentRow?.boqs_generated_count || 0;
+          await supabase
+            .from(trialTable)
+            .update({ boqs_generated_count: currentCount + 1 })
+            .eq('id', trialRowId);
+        } catch (trialErr) {
+          console.error('Failed to increment trial counter:', trialErr);
+          // Non-fatal: the BOQ still generates. Worst case the user gets an extra trial.
+        }
       }
 
       setSaving(true);
@@ -84,7 +163,6 @@ export default function BOQPage() {
       setSaving(false);
 
       const cityId = projectData.city_id;
-      const isTemplateBOQ = !projectData.file_url;
 
       await Promise.all([
         loadHardwareStores(generated.items, cityId),
@@ -158,7 +236,6 @@ export default function BOQPage() {
         return { ...store, materials: matched, total: round2(storeTotal) };
       });
 
-      // Only keep stores that matched at least one item
       const useful = storesWithPrices.filter((s) => s.materials.length > 0);
 
       const premium = useful
