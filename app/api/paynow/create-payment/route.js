@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getAuthenticatedUser } from '../../../../lib/server-auth';
 
 export async function POST(request) {
   try {
-    const user = await getAuthenticatedUser(request);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = await request.json();
-    const { amount, planType, reference } = body;
+    const { userId, userEmail, amount, planType, reference } = body;
 
+    console.log('Create payment:', { userId, userEmail, amount, planType, reference });
+
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+    }
     if (!amount || !planType) {
       return NextResponse.json({ error: 'Amount and plan required' }, { status: 400 });
     }
@@ -24,7 +23,7 @@ export async function POST(request) {
     const { data, error } = await supabase
       .from('payments')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         amount: parseFloat(amount),
         currency: 'USD',
         payment_method: planType,
@@ -58,4 +57,4 @@ export async function POST(request) {
       { status: 500 }
     );
   }
-      }
+            }
