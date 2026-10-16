@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getAuthenticatedUser } from '../../../lib/server-auth';
-import { checkPaymentStatus } from '../../../lib/paynow';
+import { checkPaymentStatus } from '../../../../lib/paynow';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -15,11 +14,6 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Reference required' }, { status: 400 });
     }
 
-    const user = await getAuthenticatedUser(request);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: payment } = await supabase
@@ -30,10 +24,6 @@ export async function GET(request) {
 
     if (!payment) {
       return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
-    }
-
-    if (payment.user_id && payment.user_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     if (payment.payment_status === 'completed') {
@@ -135,4 +125,4 @@ export async function GET(request) {
       { status: 500 }
     );
   }
-}
+      }
