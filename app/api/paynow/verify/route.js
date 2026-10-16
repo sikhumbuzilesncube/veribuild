@@ -1,53 +1,24 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { createServerClient } from '@supabase/ssr';
 import { checkPaymentStatus } from '../../../lib/paynow';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 /**
- * Read the authenticated user from the request cookies.
+ * Read the authenticated user from the request.
  *
- * We use @supabase/ssr's createServerClient so the session is read from the
- * request's cookies, which is how Next.js App Router server routes see the
- * logged-in user. If @supabase/ssr is not installed, we fall back to reading
- * the Authorization header (used by some client calls) and treat a missing
- * session as unauthenticated.
+ * Strategy:
+ * 1. Look for the Authorization: Bearer <token> header. If present, use it.
+ * 2. Look for the Supabase session cookie sb-<ref>-auth-token. Parse and
+ *    extract access_token, then verify with Supabase.
+ *
+ * We do not use @supabase/ssr because we do not need its full features here
+ * and avoiding the dependency keeps the build simple.
  */
 async function getAuthenticatedUser(request) {
-  // Preferred path: cookie-based session via @supabase/ssr
-  try {
-    const { createServerClient: makeClient } = await import('@supabase/ssr');
-
-    const supabaseAuth = makeClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
-      cookies: {
-        get(name) {
-          // Read from request cookies
-          const cookieHeader = request.headers.get('cookie') || '';
-          const match = cookieHeader
-            .split(';')
-            .map((c) => c.trim())
-            .find((c) => c.startsWith(name + '='));
-          if (!match) return undefined;
-          return decodeURIComponent(match.slice(name.length + 1));
-        },
-        set() {
-          // verify route does not set cookies
-        },
-        remove() {
-          // verify route does not remove cookies
-        },
-      },
-    });
-
-    const { data: { user } } = await supabaseAuth.auth.getUser();
-    if (user) return user;
-  } catch (err) {
-    // @supabase/ssr may not be installed. Fall through to header check.
-  }
-
-  // Fallback: Authorization: Bearer <access_token>
+  // 1. Authorization header
   const authHeader = request.headers.get('authorization') || '';
   const bearer = authHeader.toLowerCase().startsWith('bearer ')
     ? authHeader.slice(7).trim()
@@ -55,17 +26,86 @@ async function getAuthenticatedUser(request) {
 
   if (bearer) {
     try {
-      const tempClient = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
+      const client = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: `Bearer ${bearer}` } },
       });
-      const { data: { user } } = await tempClient.auth.getUser();
+      const { data: { user } } = await client.auth.getUser();
       if (user) return user;
-    } catch {
-      // fall through to null
+    } catch (err) {
+      console.warn('Bearer auth failed:', err.message);
     }
   }
 
-  return null;
+  // 2. Supabase session cookie
+  try {
+    const cookieHeader = request.headers.get('cookie') || '';
+    const projectRef = (supabaseUrl || '').match(/https?:\/\/([^.]+)\./)?.[1];
+    if (!projectRef) return null;
+
+    const cookieName = `sb-${projectRef}-auth-token`;
+    const cookieValue = readCookie(cookieHeader, cookieName);
+
+    if (!cookieValue) {
+      // Try the chunked variant: sb-<ref>-auth-token.0, .1, etc.
+      const chunks = [];
+      for (let i = 0; i < 10; i++) {
+        const part = readCookie(cookieHeader, `${cookieName}.${i}`);
+        if (!part) break;
+        chunks.push(part);
+      }
+      if (chunks.length > 0) {
+        return await verifyTokenString(chunks.join(''));
+      }
+      return null;
+    }
+
+    return await verifyTokenString(cookieValue);
+  } catch (err) {
+    console.warn('Cookie auth failed:', err.message);
+    return null;
+  }
+}
+
+function readCookie(cookieHeader, name) {
+  if (!cookieHeader) return null;
+  const parts = cookieHeader.split(';').map((c) => c.trim());
+  const target = parts.find((c) => c.startsWith(name + '='));
+  if (!target) return null;
+  return decodeURIComponent(target.slice(name.length + 1));
+}
+
+async function verifyTokenString(rawValue) {
+  if (!rawValue) return null;
+
+  let accessToken = null;
+
+  // The cookie value is usually JSON with an access_token field. It may also
+  // be base64-encoded JSON. Try both.
+  try {
+    const parsed = JSON.parse(rawValue);
+    accessToken = parsed?.access_token || parsed?.[0]?.access_token || null;
+  } catch {
+    try {
+      const decoded = Buffer.from(rawValue, 'base64').toString('utf8');
+      const parsed = JSON.parse(decoded);
+      accessToken = parsed?.access_token || parsed?.[0]?.access_token || null;
+    } catch {
+      return null;
+    }
+  }
+
+  if (!accessToken) return null;
+
+  try {
+    const client = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    });
+    const { data: { user } } = await client.auth.getUser();
+    return user || null;
+  } catch (err) {
+    console.warn('Token verify failed:', err.message);
+    return null;
+  }
 }
 
 export async function GET(request) {
@@ -77,7 +117,6 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Reference required' }, { status: 400 });
     }
 
-    // Require an authenticated user before doing anything else.
     const user = await getAuthenticatedUser(request);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -85,7 +124,6 @@ export async function GET(request) {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Find payment in DB
     const { data: payment } = await supabase
       .from('payments')
       .select('*')
@@ -96,13 +134,10 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
     }
 
-    // Ownership check. Only the user who created the payment can verify it.
-    // Even if the reference leaks, another user cannot flip its state.
     if (payment.user_id && payment.user_id !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Already completed — return early
     if (payment.payment_status === 'completed') {
       return NextResponse.json({
         success: true,
@@ -114,7 +149,6 @@ export async function GET(request) {
       });
     }
 
-    // Pending — poll Paynow
     if (payment.payment_proof_url) {
       try {
         const statusResult = await checkPaymentStatus(payment.payment_proof_url);
@@ -124,7 +158,6 @@ export async function GET(request) {
           String(statusResult.status || '').toLowerCase() === 'paid';
 
         if (isPaid) {
-          // Update payment to completed
           await supabase
             .from('payments')
             .update({
@@ -134,7 +167,6 @@ export async function GET(request) {
             })
             .eq('id', payment.id);
 
-          // Create subscription if plan_type is a subscription
           const subscriptionPlans = ['hardware', 'construction', 'worker'];
           if (subscriptionPlans.includes(payment.payment_method)) {
             const { data: existingSub } = await supabase
