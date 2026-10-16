@@ -24,7 +24,6 @@ export async function POST(request) {
     const { data, error } = await supabase
       .from('payments')
       .insert({
-        // Use the authenticated user id, not the client-supplied value.
         user_id: user.id,
         amount: parseFloat(amount),
         currency: 'USD',
@@ -59,4 +58,4 @@ export async function POST(request) {
       { status: 500 }
     );
   }
-       }
+      }
