@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
-import { SUBSCRIPTION_CATEGORIES, planToDbFields } from '@/lib/subscriptions';
+import { SUBSCRIPTION_CATEGORIES, composePlanType } from '@/lib/subscriptions';
 
 export default function SubscriptionPage() {
   return (
@@ -20,9 +20,7 @@ function SubscriptionContent() {
   const preselect = searchParams.get('category');
 
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [status, setStatus] = useState('');
   const [user, setUser] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(preselect || 'construction');
   const [userListings, setUserListings] = useState({});
@@ -58,78 +56,34 @@ function SubscriptionContent() {
     load();
   }, [router]);
 
-  const handleSelectPlan = async (categoryKey, planKey) => {
-    setSaving(true);
+  const handleSelectPlan = (categoryKey, planKey) => {
     setError('');
-    setStatus('');
 
     const cat = SUBSCRIPTION_CATEGORIES.find((c) => c.key === categoryKey);
     if (!cat) {
       setError('Invalid category');
-      setSaving(false);
       return;
     }
 
-    const dbFields = planToDbFields(categoryKey, planKey);
-    if (!dbFields) {
+    const plan = cat.plans.find((p) => p.key === planKey);
+    if (!plan) {
       setError('Invalid plan');
-      setSaving(false);
       return;
     }
 
     const existing = userListings[categoryKey];
-
     if (!existing) {
       setError(
         `You do not have a ${cat.label} listing yet. Create one first from your ${cat.label} dashboard, then return here to choose a plan.`
       );
-      setSaving(false);
       return;
     }
 
-    setStatus('Saving your plan selection...');
-
-    try {
-      // Only send columns that exist in all four tables
-      const updateFields = {
-        subscription_tier: dbFields.subscription_tier,
-        subscription_coverage: dbFields.subscription_coverage,
-        subscription_status: dbFields.subscription_status,
-        featured_city_ids: dbFields.featured_city_ids,
-      };
-
-      const { error: updateError } = await supabase
-        .from(cat.table)
-        .update(updateFields)
-        .eq('id', existing.id);
-
-      if (updateError) {
-        setError(`Failed to save: ${updateError.message}`);
-        setSaving(false);
-        setStatus('');
-        return;
-      }
-
-      setStatus(
-        `Plan selected: ${cat.label} — ${planKey.replace('_', ' ')}. Payment gateway is not yet connected. This plan will be charged when billing launches.`
-      );
-
-      setUserListings({
-        ...userListings,
-        [categoryKey]: {
-          ...existing,
-          subscription_tier: dbFields.subscription_tier,
-          subscription_coverage: dbFields.subscription_coverage,
-        },
-      });
-
-      setSaving(false);
-    } catch (err) {
-      console.error('Plan selection error:', err);
-      setError('Something went wrong. Please try again.');
-      setSaving(false);
-      setStatus('');
-    }
+    // Redirect to the payment page. The webhook will activate the plan
+    // against the listing row once the payment completes.
+    const planType = composePlanType(categoryKey, planKey);
+    const url = `/payment?type=${encodeURIComponent(planType)}&amount=${plan.priceUsd}`;
+    router.push(url);
   };
 
   if (loading) {
@@ -162,9 +116,7 @@ function SubscriptionContent() {
             Subscription Plans
           </h1>
           <p className="text-gray-600 text-sm">
-            Choose how you want your business to appear on VeriBuild. Plans are
-            shown in USD per month. Payment gateway is not yet connected — your
-            selection is recorded and will be charged when billing launches.
+            Choose the plan that fits your business. All prices are in USD per month.
           </p>
         </div>
 
@@ -209,9 +161,19 @@ function SubscriptionContent() {
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
             <div className="font-semibold mb-1">Your current plan</div>
             <p>
-              {currentListing.subscription_tier === 'premium' ? 'Premium' : 'Standard'}
-              {' · '}
-              {currentListing.subscription_coverage === 'national' ? 'All cities' : 'One city'}
+              {currentListing.subscription_status !== 'active'
+                ? 'No active plan'
+                : currentListing.subscription_tier === 'premium'
+                ? 'Premium'
+                : 'Standard'}
+              {currentListing.subscription_status === 'active' && (
+                <>
+                  {' · '}
+                  {currentListing.subscription_coverage === 'national'
+                    ? 'All cities'
+                    : 'One city'}
+                </>
+              )}
             </p>
           </div>
         )}
@@ -220,6 +182,7 @@ function SubscriptionContent() {
           {currentCategory.plans.map((plan) => {
             const isCurrent =
               currentListing &&
+              currentListing.subscription_status === 'active' &&
               currentListing.subscription_tier === (plan.placement === 'boq' ? 'premium' : 'standard') &&
               currentListing.subscription_coverage === plan.coverage;
 
@@ -252,7 +215,7 @@ function SubscriptionContent() {
 
                 <button
                   onClick={() => handleSelectPlan(currentCategory.key, plan.key)}
-                  disabled={saving || !userHasListing || isCurrent}
+                  disabled={!userHasListing || isCurrent}
                   className={`w-full py-3 rounded-lg font-semibold transition ${
                     isCurrent
                       ? 'bg-green-100 text-green-800 cursor-default'
@@ -278,22 +241,15 @@ function SubscriptionContent() {
           </div>
         )}
 
-        {status && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg text-sm">
-            {status}
-          </div>
-        )}
-
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
-          <div className="font-semibold mb-1">About subscriptions during beta</div>
+          <div className="font-semibold mb-1">About subscriptions</div>
           <p>
-            The platform is in beta. You can select a plan now, and it will be
-            recorded against your listing. When payment launches, you will be
-            charged the selected amount. You can change or cancel before then.
+            Plans are charged monthly. Cancel anytime. Your plan renews automatically
+            every 30 days.
           </p>
         </div>
 
       </div>
     </div>
   );
-    }
+      }
