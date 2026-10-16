@@ -13,6 +13,9 @@ export async function POST(request) {
       planName,
       planDuration,
       userId,
+      projectId,
+      paymentPurpose,
+      reference,
     } = body;
 
     if (!amount) {
@@ -29,6 +32,9 @@ export async function POST(request) {
       planName: planName || 'Payment',
       planDuration: planDuration || '',
       userId: userId || null,
+      projectId: projectId || null,
+      paymentPurpose: paymentPurpose || null,
+      reference: reference || null,
     });
 
     return NextResponse.json({
@@ -49,4 +55,4 @@ export async function POST(request) {
 
 export async function GET() {
   return NextResponse.json({ message: 'Paynow API endpoint' });
-                                }
+        }
