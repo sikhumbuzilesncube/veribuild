@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { generateFullBOQ } from '@/lib/boq/engine';
 import { round2 } from '@/lib/boq/utils';
@@ -15,6 +16,7 @@ const MAX_WORKERS = 2;
 const MAX_ARCHITECTS = 3;
 
 const TRIAL_LIMIT = 2;
+const PREMIUM_BOQ_LIMIT = 50;
 
 export default function BOQPage() {
   const router = useRouter();
@@ -31,6 +33,11 @@ export default function BOQPage() {
   const [architects, setArchitects] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  
+  // New state for limit reached
+  const [limitReached, setLimitReached] = useState(false);
+  const [limitResetDate, setLimitResetDate] = useState(null);
+  const [standalonePlanType, setStandalonePlanType] = useState(null);
 
   useEffect(() => {
     async function loadBOQ() {
@@ -40,7 +47,7 @@ export default function BOQPage() {
         return;
       }
 
-      // Ownership check: only the project owner can load this BOQ.
+      // Ownership check
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .select('*')
@@ -54,14 +61,16 @@ export default function BOQPage() {
         return;
       }
 
-      // ------------------------------------------------------------
-      // Payment gate
-      // ------------------------------------------------------------
       const isTemplateBOQ = !projectData.file_url;
       const planType = isTemplateBOQ ? 'boq_without_plan' : 'boq_with_plan';
       const price = isTemplateBOQ ? 5 : 10;
+      setStandalonePlanType(planType);
 
-      // 1. Has this project already been paid for?
+      const userType = session.user.user_metadata?.user_type || 'client';
+
+      // ------------------------------------------------------------
+      // 1. Check if the project is already paid for (standalone)
+      // ------------------------------------------------------------
       const { data: existingPayment } = await supabase
         .from('payments')
         .select('id')
@@ -70,36 +79,102 @@ export default function BOQPage() {
         .eq('payment_purpose', 'boq')
         .maybeSingle();
 
-      const isPaid = !!existingPayment;
+      const isPaidStandalone = !!existingPayment;
 
-      // 2. If not paid, check trial eligibility for construction and architects
-      const userType = session.user.user_metadata?.user_type || 'client';
+      // If paid standalone, bypass all limits and trials
+      if (isPaidStandalone) {
+        await generateAndRender(projectData, isTemplateBOQ);
+        return;
+      }
+
+      // ------------------------------------------------------------
+      // 2. Check subscription limits (Construction / Architect / Worker)
+      // ------------------------------------------------------------
+      let table = null;
+      if (userType === 'construction') table = 'construction_companies';
+      else if (userType === 'architect') table = 'architects';
+      else if (userType === 'worker') table = 'workers';
+
+      let listingRow = null;
+      let isPremium = false;
       let trialAllowed = false;
       let trialRowId = null;
       let trialTable = null;
 
-      if (!isPaid && (userType === 'construction' || userType === 'architect')) {
-        trialTable = userType === 'construction'
-          ? 'construction_companies'
-          : 'architects';
-
-        const { data: listingRow } = await supabase
-          .from(trialTable)
-          .select('id, boqs_generated_count')
+      if (table) {
+        const { data } = await supabase
+          .from(table)
+          .select('id, subscription_tier, subscription_status, boqs_generated_count, boqs_this_cycle, boq_cycle_started_at')
           .eq('user_id', session.user.id)
           .maybeSingle();
 
-        if (listingRow) {
-          const used = listingRow.boqs_generated_count || 0;
-          if (used < TRIAL_LIMIT) {
-            trialAllowed = true;
-            trialRowId = listingRow.id;
-          }
+        if (data) {
+          listingRow = data;
+          isPremium = data.subscription_status === 'active' && data.subscription_tier === 'premium';
         }
       }
 
-      // 3. If not paid and no trial, redirect to the payment page
-      if (!isPaid && !trialAllowed) {
+      // ------------------------------------------------------------
+      // 3. Premium Logic (50 BOQ limit)
+      // ------------------------------------------------------------
+      if (isPremium && listingRow) {
+        let cycleStart = listingRow.boq_cycle_started_at ? new Date(listingRow.boq_cycle_started_at) : null;
+        let currentCount = listingRow.boqs_this_cycle || 0;
+        
+        const now = new Date();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(now.getDate() - 30);
+
+        // Lazy reset: If cycle started > 30 days ago, or never started
+        if (!cycleStart || cycleStart < thirtyDaysAgo) {
+          currentCount = 0;
+          cycleStart = now;
+          
+          await supabase
+            .from(table)
+            .update({ 
+              boqs_this_cycle: 0, 
+              boq_cycle_started_at: now.toISOString() 
+            })
+            .eq('id', listingRow.id);
+        }
+
+        // Check limit
+        if (currentCount >= PREMIUM_BOQ_LIMIT) {
+          const resetDate = new Date(cycleStart);
+          resetDate.setDate(resetDate.getDate() + 30);
+          setLimitResetDate(resetDate);
+          setLimitReached(true);
+          setLoading(false);
+          return;
+        }
+
+        // Under limit -> generate and then increment cycle count
+        await generateAndRender(projectData, isTemplateBOQ, {
+          table,
+          rowId: listingRow.id,
+          incrementCycle: true,
+          incrementTrial: false,
+        });
+        return;
+      }
+
+      // ------------------------------------------------------------
+      // 4. Non-Premium Trial Logic (Construction / Architect)
+      // ------------------------------------------------------------
+      if ((userType === 'construction' || userType === 'architect') && listingRow) {
+        trialTable = table;
+        trialRowId = listingRow.id;
+        const used = listingRow.boqs_generated_count || 0;
+        if (used < TRIAL_LIMIT) {
+          trialAllowed = true;
+        }
+      }
+
+      // ------------------------------------------------------------
+      // 5. Paywall for Non-Premium without trials
+      // ------------------------------------------------------------
+      if (!trialAllowed) {
         router.replace(
           `/payment?type=${planType}&amount=${price}&project_id=${projectData.id}`
         );
@@ -107,8 +182,17 @@ export default function BOQPage() {
       }
 
       // ------------------------------------------------------------
-      // Green light: generate the BOQ
+      // 6. Trial Generation
       // ------------------------------------------------------------
+      await generateAndRender(projectData, isTemplateBOQ, {
+        table: trialTable,
+        rowId: trialRowId,
+        incrementCycle: false,
+        incrementTrial: true,
+      });
+    }
+
+    async function generateAndRender(projectData, isTemplateBOQ, incrementOptions = null) {
       setProject(projectData);
 
       let generated;
@@ -125,45 +209,46 @@ export default function BOQPage() {
         return;
       }
 
-      // Increment the trial counter only after generation succeeds
-      if (!isPaid && trialAllowed && trialTable && trialRowId) {
-        try {
-          const { data: currentRow } = await supabase
-            .from(trialTable)
-            .select('boqs_generated_count')
-            .eq('id', trialRowId)
-            .single();
-
-          const currentCount = currentRow?.boqs_generated_count || 0;
-          await supabase
-            .from(trialTable)
-            .update({ boqs_generated_count: currentCount + 1 })
-            .eq('id', trialRowId);
-        } catch (trialErr) {
-          console.error('Failed to increment trial counter:', trialErr);
-          // Non-fatal: the BOQ still generates. Worst case the user gets an extra trial.
-        }
-      }
-
+      // Save total cost
       setSaving(true);
       try {
-        const { error: updateError } = await supabase
+        await supabase
           .from('projects')
-          .update({
-            total_cost: generated.totalCost,
-            status: 'completed',
-          })
+          .update({ total_cost: generated.totalCost, status: 'completed' })
           .eq('id', projectId);
-        if (updateError) {
-          console.error('Failed to save total cost:', updateError);
-        }
       } catch (err) {
         console.error('Error saving total cost:', err);
       }
       setSaving(false);
 
-      const cityId = projectData.city_id;
+      // Increment counters only after successful generation
+      if (incrementOptions) {
+        const { table, rowId, incrementCycle, incrementTrial } = incrementOptions;
+        
+        try {
+          const updates = {};
+          
+          if (incrementCycle) {
+             // For premium, we fetched currentCount earlier but to be safe we re-fetch just the column
+             const { data: fresh } = await supabase.from(table).select('boqs_this_cycle').eq('id', rowId).single();
+             updates.boqs_this_cycle = (fresh?.boqs_this_cycle || 0) + 1;
+          }
+          
+          if (incrementTrial) {
+             const { data: fresh } = await supabase.from(table).select('boqs_generated_count').eq('id', rowId).single();
+             updates.boqs_generated_count = (fresh?.boqs_generated_count || 0) + 1;
+          }
 
+          if (Object.keys(updates).length > 0) {
+             await supabase.from(table).update(updates).eq('id', rowId);
+          }
+        } catch (trialErr) {
+          console.error('Failed to increment counter:', trialErr);
+        }
+      }
+
+      // Load marketing directory
+      const cityId = projectData.city_id;
       await Promise.all([
         loadHardwareStores(generated.items, cityId),
         loadConstructionCompanies(cityId),
@@ -257,9 +342,6 @@ export default function BOQPage() {
     }
   }
 
-  // ----------------------------------------------------------
-  // Construction companies (max 2)
-  // ----------------------------------------------------------
   async function loadConstructionCompanies(cityId) {
     try {
       let query = supabase
@@ -292,9 +374,6 @@ export default function BOQPage() {
     }
   }
 
-  // ----------------------------------------------------------
-  // Workers (max 2)
-  // ----------------------------------------------------------
   async function loadWorkers(cityId) {
     try {
       let query = supabase
@@ -325,9 +404,6 @@ export default function BOQPage() {
     }
   }
 
-  // ----------------------------------------------------------
-  // Architects (max 3, template BOQs only)
-  // ----------------------------------------------------------
   async function loadArchitects(cityId) {
     try {
       let query = supabase
@@ -356,9 +432,6 @@ export default function BOQPage() {
     }
   }
 
-  // ----------------------------------------------------------
-  // Roll up child amounts into parent header rows
-  // ----------------------------------------------------------
   function rollUpHeaderAmounts(sectionItems) {
     const cloned = sectionItems.map((it) => ({ ...it }));
 
@@ -492,6 +565,42 @@ export default function BOQPage() {
     );
   }
 
+  // New: Limit Reached Screen
+  if (limitReached) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center">
+          <div className="text-6xl mb-4 text-[#F47B20]">50</div>
+          <h2 className="text-2xl font-bold text-[#2C3E50] mb-2">
+            Monthly Limit Reached
+          </h2>
+          <p className="text-sm text-gray-600 mb-6">
+            You have generated all 50 included BOQs for this 30-day cycle. 
+            Your limit will reset on <strong>{limitResetDate?.toLocaleDateString()}</strong>.
+          </p>
+          <p className="text-sm text-gray-600 mb-6">
+            Need a BOQ urgently? You can purchase a standalone BOQ for this project.
+          </p>
+          
+          <div className="flex flex-col gap-3">
+            <Link
+              href={`/payment?type=${standalonePlanType}&amount=${standalonePlanType === 'boq_with_plan' ? 10 : 5}&project_id=${projectId}`}
+              className="bg-[#F47B20] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition"
+            >
+              Buy Standalone BOQ
+            </Link>
+            <Link
+              href="/dashboard"
+              className="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-50 transition"
+            >
+              Back to Dashboard
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (error || !project || !boq) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
@@ -517,7 +626,9 @@ export default function BOQPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-5xl mx-auto">
-
+        
+        {/* Header, Sections, Summary, etc... all unchanged from previous versions */}
+        
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8 mb-6">
           <div className="border-b-2 border-[#2C3E50] pb-4 mb-4">
@@ -974,4 +1085,4 @@ function ArchitectCard({ architect }) {
       </div>
     </div>
   );
-}
+  }
