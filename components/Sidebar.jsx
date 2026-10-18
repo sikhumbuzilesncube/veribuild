@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
+const ADMIN_EMAIL = 'gatekeeperzw@gmail.com';
+
 const SIDEBAR_ITEMS = {
   client: [
     { label: 'Dashboard',           href: '/dashboard' },
@@ -98,6 +100,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userType, setUserType] = useState('client');
+  const [userEmail, setUserEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [urgentCount, setUrgentCount] = useState(0);
   const [myWorkerId, setMyWorkerId] = useState(null);
@@ -115,6 +118,7 @@ export default function Sidebar() {
       const type = metadata.user_type || 'client';
       const resolvedType = type in SIDEBAR_ITEMS ? type : 'client';
       setUserType(resolvedType);
+      setUserEmail(session.user.email);
 
       if (resolvedType === 'worker') {
         const { data: workerRow } = await supabase
@@ -203,7 +207,12 @@ export default function Sidebar() {
     };
   }, [myTrade, myCityId]);
 
-  const items = SIDEBAR_ITEMS[userType] || SIDEBAR_ITEMS.client;
+  const baseItems = SIDEBAR_ITEMS[userType] || SIDEBAR_ITEMS.client;
+  
+  // Append Admin link if the logged in user is the admin
+  const items = userEmail === ADMIN_EMAIL 
+    ? [...baseItems, { label: 'Admin Overview', href: '/dashboard/admin' }]
+    : baseItems;
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -307,4 +316,4 @@ export default function Sidebar() {
       </div>
     </>
   );
-      }
+    }
