@@ -14,7 +14,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-export default function AdminDashboard() {
+export default function AdminPortal() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
@@ -36,6 +36,7 @@ export default function AdminDashboard() {
         });
 
         if (!res.ok) {
+          // If they are not the admin, silently kick them to the normal dashboard
           if (res.status === 403) {
             router.replace('/dashboard');
             return;
@@ -199,4 +200,4 @@ export default function AdminDashboard() {
       </div>
     </div>
   );
-            }
+        }
