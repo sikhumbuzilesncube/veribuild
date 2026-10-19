@@ -100,23 +100,36 @@ export default function AdminPortal() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Total Users</p>
+            {/* Total Users Widget */}
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-bl-lg">
+                +{stats.recentSignups} this week
+              </div>
+              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mt-2">Total Users</p>
               <p className="text-3xl font-bold text-[#2C3E50] mt-1">{stats.totalUsers}</p>
             </div>
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">BOQs Generated</p>
-              <p className="text-3xl font-bold text-[#2C3E50] mt-1">{stats.totalProjects}</p>
-            </div>
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Total Revenue</p>
+
+            {/* Total Revenue Widget */}
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-bl-lg">
+                +${stats.recentRevenue} this week
+              </div>
+              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mt-2">Total Revenue</p>
               <p className="text-3xl font-bold text-[#F47B20] mt-1">${stats.totalRevenue.toFixed(2)}</p>
               <div className="mt-1 text-xs text-gray-500">
                 <span className="text-green-600">${stats.subRevenue} subs</span> · <span className="text-blue-600">${stats.boqRevenue} BOQs</span>
               </div>
             </div>
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Urgent Jobs</p>
+
+            {/* BOQs Generated */}
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
+              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mt-2">BOQs Generated</p>
+              <p className="text-3xl font-bold text-[#2C3E50] mt-1">{stats.totalProjects}</p>
+            </div>
+
+            {/* Urgent Jobs */}
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
+              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mt-2">Urgent Jobs</p>
               <p className="text-3xl font-bold text-[#2C3E50] mt-1">{stats.totalUrgentJobs}</p>
             </div>
           </div>
