@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 
 const TRIAL_LIMIT = 2;
+const ADMIN_EMAIL = 'gatekeeperzw@gmail.com';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -139,6 +140,7 @@ export default function Dashboard() {
   }
 
   const isClient = userType === 'client';
+  const isAdmin = userEmail === ADMIN_EMAIL;
   const showTrialCard =
     (userType === 'construction' || userType === 'architect') && trialUsed != null;
   const trialRemaining = showTrialCard
@@ -186,6 +188,14 @@ export default function Dashboard() {
             >
               BOQ Without a Plan
             </Link>
+            {isAdmin && (
+              <Link
+                href="/dashboard/admin-portal"
+                className="bg-[#2C3E50] text-white px-4 md:px-6 py-2 rounded-lg font-semibold hover:bg-[#1a252f] transition shadow-lg shadow-gray-400 text-sm md:text-base text-center"
+              >
+                Admin Portal
+              </Link>
+            )}
           </div>
         </div>
 
