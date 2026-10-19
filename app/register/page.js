@@ -90,6 +90,17 @@ export default function Register() {
 
       setSuccess('Account created! Please check your email to confirm your address.');
 
+      // Send notification to admin (fire and forget)
+      fetch('/api/notify-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          fullName: formData.fullName,
+          userType: formData.userType,
+        }),
+      }).catch((err) => console.error('Failed to send signup notification:', err));
+
       const destination = POST_SIGNUP_REDIRECT[formData.userType] || '/dashboard';
 
       setTimeout(() => {
@@ -258,4 +269,4 @@ export default function Register() {
       </div>
     </div>
   );
-      }
+}
