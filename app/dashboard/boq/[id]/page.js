@@ -8,7 +8,7 @@ import { generateFullBOQ } from '@/lib/boq/engine';
 import { round2 } from '@/lib/boq/utils';
 import { CITY_NAMES } from '@/lib/cities';
 import PlanDrawingEstimate from './PlanDrawingEstimate';
-import { IconSparkle } from '@/components/Icons'; // <--- THIS WAS MISSING
+import { IconSparkle } from '@/components/Icons';
 
 const MAX_FEATURED_HARDWARE = 3;
 const MAX_OTHER_HARDWARE = 3;
@@ -95,6 +95,8 @@ export default function BOQPage() {
       let premiumLimitReached = false;
       let premiumResetNeeded = false;
       let nextResetDate = null;
+      let currentTrialCount = 0;
+      let currentCycleCount = 0;
 
       if (!isPaid && (userType === 'construction' || userType === 'architect' || userType === 'worker')) {
         listingTable = userType === 'construction' ? 'construction_companies' 
@@ -109,6 +111,8 @@ export default function BOQPage() {
 
         if (listingRow) {
           listingRowId = listingRow.id;
+          currentTrialCount = listingRow.boqs_generated_count || 0;
+          currentCycleCount = listingRow.boqs_this_cycle || 0;
           
           const hasPremiumBoqLimit = (userType === 'construction' || userType === 'architect');
           
@@ -136,13 +140,12 @@ export default function BOQPage() {
             if (cycleExpired) {
               premiumResetNeeded = true;
               nextResetDate = new Date(now.getTime() + (CYCLE_DAYS * 24 * 3600 * 1000));
-            } else if (listingRow.boqs_this_cycle >= PREMIUM_BOQ_LIMIT) {
+            } else if (currentCycleCount >= PREMIUM_BOQ_LIMIT) {
               premiumLimitReached = true;
             }
           } else {
             // --- Standard/Free Logic ---
-            const trialUsed = listingRow.boqs_generated_count || 0;
-            if (trialUsed < TRIAL_LIMIT) {
+            if (currentTrialCount < TRIAL_LIMIT) {
               trialAllowed = true;
             }
           }
@@ -184,7 +187,6 @@ export default function BOQPage() {
         
         // Only show review prompt if not admin
         if (!isAdmin) {
-          // Check if user has already reviewed
           const { data: existingReview } = await supabase
             .from('reviews')
             .select('id')
@@ -206,22 +208,27 @@ export default function BOQPage() {
       // ------------------------------------------------------------
       // Post-generation Database Updates
       // ------------------------------------------------------------
-      if (!isPaid && listingRowId && listingTable) {
+      // We only update the counter if they are NOT admin, and NOT paying for this specific BOQ.
+      if (!isAdmin && !isPaid && listingRowId && listingTable) {
         try {
           if (isPremium) {
             const now = new Date();
+            const newCycleCount = premiumResetNeeded ? 1 : currentCycleCount + 1;
+            
             await supabase
               .from(listingTable)
               .update({
-                boqs_this_cycle: premiumResetNeeded ? 1 : (listingRow.boqs_this_cycle || 0) + 1,
+                boqs_this_cycle: newCycleCount,
                 boq_cycle_started_at: premiumResetNeeded ? now.toISOString() : listingRow.boq_cycle_started_at
               })
               .eq('id', listingRowId);
+              
           } else if (trialAllowed) {
-            const currentCount = listingRow.boqs_generated_count || 0;
+            const newTrialCount = currentTrialCount + 1;
+            
             await supabase
               .from(listingTable)
-              .update({ boqs_generated_count: currentCount + 1 })
+              .update({ boqs_generated_count: newTrialCount })
               .eq('id', listingRowId);
           }
         } catch (gateErr) {
