@@ -2,57 +2,31 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { parsePlanType, planToDbFields } from '@/lib/subscriptions';
 import { getPaymentPurpose } from '@/lib/prices';
+import { notifyAdmin } from '@/lib/notify-admin';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-/**
- * Activate a subscription for the paying user.
- *
- * Looks up the listing row for the user (construction_companies, architects,
- * workers, or hardware_stores), then writes the plan fields.
- *
- * Idempotent: if the listing already has the same tier and status, it does
- * nothing. Safe to call multiple times for the same payment.
- */
 async function activateSubscription(supabase, payment) {
   const parsed = parsePlanType(payment.payment_method);
-  if (!parsed) {
-    console.warn('Webhook: cannot parse plan type', payment.payment_method);
-    return;
-  }
+  if (!parsed) return;
 
   const { category, planKey, categoryConfig } = parsed;
   const dbFields = planToDbFields(category, planKey);
-  if (!dbFields) {
-    console.warn('Webhook: no db fields for plan', category, planKey);
-    return;
-  }
-
-  const table = categoryConfig.table;
+  if (!dbFields) return;
 
   const { data: listingRow } = await supabase
-    .from(table)
+    .from(categoryConfig.table)
     .select('id')
     .eq('user_id', payment.user_id)
     .maybeSingle();
 
-  if (!listingRow) {
-    console.warn('Webhook: no listing row for user', payment.user_id, 'in', table);
-    return;
-  }
+  if (!listingRow) return;
 
-  const { error: updateError } = await supabase
-    .from(table)
+  await supabase
+    .from(categoryConfig.table)
     .update(dbFields)
     .eq('id', listingRow.id);
-
-  if (updateError) {
-    console.error('Webhook: failed to update listing row', updateError);
-    return;
-  }
-
-  console.log('Webhook: subscription activated for', category, planKey, 'user', payment.user_id);
 }
 
 export async function POST(request) {
@@ -70,8 +44,6 @@ export async function POST(request) {
         data[key] = value;
       }
     }
-
-    console.log('Webhook body:', JSON.stringify(data));
 
     const reference = data.reference || data.Reference;
     const status = data.status || data.Status;
@@ -94,6 +66,11 @@ export async function POST(request) {
       return new NextResponse('ok', { status: 200 });
     }
 
+    // Prevent duplicate processing if webhook fires twice
+    if (payment.payment_status === 'completed') {
+       return new NextResponse('ok', { status: 200 });
+    }
+
     if (isPaid) {
       await supabase
         .from('payments')
@@ -108,7 +85,6 @@ export async function POST(request) {
       const purpose = payment.payment_purpose || getPaymentPurpose(payment.payment_method);
 
       if (purpose === 'subscription') {
-        // 1. Create the subscriptions row (once)
         const { data: existingSub } = await supabase
           .from('subscriptions')
           .select('id')
@@ -131,10 +107,16 @@ export async function POST(request) {
             payment_id: payment.id,
           });
         }
-
-        // 2. Update the listing row
         await activateSubscription(supabase, payment);
       }
+
+      // Send admin notification
+      const cleanMethod = payment.payment_method.replace(/_/g, ' ').toUpperCase();
+      await notifyAdmin(
+        `New Payment Received: $${payment.amount}`,
+        `A new payment has been successfully processed.\n\nAmount: $${payment.amount} ${payment.currency}\nType: ${cleanMethod}\nPurpose: ${purpose}\nReference: ${payment.transaction_reference}`
+      );
+
     } else if (['cancelled', 'failed', 'declined'].includes(statusLower)) {
       await supabase
         .from('payments')
@@ -157,4 +139,4 @@ export async function POST(request) {
 
 export async function GET() {
   return NextResponse.json({ message: 'Paynow webhook active' });
-}
+          }
