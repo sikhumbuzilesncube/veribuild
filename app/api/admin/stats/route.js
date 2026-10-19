@@ -27,6 +27,8 @@ export async function GET(request) {
     // 2. Use the Service Role key to fetch data (including auth.users)
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgoIso = sevenDaysAgo.toISOString();
 
     // Fetch all necessary data in parallel
     const [
@@ -41,14 +43,20 @@ export async function GET(request) {
       supabase.from('job_requests').select('*', { count: 'exact', head: true }),
     ]);
 
-    // Get total auth users (Service role only)
+    // Get total auth users and recent users (Service role only)
     const { data: authUsers, error: usersError } = await supabase.auth.admin.listUsers();
     const actualTotalUsers = authUsers?.users?.length || 0;
     
+    // Count users created in the last 7 days
+    const recentSignupsCount = authUsers?.users?.filter(u => 
+      new Date(u.created_at) >= sevenDaysAgo
+    ).length || 0;
+
     // Calculate Revenue and Chart Data
     let totalRevenue = 0;
     let subRevenue = 0;
     let boqRevenue = 0;
+    let recentRevenue = 0;
     const chartMap = {};
 
     // Build last 7 days keys
@@ -62,13 +70,20 @@ export async function GET(request) {
 
     if (paymentsData) {
       paymentsData.forEach((p) => {
-        totalRevenue += Number(p.amount);
-        if (p.payment_purpose === 'subscription') subRevenue += Number(p.amount);
-        if (p.payment_purpose === 'boq') boqRevenue += Number(p.amount);
+        const amount = Number(p.amount);
+        totalRevenue += amount;
+        
+        if (p.payment_purpose === 'subscription') subRevenue += amount;
+        if (p.payment_purpose === 'boq') boqRevenue += amount;
+
+        const paymentDate = new Date(p.created_at);
+        if (paymentDate >= sevenDaysAgo) {
+          recentRevenue += amount;
+        }
 
         const dateKey = p.created_at.split('T')[0];
         if (chartMap[dateKey]) {
-          chartMap[dateKey].revenue += Number(p.amount);
+          chartMap[dateKey].revenue += amount;
           if (p.payment_purpose === 'boq') chartMap[dateKey].boqs += 1;
         }
 
@@ -84,10 +99,12 @@ export async function GET(request) {
       success: true,
       stats: {
         totalUsers: actualTotalUsers,
+        recentSignups: recentSignupsCount,
         totalProjects: totalProjects || 0,
         totalRevenue: totalRevenue,
         subRevenue: subRevenue,
         boqRevenue: boqRevenue,
+        recentRevenue: recentRevenue,
         totalUrgentJobs: totalUrgentJobs || 0,
       },
       recentProjects: recentProjectsData || [],
@@ -99,4 +116,4 @@ export async function GET(request) {
     console.error('Admin stats error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+                                }
