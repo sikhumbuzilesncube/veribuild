@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import SampleBOQModal from '@/components/SampleBOQModal';
@@ -17,6 +18,20 @@ import {
 
 export default function Home() {
   const [showSample, setShowSample] = useState(false);
+  const [reviews, setReviews] = useState([]);
+
+  useEffect(() => {
+    async function loadReviews() {
+      const { data } = await supabase
+        .from('reviews')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(3);
+      
+      if (data) setReviews(data);
+    }
+    loadReviews();
+  }, []);
 
   return (
     <div className="min-h-screen bg-white font-sans antialiased text-slate-700">
@@ -432,8 +447,49 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ===== DYNAMIC REVIEWS ===== */}
+      {reviews.length > 0 && (
+        <section className="py-24 md:py-32 px-6 bg-gray-50 border-y border-gray-100">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center max-w-2xl mx-auto mb-12">
+              <span className="inline-block text-xs font-bold uppercase tracking-wider text-brand-500 mb-3">
+                What our users say
+              </span>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-700">
+                Real reviews from real builders.
+              </h2>
+            </div>
+            
+            <div className="grid md:grid-cols-3 gap-6">
+              {reviews.map((review) => (
+                <div key={review.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center gap-1 mb-4">
+                      {[...Array(5)].map((_, i) => (
+                        <svg key={i} className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400' : 'text-gray-200'}`} fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                      ))}
+                    </div>
+                    <p className="text-slate-700 text-sm leading-relaxed mb-6">
+                      &ldquo;{review.review_text}&rdquo;
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+                    <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold text-xs uppercase">
+                      {review.user_name?.charAt(0) || 'U'}
+                    </div>
+                    <p className="text-sm font-semibold text-slate-700">{review.user_name || 'Anonymous'}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ===== TESTIMONIAL ===== */}
-<section className="py-24 md:py-32 px-6 bg-gray-50 border-y border-gray-100">
+<section className="py-24 md:py-32 px-6 bg-white border-y border-gray-100">
   <div className="max-w-3xl mx-auto text-center">
     <span className="inline-block text-xs font-bold uppercase tracking-wider text-brand-500 mb-8">
       What architects are saying
@@ -607,4 +663,4 @@ export default function Home() {
       <Footer />
     </div>
   );
-    }
+        }
