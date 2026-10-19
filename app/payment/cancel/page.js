@@ -1,16 +1,39 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
 
 export default function PaymentCancelPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [reference, setReference] = useState(null);
+  const [retryUrl, setRetryUrl] = useState('/dashboard');
 
   useEffect(() => {
-    const ref = searchParams.get('reference') || localStorage.getItem('paynow_reference');
-    setReference(ref);
+    async function loadPaymentInfo() {
+      const ref = searchParams.get('reference') || localStorage.getItem('paynow_reference');
+      setReference(ref);
+
+      if (ref) {
+        // Look up the payment to rebuild the exact retry URL
+        const { data } = await supabase
+          .from('payments')
+          .select('payment_method, amount, project_id')
+          .eq('transaction_reference', ref)
+          .maybeSingle();
+
+        if (data) {
+          const params = new URLSearchParams();
+          params.set('type', data.payment_method);
+          if (data.amount) params.set('amount', String(data.amount));
+          if (data.project_id) params.set('project_id', String(data.project_id));
+          setRetryUrl(`/payment?${params.toString()}`);
+        }
+      }
+    }
+    loadPaymentInfo();
   }, [searchParams]);
 
   return (
@@ -25,7 +48,7 @@ export default function PaymentCancelPage() {
 
         <div className="px-6 py-8 text-center">
           <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100 mb-4">
-            <span className="text-yellow-600 text-3xl">⚠</span>
+            <span className="text-yellow-600 text-3xl">!</span>
           </div>
 
           <h3 className="text-xl font-bold text-gray-900 mb-2">Payment Cancelled</h3>
@@ -43,7 +66,7 @@ export default function PaymentCancelPage() {
           )}
 
           <Link
-            href="/payment"
+            href={retryUrl}
             className="inline-flex items-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-white w-full justify-center transition-colors"
             style={{ backgroundColor: '#E65A00' }}
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#CC4F00'}
@@ -53,13 +76,13 @@ export default function PaymentCancelPage() {
           </Link>
 
           <Link
-            href="/"
+            href="/dashboard"
             className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-600 w-full justify-center mt-2"
           >
-            ← Back to Home
+            Back to Dashboard
           </Link>
         </div>
       </div>
     </div>
   );
-    }
+}
