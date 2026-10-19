@@ -8,6 +8,7 @@ import { generateFullBOQ } from '@/lib/boq/engine';
 import { round2 } from '@/lib/boq/utils';
 import { CITY_NAMES } from '@/lib/cities';
 import PlanDrawingEstimate from './PlanDrawingEstimate';
+import { IconSparkle } from '@/components/Icons'; // <--- THIS WAS MISSING
 
 const MAX_FEATURED_HARDWARE = 3;
 const MAX_OTHER_HARDWARE = 3;
@@ -278,7 +279,6 @@ export default function BOQPage() {
     setShowRating(false);
   };
 
-  // ... (Keep all the existing loadHardwareStores, loadConstructionCompanies, loadWorkers, loadArchitects, rollUpHeaderAmounts, and downloadCSV functions exactly as they are) ...
   async function loadHardwareStores(boqItems, cityId) {
     try {
       let query = supabase.from('hardware_stores').select('id, store_name, contact_person, phone, location, email, subscription_status, subscription_tier, featured_city_ids').eq('subscription_status', 'active');
@@ -456,7 +456,7 @@ export default function BOQPage() {
     <>
       <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
         <div className="max-w-5xl mx-auto">
-          {/* ... (Keep the existing BOQ render output here unchanged) ... */}
+          
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8 mb-6">
             <div className="border-b-2 border-[#2C3E50] pb-4 mb-4">
               <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] uppercase tracking-wide">
@@ -663,7 +663,6 @@ export default function BOQPage() {
         </div>
       </div>
 
-      {/* Rating Modal */}
       {showRating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
