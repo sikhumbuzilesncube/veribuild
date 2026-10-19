@@ -19,6 +19,9 @@ const TRIAL_LIMIT = 2;
 const PREMIUM_BOQ_LIMIT = 50;
 const CYCLE_DAYS = 30;
 
+// Add your admin email here to bypass all payment gates
+const ADMIN_EMAIL = 'gatekeeperzw@gmail.com';
+
 export default function BOQPage() {
   const router = useRouter();
   const params = useParams();
@@ -64,6 +67,8 @@ export default function BOQPage() {
       const isTemplateBOQ = !projectData.file_url;
       const planType = isTemplateBOQ ? 'boq_without_plan' : 'boq_with_plan';
       const price = isTemplateBOQ ? 5 : 10;
+      
+      const isAdmin = session.user.email === ADMIN_EMAIL;
 
       // 1. Has this project already been paid for? (Standalone BOQ purchase)
       const { data: existingPayment } = await supabase
@@ -74,7 +79,8 @@ export default function BOQPage() {
         .eq('payment_purpose', 'boq')
         .maybeSingle();
 
-      const isPaid = !!existingPayment;
+      // If they are an admin, we treat it as "already paid" so it bypasses all gates
+      const isPaid = !!existingPayment || isAdmin;
 
       // 2. If not paid, check user tier and limits
       const userType = session.user.user_metadata?.user_type || 'client';
@@ -100,8 +106,7 @@ export default function BOQPage() {
         if (listingRow) {
           listingRowId = listingRow.id;
           
-          // CORRECTION: Workers do not get the 50 BOQ limit, even on Premium.
-          // It is only for Construction and Architect.
+          // Workers do not get the 50 BOQ limit, even on Premium.
           const hasPremiumBoqLimit = (userType === 'construction' || userType === 'architect');
           
           isPremium = listingRow.subscription_status === 'active' && 
@@ -184,6 +189,7 @@ export default function BOQPage() {
       // ------------------------------------------------------------
       // Post-generation Database Updates
       // ------------------------------------------------------------
+      // Only increment counters if they are actually paying or using a trial (not admin, not standalone paid)
       if (!isPaid && listingRowId && listingTable) {
         try {
           if (isPremium) {
@@ -241,7 +247,7 @@ export default function BOQPage() {
     loadBOQ();
   }, [projectId, router]);
 
-  // ... (Keep the rest of the file exactly as it was: loadHardwareStores, loadConstructionCompanies, loadWorkers, loadArchitects, rollUpHeaderAmounts, downloadCSV, and the return statements) ...
+  // ... (Keep the existing loadHardwareStores, loadConstructionCompanies, loadWorkers, loadArchitects, rollUpHeaderAmounts, and downloadCSV functions exactly as they are) ...
   
   async function loadHardwareStores(boqItems, cityId) {
     try {
@@ -420,6 +426,7 @@ export default function BOQPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-5xl mx-auto">
+        {/* ... (Keep the existing BOQ render output here unchanged) ... */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8 mb-6">
           <div className="border-b-2 border-[#2C3E50] pb-4 mb-4">
             <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] uppercase tracking-wide">
@@ -689,4 +696,4 @@ function ArchitectCard({ architect }) {
       </div>
     </div>
   );
-}
+    }
