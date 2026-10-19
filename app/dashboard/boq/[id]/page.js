@@ -18,8 +18,6 @@ const MAX_ARCHITECTS = 3;
 const TRIAL_LIMIT = 2;
 const PREMIUM_BOQ_LIMIT = 50;
 const CYCLE_DAYS = 30;
-
-// Add your admin email here to bypass all payment gates
 const ADMIN_EMAIL = 'gatekeeperzw@gmail.com';
 
 export default function BOQPage() {
@@ -41,6 +39,12 @@ export default function BOQPage() {
   const [error, setError] = useState('');
   const [limitReached, setLimitReached] = useState(false);
   const [limitResetDate, setLimitResetDate] = useState(null);
+
+  // Review states
+  const [showRating, setShowRating] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [reviewText, setReviewText] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     async function loadBOQ() {
@@ -70,7 +74,7 @@ export default function BOQPage() {
       
       const isAdmin = session.user.email === ADMIN_EMAIL;
 
-      // 1. Has this project already been paid for? (Standalone BOQ purchase)
+      // 1. Has this project already been paid for?
       const { data: existingPayment } = await supabase
         .from('payments')
         .select('id')
@@ -79,10 +83,9 @@ export default function BOQPage() {
         .eq('payment_purpose', 'boq')
         .maybeSingle();
 
-      // If they are an admin, we treat it as "already paid" so it bypasses all gates
       const isPaid = !!existingPayment || isAdmin;
 
-      // 2. If not paid, check user tier and limits
+      // 2. Check user tier and limits
       const userType = session.user.user_metadata?.user_type || 'client';
       let isPremium = false;
       let listingRowId = null;
@@ -106,7 +109,6 @@ export default function BOQPage() {
         if (listingRow) {
           listingRowId = listingRow.id;
           
-          // Workers do not get the 50 BOQ limit, even on Premium.
           const hasPremiumBoqLimit = (userType === 'construction' || userType === 'architect');
           
           isPremium = listingRow.subscription_status === 'active' && 
@@ -137,7 +139,7 @@ export default function BOQPage() {
               premiumLimitReached = true;
             }
           } else {
-            // --- Standard/Free Logic (Includes Workers and Premium Workers) ---
+            // --- Standard/Free Logic ---
             const trialUsed = listingRow.boqs_generated_count || 0;
             if (trialUsed < TRIAL_LIMIT) {
               trialAllowed = true;
@@ -156,7 +158,6 @@ export default function BOQPage() {
         }
         
         if (!isPremium && !trialAllowed && userType !== 'client') {
-          // Not premium, out of trials, redirect to pay
           router.replace(`/payment?type=${planType}&amount=${price}&project_id=${projectData.id}`);
           return;
         }
@@ -179,6 +180,21 @@ export default function BOQPage() {
           contingencyRate: 0.05,
         });
         setBoq(generated);
+        
+        // Only show review prompt if not admin
+        if (!isAdmin) {
+          // Check if user has already reviewed
+          const { data: existingReview } = await supabase
+            .from('reviews')
+            .select('id')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+            
+          if (!existingReview) {
+            setShowRating(true);
+          }
+        }
+        
       } catch (err) {
         console.error('BOQ generation error:', err);
         setError(`Failed to generate BOQ: ${err.message}`);
@@ -189,11 +205,9 @@ export default function BOQPage() {
       // ------------------------------------------------------------
       // Post-generation Database Updates
       // ------------------------------------------------------------
-      // Only increment counters if they are actually paying or using a trial (not admin, not standalone paid)
       if (!isPaid && listingRowId && listingTable) {
         try {
           if (isPremium) {
-            // Premium (Construction/Architect): Increment cycle counter
             const now = new Date();
             await supabase
               .from(listingTable)
@@ -203,7 +217,6 @@ export default function BOQPage() {
               })
               .eq('id', listingRowId);
           } else if (trialAllowed) {
-            // Standard (and Premium Workers): Increment trial counter
             const currentCount = listingRow.boqs_generated_count || 0;
             await supabase
               .from(listingTable)
@@ -215,7 +228,7 @@ export default function BOQPage() {
         }
       }
 
-      // Update project status to completed and save total cost
+      // Update project status to completed
       setSaving(true);
       try {
         await supabase
@@ -247,8 +260,25 @@ export default function BOQPage() {
     loadBOQ();
   }, [projectId, router]);
 
-  // ... (Keep the existing loadHardwareStores, loadConstructionCompanies, loadWorkers, loadArchitects, rollUpHeaderAmounts, and downloadCSV functions exactly as they are) ...
-  
+  const handleSubmitReview = async () => {
+    if (rating === 0) return;
+    setSubmittingReview(true);
+    
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      await supabase.from('reviews').insert({
+        user_id: session.user.id,
+        user_name: session.user.user_metadata?.full_name || 'Anonymous',
+        rating: rating,
+        review_text: reviewText.trim() || null,
+      });
+    }
+    
+    setSubmittingReview(false);
+    setShowRating(false);
+  };
+
+  // ... (Keep all the existing loadHardwareStores, loadConstructionCompanies, loadWorkers, loadArchitects, rollUpHeaderAmounts, and downloadCSV functions exactly as they are) ...
   async function loadHardwareStores(boqItems, cityId) {
     try {
       let query = supabase.from('hardware_stores').select('id, store_name, contact_person, phone, location, email, subscription_status, subscription_tier, featured_city_ids').eq('subscription_status', 'active');
@@ -367,7 +397,6 @@ export default function BOQPage() {
     );
   }
 
-  // Render Limit Reached UI
   if (limitReached) {
     const isTemplateBOQ = !project.file_url;
     const planType = isTemplateBOQ ? 'boq_without_plan' : 'boq_with_plan';
@@ -424,214 +453,278 @@ export default function BOQPage() {
   const cityName = CITY_NAMES[boq.summary.cityId] || 'your city';
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      <div className="max-w-5xl mx-auto">
-        {/* ... (Keep the existing BOQ render output here unchanged) ... */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8 mb-6">
-          <div className="border-b-2 border-[#2C3E50] pb-4 mb-4">
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] uppercase tracking-wide">
-              Bill of Quantities
-            </h1>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div>
-              <div className="grid grid-cols-[120px_1fr] gap-2 mb-1">
-                <span className="text-gray-500">Project:</span>
-                <span className="font-medium text-[#2C3E50]">{project.project_name}</span>
+    <>
+      <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
+        <div className="max-w-5xl mx-auto">
+          {/* ... (Keep the existing BOQ render output here unchanged) ... */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8 mb-6">
+            <div className="border-b-2 border-[#2C3E50] pb-4 mb-4">
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] uppercase tracking-wide">
+                Bill of Quantities
+              </h1>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <div>
+                <div className="grid grid-cols-[120px_1fr] gap-2 mb-1">
+                  <span className="text-gray-500">Project:</span>
+                  <span className="font-medium text-[#2C3E50]">{project.project_name}</span>
+                </div>
+                <div className="grid grid-cols-[120px_1fr] gap-2 mb-1">
+                  <span className="text-gray-500">Location:</span>
+                  <span className="font-medium text-[#2C3E50]">{cityName}</span>
+                </div>
+                <div className="grid grid-cols-[120px_1fr] gap-2 mb-1">
+                  <span className="text-gray-500">Type:</span>
+                  <span className="font-medium text-[#2C3E50] capitalize">{project.plan_type || 'residential'}</span>
+                </div>
               </div>
-              <div className="grid grid-cols-[120px_1fr] gap-2 mb-1">
-                <span className="text-gray-500">Location:</span>
-                <span className="font-medium text-[#2C3E50]">{cityName}</span>
-              </div>
-              <div className="grid grid-cols-[120px_1fr] gap-2 mb-1">
-                <span className="text-gray-500">Type:</span>
-                <span className="font-medium text-[#2C3E50] capitalize">{project.plan_type || 'residential'}</span>
+              <div>
+                <div className="grid grid-cols-[120px_1fr] gap-2 mb-1">
+                  <span className="text-gray-500">Date:</span>
+                  <span className="font-medium text-[#2C3E50]">{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                </div>
+                <div className="grid grid-cols-[120px_1fr] gap-2 mb-1">
+                  <span className="text-gray-500">Currency:</span>
+                  <span className="font-medium text-[#2C3E50]">USD</span>
+                </div>
+                <div className="grid grid-cols-[120px_1fr] gap-2 mb-1">
+                  <span className="text-gray-500">Floor area:</span>
+                  <span className="font-medium text-[#2C3E50]">{project.floor_area || 0} m²</span>
+                </div>
               </div>
             </div>
-            <div>
-              <div className="grid grid-cols-[120px_1fr] gap-2 mb-1">
-                <span className="text-gray-500">Date:</span>
-                <span className="font-medium text-[#2C3E50]">{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+            {boq.validation && boq.validation.warnings.length > 0 && (
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                <div className="font-semibold mb-1">Input notes:</div>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  {boq.validation.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                </ul>
               </div>
-              <div className="grid grid-cols-[120px_1fr] gap-2 mb-1">
-                <span className="text-gray-500">Currency:</span>
-                <span className="font-medium text-[#2C3E50]">USD</span>
+            )}
+          </div>
+
+          {boq.sections.map((section) => {
+            const rolled = rollUpHeaderAmounts(section.items);
+            return (
+              <div key={section.letter} className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 overflow-hidden">
+                <div className="bg-[#2C3E50] text-white px-4 sm:px-6 py-3">
+                  <h2 className="text-base sm:text-lg font-bold uppercase tracking-wide">Section {section.letter} — {section.title}</h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-100 text-gray-600">
+                      <tr>
+                        <th className="text-left px-3 py-2 w-20 font-semibold">Item</th>
+                        <th className="text-left px-3 py-2 font-semibold">Description</th>
+                        <th className="text-left px-3 py-2 w-16 font-semibold">Unit</th>
+                        <th className="text-right px-3 py-2 w-20 font-semibold">Qty</th>
+                        <th className="text-right px-3 py-2 w-24 font-semibold">Rate</th>
+                        <th className="text-right px-3 py-2 w-28 font-semibold">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rolled.map((item) => {
+                        const isHeader = item.isHeader;
+                        const isSubLine = !!item.parentCode;
+                        const isLabour = item.labour;
+                        return (
+                          <tr key={item.code} className={isHeader ? 'bg-gray-50 border-b border-gray-200' : 'border-b border-gray-100 hover:bg-gray-50'}>
+                            <td className={`px-3 py-2 font-mono text-xs ${isHeader ? 'font-semibold text-[#2C3E50]' : 'text-gray-500'}`}>{item.code}</td>
+                            <td className={`px-3 py-2 ${isHeader ? 'font-semibold text-[#2C3E50]' : isSubLine ? 'pl-8 text-gray-700' : 'text-gray-800'}`}>
+                              {item.description}
+                              {isLabour && item.gangDays != null && <span className="block text-xs text-gray-500 mt-0.5">{item.gangDays} gang-days (crew of {item.gangSize})</span>}
+                            </td>
+                            <td className="px-3 py-2 text-gray-600 text-xs">{item.unit}</td>
+                            <td className="px-3 py-2 text-right text-gray-800 text-xs">{item.qty}</td>
+                            <td className="px-3 py-2 text-right text-gray-600 text-xs">{isHeader ? '' : isLabour ? '' : item.rate != null && item.rate > 0 ? `$${item.rate.toFixed(2)}` : ''}</td>
+                            <td className={`px-3 py-2 text-right text-xs ${isHeader ? 'font-semibold text-[#2C3E50]' : 'font-medium text-[#2C3E50]'}`}>
+                              {isHeader ? item.rolledUpAmount != null ? `$${item.rolledUpAmount.toFixed(2)}` : '—' : isLabour ? 'see Section F' : item.amount != null ? `$${item.amount.toFixed(2)}` : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-gray-50">
+                        <td colSpan="5" className="px-3 py-3 text-right font-semibold text-gray-700">Subtotal {section.letter}</td>
+                        <td className="px-3 py-3 text-right font-bold text-[#2C3E50]">${section.subtotal.toFixed(2)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
               </div>
-              <div className="grid grid-cols-[120px_1fr] gap-2 mb-1">
-                <span className="text-gray-500">Floor area:</span>
-                <span className="font-medium text-[#2C3E50]">{project.floor_area || 0} m²</span>
-              </div>
+            );
+          })}
+
+          <div className="bg-white rounded-lg shadow-sm border-2 border-[#2C3E50] mb-6 overflow-hidden">
+            <div className="bg-[#2C3E50] text-white px-4 sm:px-6 py-3">
+              <h2 className="text-base sm:text-lg font-bold uppercase tracking-wide">Summary</h2>
+            </div>
+            <div className="p-4 sm:p-6">
+              <table className="w-full text-sm">
+                <tbody>
+                  <tr className="border-b border-gray-100">
+                    <td className="py-2 text-gray-600">Subtotal (all sections)</td>
+                    <td className="py-2 text-right font-medium text-[#2C3E50]">${boq.summary.subtotal.toFixed(2)}</td>
+                  </tr>
+                  <tr className="border-b border-gray-100">
+                    <td className="py-2 text-gray-600">Contingency ({(boq.summary.contingencyRate * 100).toFixed(0)}%)</td>
+                    <td className="py-2 text-right font-medium text-[#2C3E50]">${boq.summary.contingency.toFixed(2)}</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="py-3 font-bold text-[#2C3E50] uppercase text-base">Grand Total</td>
+                    <td className="py-3 text-right font-bold text-[#2C3E50] text-lg">${boq.summary.grandTotal.toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+              {boq.summary.cityMultiplier !== 1.0 && <p className="text-xs text-gray-500 mt-3">Prices adjusted by regional factor {boq.summary.cityMultiplier.toFixed(2)}.</p>}
             </div>
           </div>
-          {boq.validation && boq.validation.warnings.length > 0 && (
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-              <div className="font-semibold mb-1">Input notes:</div>
-              <ul className="list-disc pl-5 space-y-0.5">
-                {boq.validation.warnings.map((w, i) => <li key={i}>{w}</li>)}
-              </ul>
+
+          {isTemplateBOQ && <PlanDrawingEstimate project={project} floorArea={project.floor_area || 0} cityId={project.city_id || 1} />}
+          <div id="boq-summary-anchor" />
+
+          {isTemplateBOQ && architects.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+              <h2 className="text-lg font-bold text-[#2C3E50] mb-4">Featured Architects</h2>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {architects.map((arch) => <ArchitectCard key={arch.id} architect={arch} />)}
+              </div>
             </div>
           )}
-        </div>
 
-        {boq.sections.map((section) => {
-          const rolled = rollUpHeaderAmounts(section.items);
-          return (
-            <div key={section.letter} className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 overflow-hidden">
-              <div className="bg-[#2C3E50] text-white px-4 sm:px-6 py-3">
-                <h2 className="text-base sm:text-lg font-bold uppercase tracking-wide">Section {section.letter} — {section.title}</h2>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-100 text-gray-600">
-                    <tr>
-                      <th className="text-left px-3 py-2 w-20 font-semibold">Item</th>
-                      <th className="text-left px-3 py-2 font-semibold">Description</th>
-                      <th className="text-left px-3 py-2 w-16 font-semibold">Unit</th>
-                      <th className="text-right px-3 py-2 w-20 font-semibold">Qty</th>
-                      <th className="text-right px-3 py-2 w-24 font-semibold">Rate</th>
-                      <th className="text-right px-3 py-2 w-28 font-semibold">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rolled.map((item) => {
-                      const isHeader = item.isHeader;
-                      const isSubLine = !!item.parentCode;
-                      const isLabour = item.labour;
-                      return (
-                        <tr key={item.code} className={isHeader ? 'bg-gray-50 border-b border-gray-200' : 'border-b border-gray-100 hover:bg-gray-50'}>
-                          <td className={`px-3 py-2 font-mono text-xs ${isHeader ? 'font-semibold text-[#2C3E50]' : 'text-gray-500'}`}>{item.code}</td>
-                          <td className={`px-3 py-2 ${isHeader ? 'font-semibold text-[#2C3E50]' : isSubLine ? 'pl-8 text-gray-700' : 'text-gray-800'}`}>
-                            {item.description}
-                            {isLabour && item.gangDays != null && <span className="block text-xs text-gray-500 mt-0.5">{item.gangDays} gang-days (crew of {item.gangSize})</span>}
-                          </td>
-                          <td className="px-3 py-2 text-gray-600 text-xs">{item.unit}</td>
-                          <td className="px-3 py-2 text-right text-gray-800 text-xs">{item.qty}</td>
-                          <td className="px-3 py-2 text-right text-gray-600 text-xs">{isHeader ? '' : isLabour ? '' : item.rate != null && item.rate > 0 ? `$${item.rate.toFixed(2)}` : ''}</td>
-                          <td className={`px-3 py-2 text-right text-xs ${isHeader ? 'font-semibold text-[#2C3E50]' : 'font-medium text-[#2C3E50]'}`}>
-                            {isHeader ? item.rolledUpAmount != null ? `$${item.rolledUpAmount.toFixed(2)}` : '—' : isLabour ? 'see Section F' : item.amount != null ? `$${item.amount.toFixed(2)}` : '—'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-gray-50">
-                      <td colSpan="5" className="px-3 py-3 text-right font-semibold text-gray-700">Subtotal {section.letter}</td>
-                      <td className="px-3 py-3 text-right font-bold text-[#2C3E50]">${section.subtotal.toFixed(2)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
+          {featuredHardware.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+              <h2 className="text-lg font-bold text-[#2C3E50] mb-4">Featured Hardware Suppliers</h2>
+              <div className="space-y-4">
+                {featuredHardware.map((store) => <HardwareCard key={store.id} store={store} featured />)}
               </div>
             </div>
-          );
-        })}
+          )}
 
-        <div className="bg-white rounded-lg shadow-sm border-2 border-[#2C3E50] mb-6 overflow-hidden">
-          <div className="bg-[#2C3E50] text-white px-4 sm:px-6 py-3">
-            <h2 className="text-base sm:text-lg font-bold uppercase tracking-wide">Summary</h2>
-          </div>
-          <div className="p-4 sm:p-6">
-            <table className="w-full text-sm">
-              <tbody>
-                <tr className="border-b border-gray-100">
-                  <td className="py-2 text-gray-600">Subtotal (all sections)</td>
-                  <td className="py-2 text-right font-medium text-[#2C3E50]">${boq.summary.subtotal.toFixed(2)}</td>
-                </tr>
-                <tr className="border-b border-gray-100">
-                  <td className="py-2 text-gray-600">Contingency ({(boq.summary.contingencyRate * 100).toFixed(0)}%)</td>
-                  <td className="py-2 text-right font-medium text-[#2C3E50]">${boq.summary.contingency.toFixed(2)}</td>
-                </tr>
-                <tr className="bg-gray-50">
-                  <td className="py-3 font-bold text-[#2C3E50] uppercase text-base">Grand Total</td>
-                  <td className="py-3 text-right font-bold text-[#2C3E50] text-lg">${boq.summary.grandTotal.toFixed(2)}</td>
-                </tr>
-              </tbody>
-            </table>
-            {boq.summary.cityMultiplier !== 1.0 && <p className="text-xs text-gray-500 mt-3">Prices adjusted by regional factor {boq.summary.cityMultiplier.toFixed(2)}.</p>}
-          </div>
-        </div>
-
-        {isTemplateBOQ && <PlanDrawingEstimate project={project} floorArea={project.floor_area || 0} cityId={project.city_id || 1} />}
-        <div id="boq-summary-anchor" />
-
-        {isTemplateBOQ && architects.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
-            <h2 className="text-lg font-bold text-[#2C3E50] mb-4">Featured Architects</h2>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {architects.map((arch) => <ArchitectCard key={arch.id} architect={arch} />)}
+          {otherHardware.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+              <h2 className="text-lg font-bold text-[#2C3E50] mb-4">Other Hardware Suppliers</h2>
+              <div className="space-y-4">
+                {otherHardware.map((store) => <HardwareCard key={store.id} store={store} />)}
+              </div>
+              <button onClick={() => router.push('/dashboard/hardware')} className="mt-4 text-sm text-[#F47B20] hover:underline">See all suppliers in {cityName}</button>
             </div>
-          </div>
-        )}
+          )}
 
-        {featuredHardware.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
-            <h2 className="text-lg font-bold text-[#2C3E50] mb-4">Featured Hardware Suppliers</h2>
-            <div className="space-y-4">
-              {featuredHardware.map((store) => <HardwareCard key={store.id} store={store} featured />)}
-            </div>
-          </div>
-        )}
-
-        {otherHardware.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
-            <h2 className="text-lg font-bold text-[#2C3E50] mb-4">Other Hardware Suppliers</h2>
-            <div className="space-y-4">
-              {otherHardware.map((store) => <HardwareCard key={store.id} store={store} />)}
-            </div>
-            <button onClick={() => router.push('/dashboard/hardware')} className="mt-4 text-sm text-[#F47B20] hover:underline">See all suppliers in {cityName}</button>
-          </div>
-        )}
-
-        {constructionCompanies.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
-            <h2 className="text-lg font-bold text-[#2C3E50] mb-4">Construction Companies</h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              {constructionCompanies.map((company) => (
-                <div key={company.id} className="border border-gray-200 rounded-lg p-4">
-                  <h3 className="font-bold text-[#2C3E50]">{company.company_name}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{company.ad_text || 'No description available'}</p>
-                  <div className="mt-2 text-xs text-gray-500 space-y-0.5">
-                    {company.phone && <div>Tel: {company.phone}</div>}
-                    {company.email && <div>Email: {company.email}</div>}
-                    {company.location && <div>Location: {company.location}</div>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {workers.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
-            <h2 className="text-lg font-bold text-[#2C3E50] mb-4">Skilled Workers</h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              {workers.map((worker) => (
-                <div key={worker.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between">
-                    <div>
-                      <h3 className="font-bold text-[#2C3E50]">{worker.full_name}</h3>
-                      <p className="text-sm text-gray-600">{worker.trade}</p>
-                      {worker.sub_trade && <p className="text-xs text-gray-500">{worker.sub_trade}</p>}
-                    </div>
-                    <div className="text-right text-xs text-gray-500">
-                      <div>Rating: {worker.rating || 0}</div>
-                      <div>Rate: ${worker.daily_rate_usd || 0}/day</div>
+          {constructionCompanies.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+              <h2 className="text-lg font-bold text-[#2C3E50] mb-4">Construction Companies</h2>
+              <div className="grid md:grid-cols-2 gap-4">
+                {constructionCompanies.map((company) => (
+                  <div key={company.id} className="border border-gray-200 rounded-lg p-4">
+                    <h3 className="font-bold text-[#2C3E50]">{company.company_name}</h3>
+                    <p className="text-sm text-gray-600 mt-1">{company.ad_text || 'No description available'}</p>
+                    <div className="mt-2 text-xs text-gray-500 space-y-0.5">
+                      {company.phone && <div>Tel: {company.phone}</div>}
+                      {company.email && <div>Email: {company.email}</div>}
+                      {company.location && <div>Location: {company.location}</div>}
                     </div>
                   </div>
-                  <div className="mt-2 text-xs text-gray-500">{worker.location || 'Location not set'} · {worker.years_experience || 0} years</div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="flex flex-wrap gap-3 mb-8">
-          <button onClick={downloadCSV} className="bg-[#F47B20] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition">Download CSV</button>
-          <button onClick={() => window.print()} className="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-50 transition">Print</button>
-          <button onClick={() => router.push('/dashboard')} className="border-2 border-[#F47B20] text-[#F47B20] px-6 py-3 rounded-lg font-semibold hover:bg-[#F47B20] hover:text-white transition">Back to Dashboard</button>
+          {workers.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+              <h2 className="text-lg font-bold text-[#2C3E50] mb-4">Skilled Workers</h2>
+              <div className="grid md:grid-cols-2 gap-4">
+                {workers.map((worker) => (
+                  <div key={worker.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex justify-between">
+                      <div>
+                        <h3 className="font-bold text-[#2C3E50]">{worker.full_name}</h3>
+                        <p className="text-sm text-gray-600">{worker.trade}</p>
+                        {worker.sub_trade && <p className="text-xs text-gray-500">{worker.sub_trade}</p>}
+                      </div>
+                      <div className="text-right text-xs text-gray-500">
+                        <div>Rating: {worker.rating || 0}</div>
+                        <div>Rate: ${worker.daily_rate_usd || 0}/day</div>
+                      </div>
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">{worker.location || 'Location not set'} · {worker.years_experience || 0} years</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-3 mb-8">
+            <button onClick={downloadCSV} className="bg-[#F47B20] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition">Download CSV</button>
+            <button onClick={() => window.print()} className="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-50 transition">Print</button>
+            <button onClick={() => router.push('/dashboard')} className="border-2 border-[#F47B20] text-[#F47B20] px-6 py-3 rounded-lg font-semibold hover:bg-[#F47B20] hover:text-white transition">Back to Dashboard</button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Rating Modal */}
+      {showRating && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="bg-[#2C3E50] p-6 text-center relative">
+              <button 
+                onClick={() => setShowRating(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-white"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              <div className="w-12 h-12 bg-[#F47B20] rounded-full flex items-center justify-center mx-auto mb-3">
+                <IconSparkle className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-white">How was your experience?</h3>
+              <p className="text-sm text-gray-300 mt-1">Help us improve VeriBuild for everyone.</p>
+            </div>
+            
+            <div className="p-6">
+              <div className="flex justify-center gap-2 mb-6">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => setRating(star)}
+                    className={`p-1 transition-transform hover:scale-110 ${rating >= star ? 'text-yellow-400' : 'text-gray-200'}`}
+                  >
+                    <svg className="w-10 h-10" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+
+              {rating > 0 && (
+                <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                  <textarea
+                    value={reviewText}
+                    onChange={(e) => setReviewText(e.target.value)}
+                    placeholder="Tell us what you liked or how we can improve (optional)"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition text-sm mb-4"
+                    rows="3"
+                  />
+                  <button
+                    onClick={handleSubmitReview}
+                    disabled={submittingReview}
+                    className="w-full bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition disabled:opacity-50"
+                  >
+                    {submittingReview ? 'Submitting...' : 'Submit Review'}
+                  </button>
+                </div>
+              )}
+              
+              {rating === 0 && (
+                <p className="text-center text-sm text-gray-500 mt-2">Tap a star to rate</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -696,4 +789,4 @@ function ArchitectCard({ architect }) {
       </div>
     </div>
   );
-    }
+}
