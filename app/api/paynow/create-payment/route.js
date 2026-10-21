@@ -21,9 +21,6 @@ export async function POST(request) {
     }
 
     // Server-side price enforcement.
-    // The amount sent by the client is ignored. The price is looked up
-    // from the canonical map based on planType. An unknown plan type is
-    // rejected outright — we never charge for a plan we do not recognise.
     const amount = getPrice(planType);
     if (amount == null) {
       return NextResponse.json(
@@ -49,6 +46,13 @@ export async function POST(request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
+    // Safely parse projectId. If it's missing or not a number, set to null.
+    let parsedProjectId = null;
+    if (projectId != null && projectId !== '') {
+      const num = parseInt(projectId, 10);
+      if (!isNaN(num)) parsedProjectId = num;
+    }
+
     const { data, error } = await supabase
       .from('payments')
       .insert({
@@ -59,7 +63,7 @@ export async function POST(request) {
         payment_status: 'pending',
         transaction_reference: reference,
         provider: 'paynow',
-        project_id: projectId ? parseInt(projectId, 10) : null,
+        project_id: parsedProjectId,
         payment_purpose: paymentPurpose,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
