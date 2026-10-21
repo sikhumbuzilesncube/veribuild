@@ -20,7 +20,6 @@ export async function POST(request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    // Safely parse projectId
     let parsedProjectId = null;
     if (projectId != null && projectId !== '') {
       const num = parseInt(projectId, 10);
@@ -41,8 +40,6 @@ export async function POST(request) {
       updated_at: new Date().toISOString(),
     };
 
-    console.log('Attempting insert:', insertPayload);
-
     const { data, error } = await supabase
       .from('payments')
       .insert(insertPayload)
@@ -51,9 +48,9 @@ export async function POST(request) {
 
     if (error) {
       console.error('Insert error details:', error);
-      // We return the exact error message so the frontend can display it
+      // Send the exact Postgres error to the frontend
       return NextResponse.json(
-        { error: `DB Error: ${error.message} | Details: ${error.details} | Hint: ${error.hint}` },
+        { error: `Database Error: ${error.message} - ${error.details || ''}` },
         { status: 500 }
       );
     }
@@ -69,4 +66,4 @@ export async function POST(request) {
     console.error('Create payment error:', error);
     return NextResponse.json({ error: `Server Error: ${error.message}` }, { status: 500 });
   }
-        }
+                                                  }
