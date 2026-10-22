@@ -54,13 +54,41 @@ export default function AdminPortal() {
     loadStats();
   }, [router]);
 
-  // Helper to format phone for WhatsApp
   const toWhatsAppNumber = (phone) => {
     if (!phone) return '';
     let cleaned = String(phone).replace(/[^\d+]/g, '');
     cleaned = cleaned.replace(/^\+/, '');
     if (cleaned.startsWith('0')) cleaned = '263' + cleaned.slice(1);
     return cleaned;
+  };
+
+  // CSV Export function for leads
+  const downloadLeadsCSV = () => {
+    if (!data || !data.recentUnpaidLeads) return;
+
+    const rows = [];
+    rows.push(['Project Name', 'Date', 'Client Name', 'Role', 'Phone', 'Email']);
+    
+    data.recentUnpaidLeads.forEach(lead => {
+      rows.push([
+        lead.project_name,
+        new Date(lead.created_at).toLocaleDateString(),
+        lead.client_name,
+        lead.client_role,
+        lead.client_phone,
+        lead.client_email
+      ]);
+    });
+
+    const csvContent = rows.map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `unpaid_leads_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   if (loading) {
@@ -224,10 +252,16 @@ export default function AdminPortal() {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-4 border-b border-gray-100 bg-amber-50">
+              <div className="p-4 border-b border-gray-100 bg-amber-50 flex justify-between items-center">
                 <h2 className="font-bold text-amber-800">Recent Unpaid Uploads (Leads)</h2>
+                <button 
+                  onClick={downloadLeadsCSV}
+                  className="text-xs bg-amber-800 text-white px-3 py-1 rounded hover:bg-amber-900 transition"
+                >
+                  Download CSV
+                </button>
               </div>
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
                 {recentUnpaidLeads.length === 0 ? (
                   <div className="p-4 text-sm text-gray-500">No unpaid uploads. Everyone is paying!</div>
                 ) : (
@@ -294,4 +328,4 @@ export default function AdminPortal() {
       </div>
     </div>
   );
-      }
+    }
