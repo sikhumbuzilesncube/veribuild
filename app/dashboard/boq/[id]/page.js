@@ -299,7 +299,8 @@ export default function BOQPage() {
 
   async function loadHardwareStores(boqItems, cityId) {
     try {
-      let query = supabase.from('hardware_stores').select('id, store_name, contact_person, phone, location, email, subscription_status, subscription_tier, featured_city_ids').eq('subscription_status', 'active');
+      // UPDATED: Fetch the tagline column
+      let query = supabase.from('hardware_stores').select('id, store_name, tagline, contact_person, phone, location, email, subscription_status, subscription_tier, featured_city_ids').eq('subscription_status', 'active');
       if (cityId) query = query.or(`featured_city_ids.cs.{${cityId}},featured_city_ids.is.null,subscription_coverage.eq.national`);
       const { data: stores } = await query;
       if (!stores) return setFeaturedHardware([]);
@@ -754,7 +755,11 @@ function HardwareCard({ store, featured = false }) {
             {store.store_name}
             {featured && <span className="text-xs bg-[#F47B20] text-white px-2 py-0.5 rounded">Featured</span>}
           </h3>
-          <p className="text-xs text-gray-500">{store.location || 'Location not set'} · {store.phone || 'No phone'}</p>
+          {/* TAGLINE DISPLAYED HERE */}
+          {store.tagline && (
+            <p className="text-xs text-gray-600 mt-0.5">{store.tagline}</p>
+          )}
+          <p className="text-xs text-gray-500 mt-0.5">{store.location || 'Location not set'} · {store.phone || 'No phone'}</p>
         </div>
         <div className="text-right">
           <div className="text-xs text-gray-500">Matched subtotal</div>
