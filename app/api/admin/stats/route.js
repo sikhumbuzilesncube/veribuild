@@ -25,7 +25,6 @@ export async function GET(request) {
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    // Fetch all projects with their payment status
     const { data: allProjects } = await supabase
       .from('projects')
       .select(`
@@ -37,11 +36,9 @@ export async function GET(request) {
       `)
       .order('created_at', { ascending: false });
 
-    // Get all auth users so we can match names and emails
     const { data: authUsersData } = await supabase.auth.admin.listUsers();
     const authUsers = authUsersData?.users || [];
     
-    // Create a quick lookup map for users
     const userMap = {};
     authUsers.forEach(u => {
       userMap[u.id] = {
@@ -69,7 +66,6 @@ export async function GET(request) {
 
     const recentSignupsCount = authUsers.filter(u => new Date(u.created_at) >= sevenDaysAgo).length || 0;
 
-    // --- ANALYTICS: Leads vs Completed ---
     let totalProjectsStarted = 0;
     let completedProjects = 0;
     const recentUnpaidLeads = [];
@@ -85,7 +81,8 @@ export async function GET(request) {
         if (isPaid) {
           completedProjects++;
         } else {
-          if (recentUnpaidLeads.length < 5) {
+          // EXPANDED: Get up to 20 leads instead of 5
+          if (recentUnpaidLeads.length < 20) {
             const clientInfo = userMap[project.user_id] || { email: 'Unknown', name: 'Unknown', phone: 'Unknown', role: 'unknown' };
             
             recentUnpaidLeads.push({
@@ -103,7 +100,6 @@ export async function GET(request) {
       });
     }
 
-    // --- REVENUE CALCULATIONS ---
     let totalRevenue = 0;
     let subRevenue = 0;
     let boqRevenue = 0;
@@ -161,4 +157,4 @@ export async function GET(request) {
     console.error('Admin stats error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-                                          }
+}
