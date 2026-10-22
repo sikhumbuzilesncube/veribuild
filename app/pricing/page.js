@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { SUBSCRIPTION_CATEGORIES, composePlanType } from '@/lib/subscriptions';
 
 export default function PricingPage() {
   const [scrolled, setScrolled] = useState(false);
@@ -14,95 +15,39 @@ export default function PricingPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const plans = [
+  // The two BOQ options we actually have in the system
+  const boqPlans = [
     {
-      name: 'Residential',
-      price: '$10',
-      period: 'per BOQ',
-      description: 'Perfect for homeowners and small projects',
-      features: [
-        'Full BOQ Generation',
-        'Supplier Price Comparison',
-        'Worker Suggestions',
-        '3 Exports (PDF/Excel/CSV)',
-      ],
-      cta: 'Get Started',
-      popular: false,
-    },
-    {
-      name: 'Townhouse',
-      price: '$10',
-      period: 'per BOQ',
-      description: 'Ideal for medium-sized residential projects',
-      features: [
-        'Full BOQ Generation',
-        'Supplier Price Comparison',
-        'Worker Suggestions',
-        '3 Exports (PDF/Excel/CSV)',
-      ],
-      cta: 'Get Started',
-      popular: true,
-    },
-    {
-      name: 'Commercial',
-      price: '$30',
-      period: 'per BOQ',
-      description: 'For large-scale commercial projects',
-      features: [
-        'Full BOQ Generation',
-        'Supplier Price Comparison',
-        'Worker Suggestions',
-        'Unlimited Exports',
-        'Multi-Story Support',
-        'Priority Processing',
-      ],
-      cta: 'Get Started',
-      popular: false,
-    },
-  ];
-
-  const subscriptions = [
-    {
-      name: 'Hardware Store',
-      price: '$15',
-      period: '/month',
-      description: 'List your prices and get customers',
-      features: [
-        'List your prices on the platform',
-        'Get customer leads',
-        'Monthly analytics',
-        'Priority support',
-      ],
-      cta: 'Register Now',
-      icon: '🏪',
-    },
-    {
-      name: 'Construction Company',
-      price: '$15',
-      period: '/month',
-      description: 'Advertise on every BOQ',
-      features: [
-        'Your ad appears on every BOQ',
-        'Get customer leads directly',
-        'Build brand awareness',
-        'Priority support',
-      ],
-      cta: 'Register Now',
-      icon: '🏗️',
-    },
-    {
-      name: 'Skilled Worker',
+      name: 'BOQ Without a Plan',
       price: '$5',
-      period: '/month',
-      description: 'Get hired by clients',
+      period: 'per BOQ',
+      description: 'Pick a standard house type and generate a BOQ instantly.',
       features: [
-        'Clients see your profile',
-        'Get reviews and ratings',
-        'More job opportunities',
-        'Priority support',
+        'Full BOQ Generation',
+        'Standard house designs',
+        'Supplier Price Comparison',
+        'Worker Suggestions',
+        'PDF & CSV Exports',
       ],
-      cta: 'Register Now',
-      icon: '🔧',
+      cta: 'Start a Template BOQ',
+      href: '/register',
+      popular: false,
+    },
+    {
+      name: 'BOQ With Plan',
+      price: '$10',
+      period: 'per BOQ',
+      description: 'Upload your own floor plan and get an exact cost breakdown.',
+      features: [
+        'Full BOQ Generation',
+        'AI reads your custom plan',
+        'Supplier Price Comparison',
+        'Worker Suggestions',
+        'PDF & CSV Exports',
+      ],
+      cta: 'Upload a Plan',
+      href: '/register',
+      popular: true,
     },
   ];
 
@@ -151,25 +96,25 @@ export default function PricingPage() {
             Simple, <span className="text-[#F47B20]">Transparent</span> Pricing
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Pay only for what you need. No hidden fees.
+            Pay per BOQ or subscribe for premium visibility. No hidden fees.
           </p>
         </div>
       </section>
 
       {/* BOQ Plans */}
       <section className="py-16 px-6">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-2xl font-bold text-center text-[#2C3E50] mb-4">BOQ Plans</h2>
-          <p className="text-center text-gray-600 mb-12">Choose the plan that fits your project</p>
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl font-bold text-center text-[#2C3E50] mb-4">BOQ Generation</h2>
+          <p className="text-center text-gray-600 mb-12">Pay only when you generate a BOQ</p>
           
-          <div className="grid md:grid-cols-3 gap-6">
-            {plans.map((plan, index) => (
+          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+            {boqPlans.map((plan, index) => (
               <div key={index} className={`border rounded-2xl p-8 text-center hover:shadow-xl transition ${
-                plan.popular ? 'border-2 border-[#F47B20] shadow-xl shadow-orange-100' : 'border-gray-200'
+                plan.popular ? 'border-2 border-[#F47B20] shadow-xl shadow-orange-100 relative' : 'border-gray-200'
               }`}>
                 {plan.popular && (
-                  <span className="inline-block bg-[#F47B20] text-white px-4 py-1 rounded-full text-xs font-bold uppercase mb-4">
-                    Popular
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#F47B20] text-white px-4 py-1 rounded-full text-xs font-bold uppercase whitespace-nowrap">
+                    Most Popular
                   </span>
                 )}
                 <h3 className="text-xl font-bold text-[#2C3E50]">{plan.name}</h3>
@@ -185,7 +130,7 @@ export default function PricingPage() {
                   ))}
                 </ul>
                 <Link
-                  href="/register"
+                  href={plan.href}
                   className="block mt-8 bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition"
                 >
                   {plan.cta}
@@ -197,57 +142,111 @@ export default function PricingPage() {
       </section>
 
       {/* Subscription Plans */}
-      <section className="py-16 px-6 bg-gray-50">
+      <section className="py-16 px-6 bg-gray-50 border-y border-gray-100">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-2xl font-bold text-center text-[#2C3E50] mb-4">Subscription Plans</h2>
-          <p className="text-center text-gray-600 mb-12">For businesses and workers</p>
+          <p className="text-center text-gray-600 mb-12">For businesses, professionals, and workers</p>
           
-          <div className="grid md:grid-cols-3 gap-6">
-            {subscriptions.map((plan, index) => (
-              <div key={index} className="bg-white border border-gray-200 rounded-2xl p-8 text-center hover:shadow-xl transition">
-                <div className="text-4xl mb-4">{plan.icon}</div>
-                <h3 className="text-xl font-bold text-[#2C3E50]">{plan.name}</h3>
-                <p className="text-4xl font-bold text-[#F47B20] my-4">{plan.price}</p>
-                <p className="text-gray-600 text-sm">{plan.period}</p>
-                <p className="text-sm text-gray-500 my-4">{plan.description}</p>
-                <ul className="mt-6 space-y-3 text-left text-sm text-gray-600">
-                  {plan.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <span className="text-[#F47B20] font-bold mt-0.5">✓</span>
-                      {feature}
-                    </li>
+          <div className="space-y-12">
+            {SUBSCRIPTION_CATEGORIES.map((cat) => (
+              <div key={cat.key}>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-8 h-8 rounded bg-[#2C3E50] flex items-center justify-center text-white font-bold text-sm">
+                    {cat.label.charAt(0)}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-[#2C3E50]">{cat.label}</h3>
+                    <p className="text-xs text-gray-500">{cat.description}</p>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-6">
+                  {cat.plans.map((plan) => (
+                    <div key={plan.key} className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col hover:border-[#F47B20] hover:shadow-md transition">
+                      <h4 className="text-base font-bold text-[#2C3E50]">{plan.label}</h4>
+                      <p className="text-3xl font-bold text-[#F47B20] mt-2">${plan.priceUsd}</p>
+                      <p className="text-xs text-gray-500 mb-4">per month</p>
+                      
+                      <ul className="space-y-2 text-sm text-gray-600 flex-1 mb-6">
+                        {plan.features.slice(0, 4).map((feature, idx) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <span className="text-[#F47B20] font-bold mt-0.5">✓</span>
+                            <span className="leading-tight">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      
+                      <Link
+                        href="/register"
+                        className={`block text-center py-2.5 rounded-lg font-semibold transition ${
+                          plan.placement === 'boq' 
+                            ? 'bg-[#F47B20] text-white hover:bg-[#E06B10]' 
+                            : 'bg-white border-2 border-[#F47B20] text-[#F47B20] hover:bg-orange-50'
+                        }`}
+                      >
+                        Register Now
+                      </Link>
+                    </div>
                   ))}
-                </ul>
-                <Link
-                  href={`/${plan.name.toLowerCase().replace(' ', '')}/register`}
-                  className="block mt-8 bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition"
-                >
-                  {plan.cta}
-                </Link>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
+      {/* Payment Methods */}
+      <section className="py-12 px-6 bg-white">
+        <div className="max-w-4xl mx-auto text-center">
+          <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-6">Secure payments powered by</p>
+          
+          <div className="flex flex-wrap justify-center items-center gap-4 mb-8">
+            {/* Paynow Logo Mockup */}
+            <div className="bg-white border border-gray-200 rounded-xl px-6 py-3 shadow-sm flex items-center justify-center min-w-[120px]">
+              <span className="text-[#004B87] font-extrabold italic tracking-tighter text-xl leading-none">paynow</span>
+            </div>
+            
+            {/* EcoCash Logo Mockup */}
+            <div className="bg-white border border-gray-200 rounded-xl px-6 py-3 shadow-sm flex items-center justify-center min-w-[120px]">
+              <span className="text-[#0054A6] font-bold text-lg leading-none">Eco<span className="text-[#F47B20]">Cash</span></span>
+            </div>
+
+            {/* Visa Logo Mockup */}
+            <div className="bg-white border border-gray-200 rounded-xl px-6 py-3 shadow-sm flex items-center justify-center min-w-[120px]">
+              <span className="text-[#1A1F71] font-extrabold italic text-xl leading-none tracking-tight">VISA</span>
+            </div>
+
+            {/* Mastercard Logo Mockup */}
+            <div className="bg-white border border-gray-200 rounded-xl px-6 py-3 shadow-sm flex items-center justify-center min-w-[120px]">
+              <div className="flex items-center gap-1">
+                <div className="w-5 h-5 bg-[#EB001B] rounded-full"></div>
+                <div className="w-5 h-5 bg-[#F79E1B] rounded-full -ml-2 mix-blend-multiply"></div>
+                <span className="text-[10px] text-gray-500 font-medium ml-1 leading-none mt-1">mastercard</span>
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-gray-400">Pay securely with local mobile money or international cards.</p>
+        </div>
+      </section>
+
       {/* FAQ Preview */}
-      <section className="py-16 px-6">
+      <section className="py-16 px-6 bg-gray-50 border-t border-gray-100">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-2xl font-bold text-[#2C3E50] mb-4">Frequently Asked Questions</h2>
           <p className="text-gray-600 mb-8">Have questions? We're here to help.</p>
           
           <div className="space-y-4 text-left">
-            <div className="border border-gray-200 rounded-xl p-4">
+            <div className="border border-gray-200 bg-white rounded-xl p-4">
               <h4 className="font-bold text-[#2C3E50]">How does BOQ generation work?</h4>
-              <p className="text-sm text-gray-500 mt-1">Upload your floor plan, and our AI extracts all the data to generate a professional BOQ in minutes.</p>
+              <p className="text-sm text-gray-500 mt-1">Upload your floor plan, and our AI extracts all the data to generate a professional BOQ in minutes. If you don't have a plan, you can pick a standard house template.</p>
             </div>
-            <div className="border border-gray-200 rounded-xl p-4">
+            <div className="border border-gray-200 bg-white rounded-xl p-4">
               <h4 className="font-bold text-[#2C3E50]">Can I cancel my subscription anytime?</h4>
-              <p className="text-sm text-gray-500 mt-1">Yes, you can cancel anytime. Your subscription will remain active until the end of the billing period.</p>
+              <p className="text-sm text-gray-500 mt-1">Yes, you can cancel anytime. Your subscription will remain active until the end of the 30-day billing period.</p>
             </div>
-            <div className="border border-gray-200 rounded-xl p-4">
+            <div className="border border-gray-200 bg-white rounded-xl p-4">
               <h4 className="font-bold text-[#2C3E50]">What payment methods do you accept?</h4>
-              <p className="text-sm text-gray-500 mt-1">We accept PayNow (EcoCash, OneMoney, and bank cards).</p>
+              <p className="text-sm text-gray-500 mt-1">We accept PayNow (EcoCash, OneMoney, ZimSwitch, Telecash, Visa, and Mastercard).</p>
             </div>
           </div>
           
@@ -255,53 +254,53 @@ export default function PricingPage() {
             href="/faq"
             className="inline-block mt-8 text-[#F47B20] hover:underline font-medium"
           >
-            View All FAQs →
+            View All FAQs
           </Link>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="bg-[#2C3E50] text-white py-12 px-6">
-  <div className="max-w-7xl mx-auto grid md:grid-cols-5 gap-8">
-    <div className="md:col-span-2">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 bg-[#F47B20] rounded-xl flex items-center justify-center text-white font-bold text-lg">
-          V
+        <div className="max-w-7xl mx-auto grid md:grid-cols-5 gap-8">
+          <div className="md:col-span-2">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-[#F47B20] rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                V
+              </div>
+              <h3 className="text-xl font-bold">VeriBuild</h3>
+            </div>
+            <p className="text-gray-400 text-sm">A product of GatekeeperAI</p>
+            <p className="text-gray-500 text-xs mt-4">© 2026 VeriBuild. All rights reserved.</p>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-gray-400">Platform</h4>
+            <ul className="space-y-3 text-sm text-gray-400">
+              <li><Link href="/" className="hover:text-white transition">Home</Link></li>
+              <li><Link href="/about" className="hover:text-white transition">About</Link></li>
+              <li><Link href="/pricing" className="hover:text-white transition">Pricing</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-gray-400">Support</h4>
+            <ul className="space-y-3 text-sm text-gray-400">
+              <li><Link href="/contact" className="hover:text-white transition">Contact</Link></li>
+              <li><Link href="/faq" className="hover:text-white transition">FAQ</Link></li>
+              <li><Link href="/privacy" className="hover:text-white transition">Privacy Policy</Link></li>
+              <li><Link href="/terms" className="hover:text-white transition">Terms & Conditions</Link></li>
+              <li><Link href="/refund" className="hover:text-white transition">Refund Policy</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-gray-400">Connect</h4>
+            <ul className="space-y-3 text-sm text-gray-400">
+              <li>Zimbabwe</li>
+              <li>admin@gatekeeperai.co.zw</li>
+              <li>gatekeeperzw@gmail.com</li>
+              <li>+263 77 780 3517</li>
+            </ul>
+          </div>
         </div>
-        <h3 className="text-xl font-bold">VeriBuild</h3>
-      </div>
-      <p className="text-gray-400 text-sm">A product of GatekeeperAI</p>
-      <p className="text-gray-500 text-xs mt-4">© 2026 VeriBuild. All rights reserved.</p>
-    </div>
-    <div>
-      <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-gray-400">Platform</h4>
-      <ul className="space-y-3 text-sm text-gray-400">
-        <li><Link href="/" className="hover:text-white transition">Home</Link></li>
-        <li><Link href="/about" className="hover:text-white transition">About</Link></li>
-        <li><Link href="/pricing" className="hover:text-white transition">Pricing</Link></li>
-      </ul>
-    </div>
-    <div>
-      <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-gray-400">Support</h4>
-      <ul className="space-y-3 text-sm text-gray-400">
-        <li><Link href="/contact" className="hover:text-white transition">Contact</Link></li>
-        <li><Link href="/faq" className="hover:text-white transition">FAQ</Link></li>
-        <li><Link href="/privacy" className="hover:text-white transition">Privacy Policy</Link></li>
-        <li><Link href="/terms" className="hover:text-white transition">Terms & Conditions</Link></li>
-        <li><Link href="/refund" className="hover:text-white transition">Refund Policy</Link></li>
-      </ul>
-    </div>
-    <div>
-      <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-gray-400">Connect</h4>
-      <ul className="space-y-3 text-sm text-gray-400">
-        <li>🇿🇼 Zimbabwe</li>
-        <li>📧 admin@gatekeeperai.co.zw</li>
-        <li>📧 gatekeeperzw@gmail.com</li>
-        <li>📞 +263 77 780 3517</li>
-      </ul>
-    </div>
-  </div>
-</footer>
+      </footer>
     </div>
   );
-      }
+    }
