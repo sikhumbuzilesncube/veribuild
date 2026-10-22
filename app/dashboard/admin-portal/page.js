@@ -54,6 +54,15 @@ export default function AdminPortal() {
     loadStats();
   }, [router]);
 
+  // Helper to format phone for WhatsApp
+  const toWhatsAppNumber = (phone) => {
+    if (!phone) return '';
+    let cleaned = String(phone).replace(/[^\d+]/g, '');
+    cleaned = cleaned.replace(/^\+/, '');
+    if (cleaned.startsWith('0')) cleaned = '263' + cleaned.slice(1);
+    return cleaned;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -78,7 +87,7 @@ export default function AdminPortal() {
     );
   }
 
-  const { stats, recentProjects, recentPayments, chartData, recentLogs } = data;
+  const { stats, recentPayments, chartData, recentLogs, recentUnpaidLeads } = data;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -97,36 +106,40 @@ export default function AdminPortal() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
-              <div className="absolute top-0 right-0 bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-bl-lg">
+              <div className="absolute top-0 right-0 bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded-bl-lg">
                 +{stats.recentSignups} this week
               </div>
-              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mt-2">Total Users</p>
+              <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide mt-2">Total Users</p>
               <p className="text-3xl font-bold text-[#2C3E50] mt-1">{stats.totalUsers}</p>
             </div>
+            
             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
-              <div className="absolute top-0 right-0 bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-bl-lg">
+              <div className="absolute top-0 right-0 bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded-bl-lg">
                 +${stats.recentRevenue} this week
               </div>
-              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mt-2">Total Revenue</p>
+              <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide mt-2">Total Revenue</p>
               <p className="text-3xl font-bold text-[#F47B20] mt-1">${stats.totalRevenue.toFixed(2)}</p>
-              <div className="mt-1 text-xs text-gray-500">
-                <span className="text-green-600">${stats.subRevenue} subs</span> · <span className="text-blue-600">${stats.boqRevenue} BOQs</span>
-              </div>
             </div>
+
             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
-              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mt-2">BOQs Generated</p>
-              <p className="text-3xl font-bold text-[#2C3E50] mt-1">{stats.totalProjects}</p>
+              <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide mt-2">Completed BOQs</p>
+              <p className="text-3xl font-bold text-[#2C3E50] mt-1">{stats.completedProjects}</p>
             </div>
+
             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
-              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mt-2">Urgent Jobs</p>
+              <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide mt-2">Total Uploads</p>
+              <p className="text-3xl font-bold text-gray-500 mt-1">{stats.totalProjectsStarted}</p>
+            </div>
+
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
+              <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide mt-2">Urgent Jobs</p>
               <p className="text-3xl font-bold text-[#2C3E50] mt-1">{stats.totalUrgentJobs}</p>
             </div>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 mb-8">
-            {/* Chart */}
             <div className="md:col-span-2 bg-white p-5 rounded-xl shadow-sm border border-gray-100">
               <h2 className="text-lg font-bold text-[#2C3E50] mb-4">Revenue & BOQs (Last 7 Days)</h2>
               <div className="h-64 w-full">
@@ -151,10 +164,9 @@ export default function AdminPortal() {
               </div>
             </div>
 
-            {/* Error Tracker */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
               <div className="p-4 border-b border-gray-100 bg-red-50">
-                <h2 className="font-bold text-red-700 flex items-center gap-2">
+                <h2 className="font-bold text-red-700 flex items-center gap-2 text-sm">
                   <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                   Recent System Errors
                 </h2>
@@ -212,24 +224,66 @@ export default function AdminPortal() {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-4 border-b border-gray-100 bg-gray-50">
-                <h2 className="font-bold text-[#2C3E50]">Recent BOQs Generated</h2>
+              <div className="p-4 border-b border-gray-100 bg-amber-50">
+                <h2 className="font-bold text-amber-800">Recent Unpaid Uploads (Leads)</h2>
               </div>
               <div className="divide-y divide-gray-100">
-                {recentProjects.length === 0 ? (
-                  <div className="p-4 text-sm text-gray-500">No projects yet.</div>
+                {recentUnpaidLeads.length === 0 ? (
+                  <div className="p-4 text-sm text-gray-500">No unpaid uploads. Everyone is paying!</div>
                 ) : (
-                  recentProjects.map((p, i) => (
-                    <div key={i} className="p-4 flex justify-between items-center">
-                      <div className="truncate pr-4">
-                        <p className="font-medium text-sm text-[#2C3E50] truncate">{p.project_name}</p>
-                        <p className="text-xs text-gray-500">{new Date(p.created_at).toLocaleDateString()}</p>
+                  recentUnpaidLeads.map((p, i) => {
+                    const waNumber = toWhatsAppNumber(p.client_phone);
+                    return (
+                      <div key={i} className="p-4 border-b border-gray-100 last:border-0">
+                        <div className="flex justify-between items-start mb-1">
+                          <p className="font-medium text-sm text-[#2C3E50] truncate">{p.project_name}</p>
+                          <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
+                            {new Date(p.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        
+                        <div className="text-xs text-gray-600 mb-2 bg-gray-50 p-2 rounded">
+                          <div className="flex justify-between mb-1">
+                            <span className="font-semibold">Client:</span>
+                            <span className="capitalize">{p.client_role}</span>
+                          </div>
+                          <div className="flex justify-between mb-1">
+                            <span className="font-semibold">Name:</span>
+                            <span>{p.client_name}</span>
+                          </div>
+                          <div className="flex justify-between mb-1">
+                            <span className="font-semibold">Phone:</span>
+                            <span>{p.client_phone}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-semibold">Email:</span>
+                            <span className="truncate max-w-[150px]">{p.client_email}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 mt-2">
+                          {waNumber && (
+                            <a
+                              href={`https://wa.me/${waNumber}?text=Hi ${p.client_name}, I noticed you uploaded a plan on VeriBuild but didn't finish generating the BOQ. Is there anything I can help you with?`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="bg-[#25D366] text-white px-3 py-1 rounded text-xs font-semibold hover:bg-[#1ebe5a] transition flex-1 text-center"
+                            >
+                              WhatsApp
+                            </a>
+                          )}
+                          {p.client_phone && (
+                            <a
+                              href={`tel:${p.client_phone}`}
+                              className="bg-[#F47B20] text-white px-3 py-1 rounded text-xs font-semibold hover:bg-[#E06B10] transition flex-1 text-center"
+                            >
+                              Call
+                            </a>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="font-bold text-[#2C3E50]">${(p.total_cost || 0).toLocaleString()}</p>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
