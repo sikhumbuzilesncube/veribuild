@@ -19,6 +19,7 @@ export default function AdminPortal() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  const [expandedLead, setExpandedLead] = useState(null);
 
   useEffect(() => {
     async function loadStats() {
@@ -62,7 +63,6 @@ export default function AdminPortal() {
     return cleaned;
   };
 
-  // CSV Export function for leads
   const downloadLeadsCSV = () => {
     if (!data || !data.recentUnpaidLeads) return;
 
@@ -256,7 +256,7 @@ export default function AdminPortal() {
                 <h2 className="font-bold text-amber-800">Recent Unpaid Uploads (Leads)</h2>
                 <button 
                   onClick={downloadLeadsCSV}
-                  className="text-xs bg-amber-800 text-white px-3 py-1 rounded hover:bg-amber-900 transition"
+                  className="text-[10px] bg-amber-800 text-white px-2 py-1 rounded hover:bg-amber-900 transition font-semibold uppercase tracking-wide"
                 >
                   Download CSV
                 </button>
@@ -265,56 +265,69 @@ export default function AdminPortal() {
                 {recentUnpaidLeads.length === 0 ? (
                   <div className="p-4 text-sm text-gray-500">No unpaid uploads. Everyone is paying!</div>
                 ) : (
-                  recentUnpaidLeads.map((p, i) => {
+                  recentUnpaidLeads.map((p) => {
+                    const isExpanded = expandedLead === p.id;
                     const waNumber = toWhatsAppNumber(p.client_phone);
+                    
                     return (
-                      <div key={i} className="p-4 border-b border-gray-100 last:border-0">
-                        <div className="flex justify-between items-start mb-1">
-                          <p className="font-medium text-sm text-[#2C3E50] truncate">{p.project_name}</p>
-                          <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                            {new Date(p.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                        
-                        <div className="text-xs text-gray-600 mb-2 bg-gray-50 p-2 rounded">
-                          <div className="flex justify-between mb-1">
-                            <span className="font-semibold">Client:</span>
-                            <span className="capitalize">{p.client_role}</span>
+                      <div key={p.id} className="border-b border-gray-100 last:border-0">
+                        {/* Collapsed View */}
+                        <button 
+                          onClick={() => setExpandedLead(isExpanded ? null : p.id)}
+                          className="w-full text-left p-4 hover:bg-gray-50 transition flex justify-between items-center"
+                        >
+                          <div className="truncate pr-4">
+                            <p className="font-medium text-sm text-[#2C3E50] truncate">{p.project_name}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{p.client_name}</p>
                           </div>
-                          <div className="flex justify-between mb-1">
-                            <span className="font-semibold">Name:</span>
-                            <span>{p.client_name}</span>
+                          <div className="text-right flex-shrink-0 flex items-center gap-2">
+                            <span className="text-xs text-gray-500">{new Date(p.created_at).toLocaleDateString()}</span>
+                            <svg className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
                           </div>
-                          <div className="flex justify-between mb-1">
-                            <span className="font-semibold">Phone:</span>
-                            <span>{p.client_phone}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-semibold">Email:</span>
-                            <span className="truncate max-w-[150px]">{p.client_email}</span>
-                          </div>
-                        </div>
+                        </button>
 
-                        <div className="flex gap-2 mt-2">
-                          {waNumber && (
-                            <a
-                              href={`https://wa.me/${waNumber}?text=Hi ${p.client_name}, I noticed you uploaded a plan on VeriBuild but didn't finish generating the BOQ. Is there anything I can help you with?`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="bg-[#25D366] text-white px-3 py-1 rounded text-xs font-semibold hover:bg-[#1ebe5a] transition flex-1 text-center"
-                            >
-                              WhatsApp
-                            </a>
-                          )}
-                          {p.client_phone && (
-                            <a
-                              href={`tel:${p.client_phone}`}
-                              className="bg-[#F47B20] text-white px-3 py-1 rounded text-xs font-semibold hover:bg-[#E06B10] transition flex-1 text-center"
-                            >
-                              Call
-                            </a>
-                          )}
-                        </div>
+                        {/* Expanded View */}
+                        {isExpanded && (
+                          <div className="bg-gray-50 p-4 border-t border-gray-100">
+                            <div className="text-xs text-gray-600 mb-3 space-y-1">
+                              <div className="flex justify-between">
+                                <span className="font-semibold">Role:</span>
+                                <span className="capitalize">{p.client_role}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="font-semibold">Phone:</span>
+                                <span>{p.client_phone}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="font-semibold">Email:</span>
+                                <span className="truncate max-w-[150px]">{p.client_email}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2 mt-3">
+                              {waNumber && (
+                                <a
+                                  href={`https://wa.me/${waNumber}?text=Hi ${p.client_name}, I noticed you uploaded a plan on VeriBuild but didn't finish generating the BOQ. Is there anything I can help you with?`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="bg-[#25D366] text-white px-3 py-1.5 rounded text-xs font-semibold hover:bg-[#1ebe5a] transition flex-1 text-center"
+                                >
+                                  WhatsApp
+                                </a>
+                              )}
+                              {p.client_phone && (
+                                <a
+                                  href={`tel:${p.client_phone}`}
+                                  className="bg-[#F47B20] text-white px-3 py-1.5 rounded text-xs font-semibold hover:bg-[#E06B10] transition flex-1 text-center"
+                                >
+                                  Call
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })
