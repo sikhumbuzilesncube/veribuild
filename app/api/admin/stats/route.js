@@ -25,25 +25,85 @@ export async function GET(request) {
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    // Fetch everything, including the latest 5 errors
-    const [
-      { count: totalProjects },
-      { data: recentProjectsData },
-      { data: paymentsData },
-      { count: totalUrgentJobs },
-      { data: recentLogs },
-    ] = await Promise.all([
-      supabase.from('projects').select('*', { count: 'exact', head: true }),
-      supabase.from('projects').select('project_name, total_cost, created_at').order('created_at', { ascending: false }).limit(5),
-      supabase.from('payments').select('amount, payment_method, payment_purpose, payment_status, created_at, user_id').eq('payment_status', 'completed'),
-      supabase.from('job_requests').select('*', { count: 'exact', head: true }),
-      supabase.from('system_logs').select('*').order('created_at', { ascending: false }).limit(5),
-    ]);
+    // Fetch all projects with their payment status
+    const { data: allProjects } = await supabase
+      .from('projects')
+      .select(`
+        id, 
+        project_name, 
+        created_at, 
+        user_id,
+        payments (payment_status, payment_purpose)
+      `)
+      .order('created_at', { ascending: false });
 
-    const { data: authUsers } = await supabase.auth.admin.listUsers();
-    const actualTotalUsers = authUsers?.users?.length || 0;
-    const recentSignupsCount = authUsers?.users?.filter(u => new Date(u.created_at) >= sevenDaysAgo).length || 0;
+    // Get all auth users so we can match names and emails
+    const { data: authUsersData } = await supabase.auth.admin.listUsers();
+    const authUsers = authUsersData?.users || [];
+    
+    // Create a quick lookup map for users
+    const userMap = {};
+    authUsers.forEach(u => {
+      userMap[u.id] = {
+        email: u.email,
+        name: u.user_metadata?.full_name || 'No name provided',
+        phone: u.user_metadata?.phone || 'No phone provided',
+        role: u.user_metadata?.user_type || 'client'
+      };
+    });
 
+    const { data: paymentsData } = await supabase
+      .from('payments')
+      .select('amount, payment_method, payment_purpose, payment_status, created_at, user_id')
+      .eq('payment_status', 'completed');
+
+    const { count: totalUrgentJobs } = await supabase
+      .from('job_requests')
+      .select('*', { count: 'exact', head: true });
+
+    const { data: recentLogs } = await supabase
+      .from('system_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const recentSignupsCount = authUsers.filter(u => new Date(u.created_at) >= sevenDaysAgo).length || 0;
+
+    // --- ANALYTICS: Leads vs Completed ---
+    let totalProjectsStarted = 0;
+    let completedProjects = 0;
+    const recentUnpaidLeads = [];
+
+    if (allProjects) {
+      allProjects.forEach(project => {
+        totalProjectsStarted++;
+        
+        const isPaid = project.payments?.some(p => 
+          p.payment_status === 'completed' && p.payment_purpose === 'boq'
+        );
+
+        if (isPaid) {
+          completedProjects++;
+        } else {
+          if (recentUnpaidLeads.length < 5) {
+            const clientInfo = userMap[project.user_id] || { email: 'Unknown', name: 'Unknown', phone: 'Unknown', role: 'unknown' };
+            
+            recentUnpaidLeads.push({
+              id: project.id,
+              project_name: project.project_name,
+              created_at: project.created_at,
+              user_id: project.user_id,
+              client_name: clientInfo.name,
+              client_email: clientInfo.email,
+              client_phone: clientInfo.phone,
+              client_role: clientInfo.role,
+            });
+          }
+        }
+      });
+    }
+
+    // --- REVENUE CALCULATIONS ---
     let totalRevenue = 0;
     let subRevenue = 0;
     let boqRevenue = 0;
@@ -81,18 +141,19 @@ export async function GET(request) {
     return NextResponse.json({
       success: true,
       stats: {
-        totalUsers: actualTotalUsers,
+        totalUsers: authUsers.length,
         recentSignups: recentSignupsCount,
-        totalProjects: totalProjects || 0,
+        totalProjectsStarted: totalProjectsStarted,
+        completedProjects: completedProjects,
         totalRevenue: totalRevenue,
         subRevenue: subRevenue,
         boqRevenue: boqRevenue,
         recentRevenue: recentRevenue,
         totalUrgentJobs: totalUrgentJobs || 0,
       },
-      recentProjects: recentProjectsData || [],
       recentPayments: recentPayments,
       recentLogs: recentLogs || [],
+      recentUnpaidLeads: recentUnpaidLeads, 
       chartData: Object.values(chartMap),
     });
 
@@ -100,4 +161,4 @@ export async function GET(request) {
     console.error('Admin stats error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-      }
+                                          }
