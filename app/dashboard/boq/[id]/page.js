@@ -201,6 +201,17 @@ export default function BOQPage() {
       } catch (err) {
         console.error('BOQ generation error:', err);
         setError(`Failed to generate BOQ: ${err.message}`);
+        
+        // Log the error to the Admin Tracker
+        fetch('/api/log-error', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: 'BOQ Generation Crashed',
+            context: { error: err.message, projectId, planType }
+          })
+        }).catch(console.error);
+
         setLoading(false);
         return;
       }
@@ -795,4 +806,4 @@ function ArchitectCard({ architect }) {
       </div>
     </div>
   );
-}
+  }
