@@ -30,9 +30,7 @@ export default function AdminPortal() {
 
       try {
         const res = await fetch('/api/admin/stats', {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
+          headers: { Authorization: `Bearer ${session.access_token}` },
         });
 
         if (!res.ok) {
@@ -80,7 +78,7 @@ export default function AdminPortal() {
     );
   }
 
-  const { stats, recentProjects, recentPayments, chartData } = data;
+  const { stats, recentProjects, recentPayments, chartData, recentLogs } = data;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -100,7 +98,6 @@ export default function AdminPortal() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            {/* Total Users Widget */}
             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
               <div className="absolute top-0 right-0 bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-bl-lg">
                 +{stats.recentSignups} this week
@@ -108,8 +105,6 @@ export default function AdminPortal() {
               <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mt-2">Total Users</p>
               <p className="text-3xl font-bold text-[#2C3E50] mt-1">{stats.totalUsers}</p>
             </div>
-
-            {/* Total Revenue Widget */}
             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
               <div className="absolute top-0 right-0 bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-bl-lg">
                 +${stats.recentRevenue} this week
@@ -120,41 +115,74 @@ export default function AdminPortal() {
                 <span className="text-green-600">${stats.subRevenue} subs</span> · <span className="text-blue-600">${stats.boqRevenue} BOQs</span>
               </div>
             </div>
-
-            {/* BOQs Generated */}
             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
               <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mt-2">BOQs Generated</p>
               <p className="text-3xl font-bold text-[#2C3E50] mt-1">{stats.totalProjects}</p>
             </div>
-
-            {/* Urgent Jobs */}
             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
               <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mt-2">Urgent Jobs</p>
               <p className="text-3xl font-bold text-[#2C3E50] mt-1">{stats.totalUrgentJobs}</p>
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-8">
-            <h2 className="text-lg font-bold text-[#2C3E50] mb-4">Revenue & BOQs (Last 7 Days)</h2>
-            <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(val) => val.slice(5)} />
-                  <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(val) => `$${val}`} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12, fill: '#6B7280' }} />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value, name) => {
-                      if (name === 'revenue') return [`$${value}`, 'Revenue'];
-                      if (name === 'boqs') return [value, 'BOQs Generated'];
-                      return [value, name];
-                    }}
-                  />
-                  <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#F47B20" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                  <Line yAxisId="right" type="monotone" dataKey="boqs" stroke="#2C3E50" strokeWidth={2} dot={{ r: 3 }} />
-                </LineChart>
-              </ResponsiveContainer>
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            {/* Chart */}
+            <div className="md:col-span-2 bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+              <h2 className="text-lg font-bold text-[#2C3E50] mb-4">Revenue & BOQs (Last 7 Days)</h2>
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                    <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(val) => val.slice(5)} />
+                    <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(val) => `$${val}`} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12, fill: '#6B7280' }} />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      formatter={(value, name) => {
+                        if (name === 'revenue') return [`$${value}`, 'Revenue'];
+                        if (name === 'boqs') return [value, 'BOQs Generated'];
+                        return [value, name];
+                      }}
+                    />
+                    <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#F47B20" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                    <Line yAxisId="right" type="monotone" dataKey="boqs" stroke="#2C3E50" strokeWidth={2} dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Error Tracker */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+              <div className="p-4 border-b border-gray-100 bg-red-50">
+                <h2 className="font-bold text-red-700 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                  Recent System Errors
+                </h2>
+              </div>
+              <div className="divide-y divide-gray-100 overflow-y-auto flex-1">
+                {!recentLogs || recentLogs.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-gray-500 flex flex-col items-center justify-center h-full">
+                    <svg className="w-8 h-8 text-green-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    All systems healthy. No recent errors.
+                  </div>
+                ) : (
+                  recentLogs.map((log) => (
+                    <div key={log.id} className="p-3 text-xs">
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="font-semibold text-red-600 truncate mr-2">{log.message}</span>
+                        <span className="text-gray-400 flex-shrink-0">{new Date(log.created_at).toLocaleTimeString()}</span>
+                      </div>
+                      {log.context && (
+                        <pre className="text-[10px] text-gray-500 bg-gray-50 p-2 rounded overflow-x-auto">
+                          {JSON.stringify(log.context, null, 2)}
+                        </pre>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
 
@@ -212,4 +240,4 @@ export default function AdminPortal() {
       </div>
     </div>
   );
-        }
+      }
