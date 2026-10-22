@@ -22,6 +22,7 @@ export default function NewHardwareStore() {
     email: '',
     city_id: '1',
     location: '',
+    tagline: '',
     logo_url: '',
   });
 
@@ -50,6 +51,7 @@ export default function NewHardwareStore() {
           email: data.email || '',
           city_id: String(data.city_id || 1),
           location: data.location || '',
+          tagline: data.tagline || '',
           logo_url: data.logo_url || '',
         });
       } else {
@@ -104,18 +106,17 @@ export default function NewHardwareStore() {
         email: formData.email.trim() || null,
         city_id: parseInt(formData.city_id, 10) || 1,
         location: formData.location.trim() || null,
+        tagline: formData.tagline.trim() || null,
         logo_url: formData.logo_url || null,
       };
 
       let result;
       if (existingStore) {
-        // Preserve subscription state on edit
         result = await supabase
           .from('hardware_stores')
           .update(payload)
           .eq('id', existingStore.id);
       } else {
-        // New store starts unsubscribed
         result = await supabase.from('hardware_stores').insert([
           {
             ...payload,
@@ -204,6 +205,24 @@ export default function NewHardwareStore() {
                 onChange={handleChange}
                 placeholder="Owner or manager name"
               />
+              
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Short Tagline (Optional)
+                </label>
+                <input
+                  type="text"
+                  name="tagline"
+                  value={formData.tagline}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition text-sm"
+                  placeholder="e.g., Bulawayo's trusted supplier of cement and bricks since 2010."
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  A short sentence describing what you sell. This appears on the directory and BOQ pages.
+                </p>
+              </div>
+
               <Input
                 label="Phone"
                 name="phone"
@@ -327,4 +346,4 @@ function Select({ label, name, value, onChange, options }) {
       </select>
     </div>
   );
-               }
+}
