@@ -85,10 +85,13 @@ export default function Home() {
             </div>
 
             <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-10 md:mt-12 pt-6 md:pt-8 border-t border-white/15 text-sm text-gray-200">
-              <div className="flex items-center gap-2">
-                <IconShield className="w-4 h-4 text-brand-500" />
-                <span>Payments via ContiPay</span>
+              
+              {/* UPDATED: Paynow Badge */}
+              <div className="flex items-center gap-2 bg-white px-2 py-1 rounded shadow-sm">
+                <span className="text-[10px] text-gray-400 font-medium">Powered by</span>
+                <span className="text-[#004B87] font-extrabold italic tracking-tighter text-base leading-none">paynow</span>
               </div>
+
               <div className="flex items-center gap-2">
                 <IconWifi className="w-4 h-4 text-brand-500" />
                 <span>Works offline on low data</span>
@@ -565,7 +568,7 @@ export default function Home() {
                   Generate my BOQ
                 </Link>
                 <p className="text-xs text-gray-400 text-center mt-3">
-                  Secure payment via ContiPay
+                  Secure payment via Paynow
                 </p>
               </div>
 
