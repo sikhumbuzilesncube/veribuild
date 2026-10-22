@@ -46,8 +46,9 @@ export default function Register() {
     setError('');
     setSuccess('');
 
-    if (!formData.fullName || !formData.email || !formData.password) {
-      setError('Please fill in all required fields');
+    // Updated validation to include phone number
+    if (!formData.fullName || !formData.email || !formData.phone || !formData.password) {
+      setError('Please fill in all required fields, including your phone number.');
       setLoading(false);
       return;
     }
@@ -71,7 +72,7 @@ export default function Register() {
         options: {
           data: {
             full_name: formData.fullName,
-            phone: formData.phone || '',
+            phone: formData.phone,
             company: formData.company || '',
             user_type: formData.userType,
           },
@@ -90,7 +91,6 @@ export default function Register() {
 
       setSuccess('Account created! Please check your email to confirm your address.');
 
-      // Send notification to admin (fire and forget)
       fetch('/api/notify-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -173,7 +173,7 @@ export default function Register() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone Number
+              Phone Number <span className="text-red-500">*</span>
             </label>
             <input
               type="tel"
@@ -182,6 +182,7 @@ export default function Register() {
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
               placeholder="+263 78 123 4567"
+              required
             />
           </div>
 
@@ -269,4 +270,4 @@ export default function Register() {
       </div>
     </div>
   );
-}
+      }
