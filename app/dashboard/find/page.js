@@ -449,6 +449,12 @@ function ProviderCard({ item, category, showProfileButton }) {
           />
           <div className="flex-1 min-w-0">
             <h3 className="font-bold text-[#2C3E50] truncate">{displayName}</h3>
+            
+            {/* TAGLINE DISPLAYED HERE */}
+            {category.key === 'hardware' && item.tagline && (
+              <p className="text-xs text-gray-600 mt-0.5 truncate">{item.tagline}</p>
+            )}
+
             {item.contact_person && (
               <p className="text-xs text-gray-500 mt-0.5">Contact: {item.contact_person}</p>
             )}
@@ -531,4 +537,4 @@ function ProviderCard({ item, category, showProfileButton }) {
       </div>
     </div>
   );
-    }
+      }
