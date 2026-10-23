@@ -6,13 +6,6 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { SUBSCRIPTION_CATEGORIES, composePlanType } from '@/lib/subscriptions';
 
-// ------------------------------------------------------------
-// Build the display map for every payment type.
-//
-// Subscription types are generated from SUBSCRIPTION_CATEGORIES so the
-// names, prices and labels stay in sync with the single source of truth.
-// BOQ types are listed explicitly.
-// ------------------------------------------------------------
 function buildPaymentTypes() {
   const map = {};
 
@@ -61,6 +54,7 @@ const FALLBACK_TYPE = {
 export default function PaymentPage() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -128,8 +122,6 @@ export default function PaymentPage() {
         throw new Error(createData.error || 'Could not save payment record');
       }
 
-      console.log('Payment record created:', createData);
-
       // Step 2: Initiate payment via SDK
       const sdkResponse = await fetch('/api/paynow', {
         method: 'POST',
@@ -153,8 +145,6 @@ export default function PaymentPage() {
         throw new Error(sdkData.error || 'Could not initiate payment');
       }
 
-      console.log('SDK response:', sdkData);
-
       // Store reference and poll URL for the success page to use
       if (sdkData.reference) {
         localStorage.setItem('paynow_reference', sdkData.reference);
@@ -168,9 +158,15 @@ export default function PaymentPage() {
         localStorage.removeItem('paynow_project_id');
       }
 
-      // Step 3: Redirect to Paynow
+      // Step 3: Trigger branded overlay and redirect
       if (sdkData.redirectUrl) {
-        window.location.href = sdkData.redirectUrl;
+        setRedirecting(true);
+        
+        // Wait 1.5 seconds so the user can read the message
+        setTimeout(() => {
+          window.location.href = sdkData.redirectUrl;
+        }, 1500);
+        
         return;
       }
 
@@ -301,6 +297,25 @@ export default function PaymentPage() {
           </div>
         </div>
       </div>
+
+      {/* The New Branded Redirect Overlay */}
+      {redirecting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <div className="w-16 h-16 border-4 border-[#F47B20] border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Connecting to Paynow</h3>
+            <p className="text-gray-600 text-sm mb-6">
+              We are securing your payment gateway. Please do not close or refresh this window.
+            </p>
+            <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <span>Secure 256-bit encrypted connection</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-    }
+        }
