@@ -116,6 +116,7 @@ export default function AdminPortal() {
   }
 
   const { stats, recentPayments, chartData, recentLogs, recentUnpaidLeads } = data;
+  const roles = stats.roleCounts || { client: 0, worker: 0, architect: 0, construction: 0, hardware: 0 };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -134,13 +135,38 @@ export default function AdminPortal() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 items-stretch">
+            
+            {/* Total Users with Breakdown */}
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded-bl-lg">
                 +{stats.recentSignups} this week
               </div>
               <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide mt-2">Total Users</p>
-              <p className="text-3xl font-bold text-[#2C3E50] mt-1">{stats.totalUsers}</p>
+              <p className="text-3xl font-bold text-[#2C3E50] mb-3">{stats.totalUsers}</p>
+              
+              <div className="mt-auto space-y-1">
+                <div className="flex justify-between text-xs text-gray-600">
+                  <span>Clients</span>
+                  <span className="font-semibold text-[#2C3E50]">{roles.client}</span>
+                </div>
+                <div className="flex justify-between text-xs text-gray-600">
+                  <span>Workers</span>
+                  <span className="font-semibold text-[#2C3E50]">{roles.worker}</span>
+                </div>
+                <div className="flex justify-between text-xs text-gray-600">
+                  <span>Architects</span>
+                  <span className="font-semibold text-[#2C3E50]">{roles.architect}</span>
+                </div>
+                <div className="flex justify-between text-xs text-gray-600">
+                  <span>Construction</span>
+                  <span className="font-semibold text-[#2C3E50]">{roles.construction}</span>
+                </div>
+                <div className="flex justify-between text-xs text-gray-600">
+                  <span>Hardware</span>
+                  <span className="font-semibold text-[#2C3E50]">{roles.hardware}</span>
+                </div>
+              </div>
             </div>
             
             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden">
@@ -271,7 +297,6 @@ export default function AdminPortal() {
                     
                     return (
                       <div key={p.id} className="border-b border-gray-100 last:border-0">
-                        {/* Collapsed View */}
                         <button 
                           onClick={() => setExpandedLead(isExpanded ? null : p.id)}
                           className="w-full text-left p-4 hover:bg-gray-50 transition flex justify-between items-center"
@@ -288,7 +313,6 @@ export default function AdminPortal() {
                           </div>
                         </button>
 
-                        {/* Expanded View */}
                         {isExpanded && (
                           <div className="bg-gray-50 p-4 border-t border-gray-100">
                             <div className="text-xs text-gray-600 mb-3 space-y-1">
@@ -341,4 +365,4 @@ export default function AdminPortal() {
       </div>
     </div>
   );
-    }
+}
