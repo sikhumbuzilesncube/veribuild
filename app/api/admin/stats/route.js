@@ -41,23 +41,41 @@ export async function GET(request) {
     
     const userMap = {};
     const roleCounts = { client: 0, worker: 0, architect: 0, construction: 0, hardware: 0 };
+    
+    // NEW: We group users by role
+    const usersByRole = {
+      client: [],
+      worker: [],
+      architect: [],
+      construction: [],
+      hardware: []
+    };
 
     authUsers.forEach(u => {
       const role = u.user_metadata?.user_type || 'client';
       
-      // Count the roles
       if (roleCounts[role] !== undefined) {
         roleCounts[role]++;
       } else {
-        roleCounts.client++; // Fallback
+        roleCounts.client++;
       }
 
-      userMap[u.id] = {
+      const userData = {
+        id: u.id,
         email: u.email,
         name: u.user_metadata?.full_name || 'No name provided',
         phone: u.user_metadata?.phone || 'No phone provided',
-        role: role
+        created_at: u.created_at
       };
+
+      userMap[u.id] = userData;
+      
+      // Add to the specific role array
+      if (usersByRole[role]) {
+        usersByRole[role].push(userData);
+      } else {
+        usersByRole.client.push(userData);
+      }
     });
 
     const { data: paymentsData } = await supabase
@@ -149,7 +167,7 @@ export async function GET(request) {
       stats: {
         totalUsers: authUsers.length,
         recentSignups: recentSignupsCount,
-        roleCounts: roleCounts, // New breakdown
+        roleCounts: roleCounts,
         totalProjectsStarted: totalProjectsStarted,
         completedProjects: completedProjects,
         totalRevenue: totalRevenue,
@@ -158,6 +176,7 @@ export async function GET(request) {
         recentRevenue: recentRevenue,
         totalUrgentJobs: totalUrgentJobs || 0,
       },
+      usersByRole: usersByRole, // Send the grouped users
       recentPayments: recentPayments,
       recentLogs: recentLogs || [],
       recentUnpaidLeads: recentUnpaidLeads, 
@@ -168,4 +187,4 @@ export async function GET(request) {
     console.error('Admin stats error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+        }
