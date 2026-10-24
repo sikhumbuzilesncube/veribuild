@@ -40,12 +40,23 @@ export async function GET(request) {
     const authUsers = authUsersData?.users || [];
     
     const userMap = {};
+    const roleCounts = { client: 0, worker: 0, architect: 0, construction: 0, hardware: 0 };
+
     authUsers.forEach(u => {
+      const role = u.user_metadata?.user_type || 'client';
+      
+      // Count the roles
+      if (roleCounts[role] !== undefined) {
+        roleCounts[role]++;
+      } else {
+        roleCounts.client++; // Fallback
+      }
+
       userMap[u.id] = {
         email: u.email,
         name: u.user_metadata?.full_name || 'No name provided',
         phone: u.user_metadata?.phone || 'No phone provided',
-        role: u.user_metadata?.user_type || 'client'
+        role: role
       };
     });
 
@@ -81,7 +92,6 @@ export async function GET(request) {
         if (isPaid) {
           completedProjects++;
         } else {
-          // EXPANDED: Get up to 20 leads instead of 5
           if (recentUnpaidLeads.length < 20) {
             const clientInfo = userMap[project.user_id] || { email: 'Unknown', name: 'Unknown', phone: 'Unknown', role: 'unknown' };
             
@@ -139,6 +149,7 @@ export async function GET(request) {
       stats: {
         totalUsers: authUsers.length,
         recentSignups: recentSignupsCount,
+        roleCounts: roleCounts, // New breakdown
         totalProjectsStarted: totalProjectsStarted,
         completedProjects: completedProjects,
         totalRevenue: totalRevenue,
