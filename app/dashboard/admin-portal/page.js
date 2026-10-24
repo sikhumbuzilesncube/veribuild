@@ -21,6 +21,9 @@ export default function AdminPortal() {
   const [error, setError] = useState('');
   const [expandedLead, setExpandedLead] = useState(null);
 
+  // New state for viewing users by role
+  const [selectedRole, setSelectedRole] = useState(null);
+
   useEffect(() => {
     async function loadStats() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -115,8 +118,9 @@ export default function AdminPortal() {
     );
   }
 
-  const { stats, recentPayments, chartData, recentLogs, recentUnpaidLeads } = data;
+  const { stats, recentPayments, chartData, recentLogs, recentUnpaidLeads, usersByRole } = data;
   const roles = stats.roleCounts || { client: 0, worker: 0, architect: 0, construction: 0, hardware: 0 };
+  const activeUsersList = selectedRole && usersByRole ? usersByRole[selectedRole] : [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -137,7 +141,7 @@ export default function AdminPortal() {
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 items-stretch">
             
-            {/* Total Users with Breakdown */}
+            {/* Total Users with Clickable Breakdown */}
             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded-bl-lg">
                 +{stats.recentSignups} this week
@@ -146,26 +150,26 @@ export default function AdminPortal() {
               <p className="text-3xl font-bold text-[#2C3E50] mb-3">{stats.totalUsers}</p>
               
               <div className="mt-auto space-y-1">
-                <div className="flex justify-between text-xs text-gray-600">
+                <button onClick={() => setSelectedRole('client')} className="w-full flex justify-between text-xs text-gray-600 hover:text-[#F47B20] transition">
                   <span>Clients</span>
-                  <span className="font-semibold text-[#2C3E50]">{roles.client}</span>
-                </div>
-                <div className="flex justify-between text-xs text-gray-600">
+                  <span className="font-semibold">{roles.client}</span>
+                </button>
+                <button onClick={() => setSelectedRole('worker')} className="w-full flex justify-between text-xs text-gray-600 hover:text-[#F47B20] transition">
                   <span>Workers</span>
-                  <span className="font-semibold text-[#2C3E50]">{roles.worker}</span>
-                </div>
-                <div className="flex justify-between text-xs text-gray-600">
+                  <span className="font-semibold">{roles.worker}</span>
+                </button>
+                <button onClick={() => setSelectedRole('architect')} className="w-full flex justify-between text-xs text-gray-600 hover:text-[#F47B20] transition">
                   <span>Architects</span>
-                  <span className="font-semibold text-[#2C3E50]">{roles.architect}</span>
-                </div>
-                <div className="flex justify-between text-xs text-gray-600">
+                  <span className="font-semibold">{roles.architect}</span>
+                </button>
+                <button onClick={() => setSelectedRole('construction')} className="w-full flex justify-between text-xs text-gray-600 hover:text-[#F47B20] transition">
                   <span>Construction</span>
-                  <span className="font-semibold text-[#2C3E50]">{roles.construction}</span>
-                </div>
-                <div className="flex justify-between text-xs text-gray-600">
+                  <span className="font-semibold">{roles.construction}</span>
+                </button>
+                <button onClick={() => setSelectedRole('hardware')} className="w-full flex justify-between text-xs text-gray-600 hover:text-[#F47B20] transition">
                   <span>Hardware</span>
-                  <span className="font-semibold text-[#2C3E50]">{roles.hardware}</span>
-                </div>
+                  <span className="font-semibold">{roles.hardware}</span>
+                </button>
               </div>
             </div>
             
@@ -363,6 +367,67 @@ export default function AdminPortal() {
 
         </div>
       </div>
+
+      {/* User List Modal */}
+      {selectedRole && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="bg-[#2C3E50] p-4 flex justify-between items-center text-white">
+              <h3 className="text-lg font-bold capitalize">{selectedRole} Directory</h3>
+              <button onClick={() => setSelectedRole(null)} className="text-gray-300 hover:text-white">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-4 overflow-y-auto flex-1 bg-gray-50">
+              {activeUsersList.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">No users found in this category.</p>
+              ) : (
+                <div className="space-y-3">
+                  {activeUsersList.map((u) => {
+                    const waNumber = toWhatsAppNumber(u.phone);
+                    return (
+                      <div key={u.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <p className="font-bold text-[#2C3E50]">{u.name}</p>
+                          <span className="text-[10px] text-gray-400">{new Date(u.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <div className="text-xs text-gray-600 space-y-1 mb-3">
+                          <p>Email: {u.email}</p>
+                          <p>Phone: {u.phone}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          {waNumber && (
+                            <a
+                              href={`https://wa.me/${waNumber}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="bg-[#25D366] text-white px-3 py-1 rounded text-xs font-semibold hover:bg-[#1ebe5a] transition"
+                            >
+                              WhatsApp
+                            </a>
+                          )}
+                          {u.phone !== 'No phone provided' && (
+                            <a
+                              href={`tel:${u.phone}`}
+                              className="bg-[#F47B20] text-white px-3 py-1 rounded text-xs font-semibold hover:bg-[#E06B10] transition"
+                            >
+                              Call
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
-}
+        }
