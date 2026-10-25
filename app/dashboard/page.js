@@ -37,7 +37,6 @@ export default function Dashboard() {
       const resolvedType = metadata.user_type || 'client';
 
       // Hardware stores do not generate BOQs, so they are redirected
-      // to their store home. Every other role keeps this dashboard.
       if (resolvedType === 'hardware') {
         router.replace('/dashboard/hardware');
         return;
@@ -118,6 +117,40 @@ export default function Dashboard() {
 
     loadDashboardData();
   }, [router]);
+
+  async function handleDelete(projectId) {
+    if (!confirm('Are you sure you want to delete this project? This cannot be undone.')) {
+      return;
+    }
+
+    // Optimistically remove from UI
+    const originalProjects = [...projects];
+    const updatedProjects = projects.filter((p) => p.id !== projectId);
+    setProjects(updatedProjects);
+
+    // Recalculate stats
+    const completed = updatedProjects.filter(p => p.status === 'completed' || p.status === 'Completed');
+    const totalCost = completed.reduce((sum, p) => sum + (p.cost || 0), 0);
+    setStats({
+      total: updatedProjects.length,
+      completed: completed.length,
+      active: updatedProjects.filter(p => p.status !== 'completed' && p.status !== 'Completed' && p.status !== 'draft').length,
+      averageCost: completed.length > 0 ? Math.round(totalCost / completed.length) : 0,
+    });
+
+    // Delete from database
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', projectId);
+
+    if (error) {
+      console.error('Delete failed:', error);
+      alert('Failed to delete project. Please try again.');
+      // Revert if failed
+      setProjects(originalProjects);
+    }
+  }
 
   function getStatusColor(status) {
     const s = status?.toLowerCase() || '';
@@ -320,7 +353,7 @@ export default function Dashboard() {
                     <th className="pb-2 hidden md:table-cell">Date</th>
                     <th className="pb-2">Status</th>
                     <th className="pb-2">Total</th>
-                    <th className="pb-2">Action</th>
+                    <th className="pb-2 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -347,13 +380,21 @@ export default function Dashboard() {
                       <td className="py-3 font-bold text-[#2C3E50] text-sm">
                         ${project.cost}
                       </td>
-                      <td className="py-3">
-                        <Link
-                          href={`/dashboard/boq/${project.id}`}
-                          className="text-[#F47B20] hover:underline text-sm"
-                        >
-                          View
-                        </Link>
+                      <td className="py-3 text-right">
+                        <div className="flex items-center justify-end gap-3">
+                          <Link
+                            href={`/dashboard/boq/${project.id}`}
+                            className="text-[#F47B20] hover:underline text-sm font-medium"
+                          >
+                            View
+                          </Link>
+                          <button
+                            onClick={() => handleDelete(project.id)}
+                            className="text-red-500 hover:text-red-700 text-sm font-medium transition"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
