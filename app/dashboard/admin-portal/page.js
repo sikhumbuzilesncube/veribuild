@@ -22,7 +22,6 @@ export default function AdminPortal() {
   const [expandedLead, setExpandedLead] = useState(null);
   const [selectedRole, setSelectedRole] = useState(null);
 
-  // Search states
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -164,11 +163,10 @@ export default function AdminPortal() {
               <p className="text-gray-600 text-sm">Live stats and recent activity.</p>
             </div>
 
-            {/* Global Search Bar */}
             <form onSubmit={handleSearch} className="w-full md:w-96 relative">
               <input
                 type="text"
-                placeholder="Search email, phone, or project name..."
+                placeholder="Search email, phone, or project..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-24 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none text-sm"
@@ -186,9 +184,49 @@ export default function AdminPortal() {
             </form>
           </div>
 
+          {/* NEW: Needs Attention Alerts */}
+          {(stats.recentErrorCount > 0 || stats.recentFailedPayments > 0 || stats.totalUnpaidLeads > 5) && (
+            <div className="mb-6 space-y-2">
+              {stats.recentErrorCount > 0 && (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm flex items-start gap-3">
+                  <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <p className="font-bold text-red-800 text-sm">System Errors Detected</p>
+                    <p className="text-red-700 text-xs">There have been {stats.recentErrorCount} system errors in the last 24 hours. Check the error log below.</p>
+                  </div>
+                </div>
+              )}
+
+              {stats.recentFailedPayments > 0 && (
+                <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg shadow-sm flex items-start gap-3">
+                  <svg className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <p className="font-bold text-amber-800 text-sm">Payment Failures</p>
+                    <p className="text-amber-700 text-xs">There were {stats.recentFailedPayments} failed payment attempts in the last 24 hours. Users may need assistance.</p>
+                  </div>
+                </div>
+              )}
+
+              {stats.totalUnpaidLeads > 5 && (
+                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg shadow-sm flex items-start gap-3">
+                  <svg className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  <div>
+                    <p className="font-bold text-blue-800 text-sm">Follow-up Required</p>
+                    <p className="text-blue-700 text-xs">There are {stats.totalUnpaidLeads} abandoned BOQ uploads. Consider contacting them to recover sales.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 items-stretch">
             
-            {/* Total Users with Clickable Breakdown */}
             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded-bl-lg">
                 +{stats.recentSignups} this week
@@ -490,7 +528,6 @@ export default function AdminPortal() {
             
             <div className="p-4 overflow-y-auto flex-1 bg-gray-50 space-y-6">
               
-              {/* Users Found */}
               {searchResults.users.length > 0 && (
                 <div>
                   <h4 className="text-sm font-bold text-[#2C3E50] mb-3 uppercase tracking-wider">Users Matched</h4>
@@ -521,7 +558,6 @@ export default function AdminPortal() {
                 </div>
               )}
 
-              {/* Projects Found */}
               {searchResults.projects.length > 0 && (
                 <div>
                   <h4 className="text-sm font-bold text-[#2C3E50] mb-3 uppercase tracking-wider">Projects Matched</h4>
@@ -539,7 +575,6 @@ export default function AdminPortal() {
                 </div>
               )}
 
-              {/* Payments Found */}
               {searchResults.payments.length > 0 && (
                 <div>
                   <h4 className="text-sm font-bold text-[#2C3E50] mb-3 uppercase tracking-wider">Payments Found</h4>
@@ -573,4 +608,4 @@ export default function AdminPortal() {
 
     </div>
   );
-}
+                                                     }
