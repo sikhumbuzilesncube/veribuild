@@ -184,7 +184,6 @@ export default function AdminPortal() {
             </form>
           </div>
 
-          {/* NEW: Needs Attention Alerts */}
           {(stats.recentErrorCount > 0 || stats.recentFailedPayments > 0 || stats.totalUnpaidLeads > 5) && (
             <div className="mb-6 space-y-2">
               {stats.recentErrorCount > 0 && (
@@ -422,7 +421,7 @@ export default function AdminPortal() {
                             <div className="flex gap-2 mt-3">
                               {waNumber && (
                                 <a
-                                  href={`https://wa.me/${waNumber}?text=Hi ${p.client_name}, I noticed you uploaded a plan on VeriBuild but didn't finish generating the BOQ. Is there anything I can help you with?`}
+                                  href={`https://wa.me/${waNumber}?text=Hi ${p.client_name}, I noticed you uploaded a plan on VeriBuild but didn't finish generating the BOQ. Did you have trouble with the payment options, or is there anything I can help you with?`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="bg-[#25D366] text-white px-3 py-1.5 rounded text-xs font-semibold hover:bg-[#1ebe5a] transition flex-1 text-center"
@@ -608,4 +607,4 @@ export default function AdminPortal() {
 
     </div>
   );
-                                                     }
+      }
