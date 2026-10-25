@@ -20,9 +20,12 @@ export default function AdminPortal() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [expandedLead, setExpandedLead] = useState(null);
-
-  // New state for viewing users by role
   const [selectedRole, setSelectedRole] = useState(null);
+
+  // Search states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     async function loadStats() {
@@ -57,6 +60,32 @@ export default function AdminPortal() {
 
     loadStats();
   }, [router]);
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (searchQuery.length < 3) return;
+
+    setIsSearching(true);
+    setSearchResults(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const res = await fetch(`/api/admin/search?q=${encodeURIComponent(searchQuery)}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        setSearchResults(json);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const toWhatsAppNumber = (phone) => {
     if (!phone) return '';
@@ -129,14 +158,32 @@ export default function AdminPortal() {
       <div className="md:ml-64 p-4 md:p-6">
         <div className="max-w-6xl mx-auto">
           
-          <div className="mb-6 flex justify-between items-end">
+          <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-[#2C3E50]">Platform Overview</h1>
               <p className="text-gray-600 text-sm">Live stats and recent activity.</p>
             </div>
-            <button onClick={() => window.location.reload()} className="text-sm text-[#F47B20] hover:underline">
-              Refresh Data
-            </button>
+
+            {/* Global Search Bar */}
+            <form onSubmit={handleSearch} className="w-full md:w-96 relative">
+              <input
+                type="text"
+                placeholder="Search email, phone, or project name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-24 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none text-sm"
+              />
+              <svg className="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <button
+                type="submit"
+                disabled={isSearching || searchQuery.length < 3}
+                className="absolute right-1 top-1 bottom-1 bg-[#2C3E50] text-white px-3 rounded-md text-xs font-semibold hover:bg-[#1a252f] transition disabled:opacity-50"
+              >
+                {isSearching ? '...' : 'Search'}
+              </button>
+            </form>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 items-stretch">
@@ -428,6 +475,102 @@ export default function AdminPortal() {
         </div>
       )}
 
+      {/* Search Results Modal */}
+      {searchResults && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="bg-[#F47B20] p-4 flex justify-between items-center text-white">
+              <h3 className="text-lg font-bold">Search Results for "{searchQuery}"</h3>
+              <button onClick={() => setSearchResults(null)} className="text-white/80 hover:text-white">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-4 overflow-y-auto flex-1 bg-gray-50 space-y-6">
+              
+              {/* Users Found */}
+              {searchResults.users.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-bold text-[#2C3E50] mb-3 uppercase tracking-wider">Users Matched</h4>
+                  <div className="space-y-3">
+                    {searchResults.users.map((u) => (
+                      <div key={u.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="font-bold text-[#2C3E50]">{u.name}</p>
+                            <p className="text-xs text-gray-500 capitalize">{u.role}</p>
+                          </div>
+                          <a
+                            href={`https://wa.me/${toWhatsAppNumber(u.phone)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-[#25D366] text-white px-3 py-1 rounded text-xs font-semibold hover:bg-[#1ebe5a] transition"
+                          >
+                            WhatsApp
+                          </a>
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          <p>Email: {u.email}</p>
+                          <p>Phone: {u.phone}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Projects Found */}
+              {searchResults.projects.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-bold text-[#2C3E50] mb-3 uppercase tracking-wider">Projects Matched</h4>
+                  <div className="space-y-2">
+                    {searchResults.projects.map((p, i) => (
+                      <div key={i} className="bg-white border border-gray-200 rounded-lg p-3 flex justify-between items-center">
+                        <div>
+                          <p className="font-semibold text-sm text-[#2C3E50]">{p.project_name}</p>
+                          <p className="text-xs text-gray-500">{new Date(p.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded capitalize">{p.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Payments Found */}
+              {searchResults.payments.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-bold text-[#2C3E50] mb-3 uppercase tracking-wider">Payments Found</h4>
+                  <div className="space-y-2">
+                    {searchResults.payments.map((p, i) => (
+                      <div key={i} className="bg-white border border-gray-200 rounded-lg p-3 flex justify-between items-center">
+                        <div>
+                          <p className="font-semibold text-sm text-[#2C3E50]">{p.transaction_reference}</p>
+                          <p className="text-xs text-gray-500 capitalize">{p.payment_method.replace(/_/g, ' ')}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-sm text-green-600">${p.amount.toFixed(2)}</p>
+                          <p className="text-xs text-gray-500">{p.payment_status}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {searchResults.users.length === 0 && searchResults.projects.length === 0 && searchResults.payments.length === 0 && (
+                <div className="text-center py-10">
+                  <p className="text-gray-500">No results found for "{searchQuery}"</p>
+                </div>
+              )}
+
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
-        }
+}
