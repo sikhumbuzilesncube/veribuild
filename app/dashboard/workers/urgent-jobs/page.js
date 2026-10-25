@@ -96,6 +96,9 @@ export default function WorkerUrgentJobsPage() {
 
   useEffect(() => {
     async function load() {
+      // Trigger the expiry API in the background
+      fetch('/api/expire-jobs', { method: 'POST' }).catch(console.error);
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push('/login');
@@ -122,13 +125,11 @@ export default function WorkerUrgentJobsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
-  // Re-fetch when the filter changes (does not touch Realtime)
   useEffect(() => {
     if (!worker) return;
     loadJobs(worker, cityFilter);
   }, [cityFilter, worker, loadJobs]);
 
-  // Realtime subscription
   useEffect(() => {
     if (!worker || !worker.trade || !worker.city_id) return;
 
@@ -153,7 +154,6 @@ export default function WorkerUrgentJobsPage() {
             matchesFilter(job) &&
             !isExpired(job)
           ) {
-            // Prepend and re-sort
             setJobs((prev) => {
               if (prev.some((j) => j.id === job.id)) return prev;
               return sortJobs([job, ...prev]);
@@ -168,13 +168,11 @@ export default function WorkerUrgentJobsPage() {
           const job = payload.new;
           if (!job) return;
 
-          // If it became non-open, remove it from the board
           if (job.status !== 'open') {
             setJobs((prev) => prev.filter((j) => j.id !== job.id));
             return;
           }
 
-          // If it is still open and matches, update it in place (or add if missing)
           if (job.trade === worker.trade && matchesFilter(job) && !isExpired(job)) {
             setJobs((prev) => {
               const exists = prev.some((j) => j.id === job.id);
@@ -194,6 +192,7 @@ export default function WorkerUrgentJobsPage() {
   const handleRefresh = async () => {
     if (!worker) return;
     setRefreshing(true);
+    await fetch('/api/expire-jobs', { method: 'POST' }).catch(console.error);
     await loadJobs(worker, cityFilter);
     setRefreshing(false);
   };
@@ -243,8 +242,6 @@ export default function WorkerUrgentJobsPage() {
         text: 'Job claimed. Call the client now to confirm the details.',
       });
 
-      // Remove locally; the UPDATE subscription would also remove it, but doing
-      // it immediately gives an instant visual response.
       setJobs((prev) => prev.filter((j) => j.id !== job.id));
     } catch (err) {
       console.error('Unexpected claim error:', err);
@@ -414,4 +411,4 @@ export default function WorkerUrgentJobsPage() {
       </div>
     </div>
   );
-      }
+                              }
