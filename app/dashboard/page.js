@@ -18,7 +18,6 @@ export default function Dashboard() {
   const [projects, setProjects] = useState([]);
   const [trialUsed, setTrialUsed] = useState(null);
   
-  // New state for the custom delete modal
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -125,7 +124,6 @@ export default function Dashboard() {
     if (!deleteTarget) return;
     setIsDeleting(true);
 
-    // Delete from database
     const { error } = await supabase
       .from('projects')
       .delete()
@@ -138,12 +136,10 @@ export default function Dashboard() {
       return;
     }
 
-    // Update UI
     const originalProjects = [...projects];
     const updatedProjects = projects.filter((p) => p.id !== deleteTarget.id);
     setProjects(updatedProjects);
 
-    // Recalculate stats
     const completed = updatedProjects.filter(p => p.status === 'completed' || p.status === 'Completed');
     const totalCost = completed.reduce((sum, p) => sum + (p.cost || 0), 0);
     setStats({
@@ -434,35 +430,39 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Custom Delete Confirmation Modal */}
+      {/* Refined Delete Confirmation Modal */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2C3E50]/70 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden border border-gray-200">
+            <div className="p-6">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-[#2C3E50]">Delete Project</h3>
+                  <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                    Are you sure you want to delete <strong>{deleteTarget.name}</strong>? This action cannot be undone.
+                  </p>
+                </div>
               </div>
-              <h3 className="text-xl font-bold text-[#2C3E50] mb-2">Delete Project?</h3>
-              <p className="text-sm text-gray-600 mb-6">
-                Are you sure you want to delete <strong>{deleteTarget.name}</strong>? This action cannot be undone.
-              </p>
               
-              <div className="flex gap-3">
+              <div className="flex gap-3 mt-6">
                 <button
                   onClick={() => setDeleteTarget(null)}
                   disabled={isDeleting}
-                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirmDelete}
                   disabled={isDeleting}
-                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50"
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50 text-sm"
                 >
-                  {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                  {isDeleting ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             </div>
