@@ -94,6 +94,26 @@ export default function AdminPortal() {
     return cleaned;
   };
 
+  // NEW: Role-based welcome message generator
+  const getWelcomeMessage = (name, role) => {
+    const base = `Hi ${name}, this is the founder of VeriBuild. Welcome aboard! `;
+    
+    switch (role) {
+      case 'client':
+        return base + `I saw you just signed up. Do you need any help uploading your floor plan or finding a contractor for your project? Let me know!`;
+      case 'worker':
+        return base + `I saw you just signed up. Have you completed your profile yet? Once it's active, clients will be able to find you for jobs in your city. Let me know if you need help setting it up!`;
+      case 'architect':
+        return base + `I saw you just signed up. We're helping homeowners find trusted architects across Zimbabwe. Do you need any help setting up your firm's profile and portfolio?`;
+      case 'construction':
+        return base + `I saw you just signed up. We're connecting builders with clients who are ready to build. Do you need any help setting up your company listing?`;
+      case 'hardware':
+        return base + `I saw you just signed up. We're helping hardware stores get discovered by builders. Do you need any help uploading your product prices?`;
+      default:
+        return base + `I saw you just signed up. Let me know if you need any help getting started!`;
+    }
+  };
+
   const downloadLeadsCSV = () => {
     if (!data || !data.recentUnpaidLeads) return;
 
@@ -472,6 +492,9 @@ export default function AdminPortal() {
                 <div className="space-y-3">
                   {activeUsersList.map((u) => {
                     const waNumber = toWhatsAppNumber(u.phone);
+                    // Generate the role-specific welcome message
+                    const welcomeMsg = getWelcomeMessage(u.name, u.role);
+                    
                     return (
                       <div key={u.id} className="bg-white border border-gray-200 rounded-lg p-4">
                         <div className="flex justify-between items-start mb-2">
@@ -485,12 +508,12 @@ export default function AdminPortal() {
                         <div className="flex gap-2">
                           {waNumber && (
                             <a
-                              href={`https://wa.me/${waNumber}`}
+                              href={`https://wa.me/${waNumber}?text=${encodeURIComponent(welcomeMsg)}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="bg-[#25D366] text-white px-3 py-1 rounded text-xs font-semibold hover:bg-[#1ebe5a] transition"
                             >
-                              WhatsApp
+                              Send Welcome
                             </a>
                           )}
                           {u.phone !== 'No phone provided' && (
@@ -607,4 +630,4 @@ export default function AdminPortal() {
 
     </div>
   );
-      }
+                                                   }
