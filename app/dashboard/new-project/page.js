@@ -1,217 +1,364 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { readPlan } from '@/app/actions/readPlan';
 import { CITIES } from '@/lib/cities';
 
 export default function NewProjectPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <NewProject />
+    </Suspense>
+  );
+}
+
+function NewProject() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
-  const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState('');
-  const [user, setUser] = useState(null);
+  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
 
-  const [formData, setFormData] = useState({
-    project_name: '',
-    plan_type: 'residential',
-    city_id: '1',
-    file: null,
-  });
+  const retryProjectId = searchParams.get('retryProject');
+  const isRetry = !!retryProjectId;
+  const modeParam = searchParams.get('mode');
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [file, setFile] = useState(null);
+  const [projectName, setProjectName] = useState('');
+  const [planType, setPlanType] = useState('residential');
+  const [cityId, setCityId] = useState(1);
+  const [uploadMethod, setUploadMethod] = useState(modeParam === 'file' ? 'file' : 'camera');
+  const [apiStatus, setApiStatus] = useState('');
 
   useEffect(() => {
-    async function load() {
+    async function loadRetryProject() {
+      if (!retryProjectId) return;
+
+      const { data, error: fetchError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', retryProjectId)
+        .single();
+
+      if (fetchError || !data) return;
+
+      setProjectName(data.project_name || '');
+      setPlanType(data.plan_type || 'residential');
+      setCityId(data.city_id || 1);
+    }
+    loadRetryProject();
+  }, [retryProjectId]);
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
+
+    if (selectedFile.size > 20 * 1024 * 1024) {
+      setError('File size exceeds 20MB limit');
+      return;
+    }
+
+    const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+    if (!validTypes.includes(selectedFile.type)) {
+      setError('Please upload a PDF, JPEG, or PNG file');
+      return;
+    }
+
+    setFile(selectedFile);
+    setError('');
+  };
+
+  const handleCameraCapture = (e) => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
+
+    if (selectedFile.size > 20 * 1024 * 1024) {
+      setError('File size exceeds 20MB limit');
+      return;
+    }
+
+    setFile(selectedFile);
+    setError('');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!file) {
+      setError('Please upload a floor plan or take a photo');
+      return;
+    }
+
+    if (!projectName && !isRetry) {
+      setError('Please enter a project name');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setApiStatus('Uploading file...');
+
+    try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push('/login');
         return;
       }
-      setUser(session.user);
-      setLoading(false);
-    }
-    load();
-  }, [router]);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+      const userId = session.user.id;
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type and size (Max 10MB)
-    const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      setError('Please upload a PDF, JPG, PNG, or WebP file.');
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setError('File must be under 10 MB.');
-      return;
-    }
-
-    setError('');
-    setFormData({ ...formData, file });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.file) {
-      setError('Please upload a floor plan.');
-      return;
-    }
-    if (!formData.project_name.trim()) {
-      setError('Please enter a project name.');
-      return;
-    }
-
-    setProcessing(true);
-    setError('');
-
-    try {
-      // 1. Upload file to Supabase Storage
-      const fileExt = formData.file.name.split('.').pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `plans/${fileName}`;
+      setApiStatus('Uploading file...');
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('plans')
-        .upload(filePath, formData.file);
+        .upload(fileName, file);
 
-      if (uploadError) throw new Error('Failed to upload file. Please try again.');
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        setError('Failed to upload file. Please try again.');
+        setLoading(false);
+        setApiStatus('');
+        return;
+      }
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      const { data: urlData } = supabase.storage
         .from('plans')
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
-      // 2. Create the project in the database
-      const { data: project, error: dbError } = await supabase
-        .from('projects')
-        .insert({
-          user_id: user.id,
-          project_name: formData.project_name.trim(),
-          plan_type: formData.plan_type,
-          city_id: parseInt(formData.city_id, 10),
-          file_url: publicUrl,
-          status: 'processing',
-        })
-        .select()
-        .single();
+      let projectId;
 
-      if (dbError) throw new Error('Failed to create project. Please try again.');
+      if (isRetry) {
+        setApiStatus('Updating project...');
+        const { error: updateError } = await supabase
+          .from('projects')
+          .update({
+            file_url: urlData.publicUrl,
+            status: 'processing',
+            notes: null,
+          })
+          .eq('id', retryProjectId);
 
-      // 3. Trigger the AI Vision API (this usually happens on the verify page)
-      // Redirect to the verify page where the AI extraction takes place
-      router.push(`/dashboard/verify/${project.id}`);
+        if (updateError) {
+          setError(`Failed to update project: ${updateError.message}`);
+          setLoading(false);
+          setApiStatus('');
+          return;
+        }
+        projectId = retryProjectId;
+      } else {
+        setApiStatus('Creating project...');
+        const { data: projectData, error: projectError } = await supabase
+          .from('projects')
+          .insert([
+            {
+              user_id: userId,
+              project_name: projectName,
+              city_id: cityId,
+              plan_type: planType,
+              status: 'processing',
+              file_url: urlData.publicUrl,
+            },
+          ])
+          .select();
+
+        if (projectError) {
+          setError(`Failed to create project: ${projectError.message}`);
+          setLoading(false);
+          setApiStatus('');
+          return;
+        }
+        projectId = projectData[0].id;
+      }
+
+      setApiStatus('Reading plan...');
+      try {
+        const result = await readPlan(projectId, urlData.publicUrl);
+
+        if (result.success) {
+          setApiStatus(
+            `Detected: ${result.windowsFound || 0} windows, ${result.doorsFound || 0} doors, ${(result.roomsFound || []).length} rooms`
+          );
+        } else {
+          setApiStatus('Could not read plan automatically. You can enter data manually.');
+        }
+      } catch (planError) {
+        console.error('Server action error:', planError);
+        setApiStatus('Manual verification needed');
+      }
+
+      setApiStatus('Redirecting to verification...');
+      setTimeout(() => {
+        router.push(`/dashboard/verify/${projectId}`);
+      }, 1500);
 
     } catch (err) {
-      console.error(err);
-      setError(err.message || 'Something went wrong.');
-      setProcessing(false);
+      console.error('Unexpected error:', err);
+      setError('Something went wrong. Please try again.');
+      setLoading(false);
+      setApiStatus('');
     }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-12 h-12 border-4 border-[#F47B20] border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-2xl mx-auto">
         
         <div className="mb-6">
-          <Link href="/dashboard" className="text-sm text-gray-600 hover:text-gray-800 mb-3 inline-block">
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="text-sm text-gray-600 hover:text-gray-800 mb-3 inline-block"
+          >
             ← Back to Dashboard
-          </Link>
+          </button>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] mb-2">
-            Upload a Floor Plan
+            {isRetry ? 'Retake Photo' : 'New BOQ'}
           </h1>
           <p className="text-gray-600 text-sm">
-            Our AI will read your plan and extract all the measurements to generate your BOQ.
+            {isRetry
+              ? 'Capture or upload a clearer plan for this project'
+              : 'Upload your floor plan and generate a professional BOQ'}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-8">
-          
-          <div className="space-y-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Project Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="project_name"
-                value={formData.project_name}
-                onChange={handleChange}
-                placeholder="e.g., 3-Bedroom House in Borrowdale"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-                required
-              />
-            </div>
+            {!isRetry && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Project Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                    placeholder="e.g., 3-Bedroom House"
+                    required
+                  />
+                </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Plan Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  name="plan_type"
-                  value={formData.plan_type}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-                >
-                  <option value="residential">Residential - $10</option>
-                  <option value="rural">Rural / Cottage - $10</option>
-                  <option value="commercial">Commercial - $10</option>
-                </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Plan Type <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={planType}
+                      onChange={(e) => setPlanType(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                    >
+                      <option value="residential">Residential - $10</option>
+                      <option value="townhouse">Townhouse - $10</option>
+                      <option value="commercial">Commercial - $30</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Project Location <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={cityId}
+                      onChange={(e) => setCityId(parseInt(e.target.value))}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
+                    >
+                      {CITIES.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {isRetry && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                Re-uploading to project: <strong>{projectName}</strong>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Project Location <span className="text-red-500">*</span>
-                </label>
-                <select
-                  name="city_id"
-                  value={formData.city_id}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-                >
-                  {CITIES.map((c) => (
-                    <option key={c.id} value={String(c.id)}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Upload Floor Plan <span className="text-red-500">*</span>
               </label>
-              
-              {/* Upload Area */}
-              {!formData.file ? (
-                <div className="mt-2 flex justify-center rounded-lg border border-dashed border-gray-300 px-6 py-10 hover:border-[#F47B20] transition relative bg-gray-50">
+
+              {/* Tab Selector */}
+              <div className="flex p-1 bg-gray-100 rounded-lg mb-4 w-full sm:w-64">
+                <button
+                  type="button"
+                  onClick={() => setUploadMethod('file')}
+                  className={`flex-1 py-1.5 text-sm font-medium rounded-md transition ${
+                    uploadMethod === 'file'
+                      ? 'bg-white text-[#2C3E50] shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Upload File
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUploadMethod('camera')}
+                  className={`flex-1 py-1.5 text-sm font-medium rounded-md transition ${
+                    uploadMethod === 'camera'
+                      ? 'bg-white text-[#2C3E50] shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Take Photo
+                </button>
+              </div>
+
+              {/* Upload Dropzone */}
+              {!file ? (
+                <div className="flex justify-center rounded-lg border border-dashed border-gray-300 px-6 py-10 hover:border-[#F47B20] transition bg-gray-50">
                   <div className="text-center">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M1.5 6a2.25 2.25 0 012.25-2.25h16.5A2.25 2.25 0 0122.5 6v12a2.25 2.25 0 01-2.25 2.25H3.75A2.25 2.25 0 011.5 18V6zM3 16.06V18c0 .414.336.75.75.75h16.5A.75.75 0 0021 18v-1.94l-2.69-2.689a1.5 1.5 0 00-2.12 0l-.88.879.97.97a.75.75 0 11-1.06 1.06l-5.16-5.159a1.5 1.5 0 00-2.12 0L3 16.061zm10.125-7.81a1.125 1.125 0 112.25 0 1.125 1.125 0 01-2.25 0z" clipRule="evenodd" />
-                    </svg>
-                    <div className="mt-4 flex text-sm leading-6 text-gray-600">
-                      <label htmlFor="file-upload" className="relative cursor-pointer rounded-md bg-white font-semibold text-[#F47B20] focus-within:outline-none focus-within:ring-2 focus-within:ring-[#F47B20] focus-within:ring-offset-2 hover:text-[#E06B10]">
-                        <span>Upload a file</span>
-                        <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png,.webp" />
+                    {uploadMethod === 'camera' ? (
+                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    ) : (
+                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    )}
+                    <div className="mt-4 text-sm text-gray-600">
+                      <label
+                        htmlFor={uploadMethod === 'camera' ? 'camera-upload' : 'file-upload'}
+                        className="relative cursor-pointer rounded-md font-semibold text-[#F47B20] focus-within:outline-none hover:text-[#E06B10]"
+                      >
+                        <span>{uploadMethod === 'camera' ? 'Open Camera' : 'Choose a file'}</span>
                       </label>
-                      <p className="pl-1">or drag and drop</p>
                     </div>
-                    <p className="text-xs leading-5 text-gray-500">PDF, PNG, JPG, WebP up to 10MB</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {uploadMethod === 'camera' ? 'Take a clear photo of the plan' : 'PDF, JPG, PNG up to 20MB'}
+                    </p>
+
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      className="hidden"
+                      id="file-upload"
+                    />
+
+                    <input
+                      type="file"
+                      ref={cameraInputRef}
+                      onChange={handleCameraCapture}
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      id="camera-upload"
+                    />
                   </div>
                 </div>
               ) : (
@@ -224,14 +371,14 @@ export default function NewProjectPage() {
                       </svg>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{formData.file.name}</p>
-                      <p className="text-xs text-gray-500">{(formData.file.size / 1024 / 1024).toFixed(2)} MB</p>
+                      <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
+                      <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                     </div>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setFormData({ ...formData, file: null })}
-                    className="text-xs font-semibold text-red-600 hover:text-red-800 bg-white border border-red-200 px-3 py-1 rounded-md shadow-sm"
+                    onClick={() => setFile(null)}
+                    className="text-xs font-semibold text-red-600 hover:text-red-800 bg-white border border-red-200 px-3 py-1.5 rounded-md shadow-sm transition"
                   >
                     Remove
                   </button>
@@ -239,33 +386,36 @@ export default function NewProjectPage() {
               )}
             </div>
 
-          </div>
+            {apiStatus && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                {apiStatus}
+              </div>
+            )}
 
-          {error && (
-            <div className="mt-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
 
-          <div className="mt-8">
             <button
               type="submit"
-              disabled={processing || !formData.file}
-              className="w-full bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+              disabled={loading}
+              className="w-full bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition disabled:opacity-50 disabled:cursor-not-allowed text-lg flex justify-center items-center gap-2"
             >
-              {processing ? (
+              {loading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Uploading & Extracting...
+                  Processing...
                 </>
               ) : (
-                'Generate BOQ'
+                isRetry ? 'Retake & Read Plan' : 'Upload & Generate BOQ'
               )}
             </button>
-          </div>
-
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );
-    }
+}
