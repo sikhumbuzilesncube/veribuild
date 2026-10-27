@@ -19,6 +19,7 @@ function NewProject() {
   const searchParams = useSearchParams();
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
+  const progressInterval = useRef(null);
 
   const retryProjectId = searchParams.get('retryProject');
   const isRetry = !!retryProjectId;
@@ -31,7 +32,10 @@ function NewProject() {
   const [planType, setPlanType] = useState('residential');
   const [cityId, setCityId] = useState(1);
   const [uploadMethod, setUploadMethod] = useState(modeParam === 'file' ? 'file' : 'camera');
-  const [apiStatus, setApiStatus] = useState('');
+  
+  // Progress states
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [statusText, setStatusText] = useState('');
 
   useEffect(() => {
     async function loadRetryProject() {
@@ -50,6 +54,11 @@ function NewProject() {
       setCityId(data.city_id || 1);
     }
     loadRetryProject();
+    
+    // Cleanup interval on unmount
+    return () => {
+      if (progressInterval.current) clearInterval(progressInterval.current);
+    };
   }, [retryProjectId]);
 
   const handleFileChange = (e) => {
@@ -99,7 +108,8 @@ function NewProject() {
 
     setLoading(true);
     setError('');
-    setApiStatus('Uploading file...');
+    setUploadProgress(10);
+    setStatusText('Connecting to secure storage...');
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -110,7 +120,15 @@ function NewProject() {
 
       const userId = session.user.id;
 
-      setApiStatus('Uploading file...');
+      // Simulate upload progress since we can't get real Supabase progress easily
+      setStatusText('Uploading floor plan...');
+      progressInterval.current = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) return prev;
+          return prev + 10;
+        });
+      }, 300);
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
 
@@ -119,12 +137,18 @@ function NewProject() {
         .upload(fileName, file);
 
       if (uploadError) {
+        clearInterval(progressInterval.current);
         console.error('Upload error:', uploadError);
         setError('Failed to upload file. Please try again.');
         setLoading(false);
-        setApiStatus('');
+        setUploadProgress(0);
+        setStatusText('');
         return;
       }
+
+      clearInterval(progressInterval.current);
+      setUploadProgress(100);
+      setStatusText('File uploaded successfully');
 
       const { data: urlData } = supabase.storage
         .from('plans')
@@ -133,7 +157,7 @@ function NewProject() {
       let projectId;
 
       if (isRetry) {
-        setApiStatus('Updating project...');
+        setStatusText('Updating project...');
         const { error: updateError } = await supabase
           .from('projects')
           .update({
@@ -146,12 +170,13 @@ function NewProject() {
         if (updateError) {
           setError(`Failed to update project: ${updateError.message}`);
           setLoading(false);
-          setApiStatus('');
+          setUploadProgress(0);
+          setStatusText('');
           return;
         }
         projectId = retryProjectId;
       } else {
-        setApiStatus('Creating project...');
+        setStatusText('Creating project...');
         const { data: projectData, error: projectError } = await supabase
           .from('projects')
           .insert([
@@ -169,38 +194,51 @@ function NewProject() {
         if (projectError) {
           setError(`Failed to create project: ${projectError.message}`);
           setLoading(false);
-          setApiStatus('');
+          setUploadProgress(0);
+          setStatusText('');
           return;
         }
         projectId = projectData[0].id;
       }
 
-      setApiStatus('Reading plan...');
+      // Now we wait for AI. Simulating a slow progress bar while waiting.
+      setStatusText('AI is reading your plan...');
+      setUploadProgress(30); // Drop back to 30% to show the AI phase
+      
+      progressInterval.current = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 95) return prev;
+          return prev + 1;
+        });
+      }, 500);
+
       try {
         const result = await readPlan(projectId, urlData.publicUrl);
+        clearInterval(progressInterval.current);
+        setUploadProgress(100);
 
         if (result.success) {
-          setApiStatus(
-            `Detected: ${result.windowsFound || 0} windows, ${result.doorsFound || 0} doors, ${(result.roomsFound || []).length} rooms`
-          );
+          setStatusText(`Detected: ${result.windowsFound || 0} windows, ${result.doorsFound || 0} doors`);
         } else {
-          setApiStatus('Could not read plan automatically. You can enter data manually.');
+          setStatusText('Plan read with low confidence. Manual entry may be needed.');
         }
       } catch (planError) {
+        clearInterval(progressInterval.current);
         console.error('Server action error:', planError);
-        setApiStatus('Manual verification needed');
+        setStatusText('AI reading skipped. Proceeding to manual entry.');
       }
 
-      setApiStatus('Redirecting to verification...');
       setTimeout(() => {
         router.push(`/dashboard/verify/${projectId}`);
-      }, 1500);
+      }, 1000);
 
     } catch (err) {
+      clearInterval(progressInterval.current);
       console.error('Unexpected error:', err);
       setError('Something went wrong. Please try again.');
       setLoading(false);
-      setApiStatus('');
+      setUploadProgress(0);
+      setStatusText('');
     }
   };
 
@@ -289,7 +327,6 @@ function NewProject() {
                 Upload Floor Plan <span className="text-red-500">*</span>
               </label>
 
-              {/* Tab Selector */}
               <div className="flex p-1 bg-gray-100 rounded-lg mb-4 w-full sm:w-64">
                 <button
                   type="button"
@@ -315,7 +352,6 @@ function NewProject() {
                 </button>
               </div>
 
-              {/* Upload Dropzone */}
               {!file ? (
                 <div className="flex justify-center rounded-lg border border-dashed border-gray-300 px-6 py-10 hover:border-[#F47B20] transition bg-gray-50">
                   <div className="text-center">
@@ -362,7 +398,6 @@ function NewProject() {
                   </div>
                 </div>
               ) : (
-                /* File Preview */
                 <div className="mt-2 flex items-center justify-between p-4 border border-green-200 bg-green-50 rounded-lg">
                   <div className="flex items-center gap-3 overflow-hidden">
                     <div className="w-10 h-10 rounded bg-white flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-100">
@@ -386,10 +421,19 @@ function NewProject() {
               )}
             </div>
 
-            {apiStatus && (
-              <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
-                {apiStatus}
+            {/* NEW: Progress Bar Area */}
+            {loading && (
+              <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-semibold text-[#2C3E50]">{statusText}</span>
+                  <span className="text-sm font-bold text-[#F47B20]">{Math.min(100, Math.round(uploadProgress))}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-[#F47B20] h-2.5 rounded-full transition-all duration-300 ease-out" 
+                    style={{ width: `${Math.min(100, uploadProgress)}%` }}
+                  ></div>
+                </div>
               </div>
             )}
 
@@ -418,4 +462,4 @@ function NewProject() {
       </div>
     </div>
   );
-}
+    }
