@@ -26,19 +26,26 @@ export async function GET(request) {
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-    // Fetch all projects with their payment status
-    const { data: allProjects } = await supabase
-      .from('projects')
-      .select(`
-        id, 
-        project_name, 
-        created_at, 
-        user_id,
-        payments (payment_status, payment_purpose)
-      `)
-      .order('created_at', { ascending: false });
+    const [
+      { data: allProjects },
+      { data: authUsersData },
+      { data: paymentsData },
+      { count: recentFailedPayments },
+      { count: totalUrgentJobs },
+      { data: recentLogs },
+      { count: recentErrorCount },
+      { data: discountCodesData }
+    ] = await Promise.all([
+      supabase.from('projects').select(`id, project_name, created_at, user_id, payments (payment_status, payment_purpose)`).order('created_at', { ascending: false }),
+      supabase.auth.admin.listUsers(),
+      supabase.from('payments').select('amount, payment_method, payment_purpose, payment_status, created_at, user_id').eq('payment_status', 'completed'),
+      supabase.from('payments').select('*', { count: 'exact', head: true }).eq('payment_status', 'failed').gte('created_at', oneDayAgo),
+      supabase.from('job_requests').select('*', { count: 'exact', head: true }),
+      supabase.from('system_logs').select('*').order('created_at', { ascending: false }).limit(5),
+      supabase.from('system_logs').select('*', { count: 'exact', head: true }).gte('created_at', oneDayAgo),
+      supabase.from('discount_codes').select('*').order('created_at', { ascending: false })
+    ]);
 
-    const { data: authUsersData } = await supabase.auth.admin.listUsers();
     const authUsers = authUsersData?.users || [];
     
     const userMap = {};
@@ -47,7 +54,6 @@ export async function GET(request) {
 
     authUsers.forEach(u => {
       const role = u.user_metadata?.user_type || 'client';
-      
       if (roleCounts[role] !== undefined) roleCounts[role]++;
       else roleCounts.client++;
 
@@ -65,34 +71,6 @@ export async function GET(request) {
       else usersByRole.client.push(userData);
     });
 
-    const { data: paymentsData } = await supabase
-      .from('payments')
-      .select('amount, payment_method, payment_purpose, payment_status, created_at, user_id')
-      .eq('payment_status', 'completed');
-
-    // Check for recent failed payments
-    const { count: recentFailedPayments } = await supabase
-      .from('payments')
-      .select('*', { count: 'exact', head: true })
-      .eq('payment_status', 'failed')
-      .gte('created_at', oneDayAgo);
-
-    const { count: totalUrgentJobs } = await supabase
-      .from('job_requests')
-      .select('*', { count: 'exact', head: true });
-
-    // Check for recent errors
-    const { data: recentLogs } = await supabase
-      .from('system_logs')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(5);
-
-    const { count: recentErrorCount } = await supabase
-      .from('system_logs')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', oneDayAgo);
-
     const recentSignupsCount = authUsers.filter(u => new Date(u.created_at) >= sevenDaysAgo).length || 0;
 
     let totalProjectsStarted = 0;
@@ -103,11 +81,7 @@ export async function GET(request) {
     if (allProjects) {
       allProjects.forEach(project => {
         totalProjectsStarted++;
-        
-        const isPaid = project.payments?.some(p => 
-          p.payment_status === 'completed' && p.payment_purpose === 'boq'
-        );
-
+        const isPaid = project.payments?.some(p => p.payment_status === 'completed' && p.payment_purpose === 'boq');
         if (isPaid) {
           completedProjects++;
         } else {
@@ -185,10 +159,11 @@ export async function GET(request) {
       recentLogs: recentLogs || [],
       recentUnpaidLeads: recentUnpaidLeads, 
       chartData: Object.values(chartMap),
+      discountCodes: discountCodesData || []
     });
 
   } catch (error) {
     console.error('Admin stats error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-  }
+      }
