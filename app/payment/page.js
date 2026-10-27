@@ -8,7 +8,6 @@ import { SUBSCRIPTION_CATEGORIES, composePlanType } from '@/lib/subscriptions';
 
 function buildPaymentTypes() {
   const map = {};
-
   for (const cat of SUBSCRIPTION_CATEGORIES) {
     for (const plan of cat.plans) {
       const typeKey = composePlanType(cat.key, plan.key);
@@ -21,35 +20,13 @@ function buildPaymentTypes() {
       };
     }
   }
-
-  map.boq_with_plan = {
-    name: 'BOQ Generation',
-    price: 10,
-    label: 'with floor plan upload',
-    duration: 'one-off',
-    purpose: 'boq',
-  };
-
-  map.boq_without_plan = {
-    name: 'BOQ Generation',
-    price: 5,
-    label: 'from a template',
-    duration: 'one-off',
-    purpose: 'boq',
-  };
-
+  map.boq_with_plan = { name: 'BOQ Generation', price: 10, label: 'with floor plan upload', duration: 'one-off', purpose: 'boq' };
+  map.boq_without_plan = { name: 'BOQ Generation', price: 5, label: 'from a template', duration: 'one-off', purpose: 'boq' };
   return map;
 }
 
 const PAYMENT_TYPES = buildPaymentTypes();
-
-const FALLBACK_TYPE = {
-  name: 'Payment',
-  price: 0,
-  label: 'unknown payment type',
-  duration: '',
-  purpose: 'subscription',
-};
+const FALLBACK_TYPE = { name: 'Payment', price: 0, label: 'unknown payment type', duration: '', purpose: 'subscription' };
 
 export default function PaymentPage() {
   const searchParams = useSearchParams();
@@ -59,15 +36,22 @@ export default function PaymentPage() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
+  const [discountCode, setDiscountCode] = useState('');
+  const [discountPercent, setDiscountPercent] = useState(0);
+  const [codeError, setCodeError] = useState('');
+
   const type = searchParams.get('type') || 'hardware_starter';
   const amountParam = searchParams.get('amount');
   const projectId = searchParams.get('project_id');
 
   const typeConfig = PAYMENT_TYPES[type];
   const typeUnknown = !typeConfig;
-
   const config = typeConfig || FALLBACK_TYPE;
-  const amount = amountParam != null ? String(amountParam) : String(config.price);
+  const baseAmount = amountParam != null ? parseFloat(amountParam) : parseFloat(config.price);
+  
+  const finalAmount = discountPercent > 0 
+    ? (baseAmount - (baseAmount * (discountPercent / 100))).toFixed(2) 
+    : baseAmount.toFixed(2);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -82,6 +66,29 @@ export default function PaymentPage() {
     };
     loadUser();
   }, []);
+
+  const applyCode = async () => {
+    if (!discountCode) return;
+    setCodeError('');
+    
+    try {
+      const res = await fetch('/api/discounts/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: discountCode }),
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        setDiscountPercent(data.percentage);
+      } else {
+        setCodeError(data.error || 'Invalid code');
+        setDiscountPercent(0);
+      }
+    } catch (err) {
+      setCodeError('Could not apply code');
+    }
+  };
 
   const handlePayment = async () => {
     setError(null);
@@ -101,33 +108,27 @@ export default function PaymentPage() {
     try {
       const reference = `VB-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`.toUpperCase();
 
-      // Step 1: Create payment record via server API
       const createResponse = await fetch('/api/paynow/create-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.id,
           userEmail: user.email,
-          amount: parseFloat(amount),
           planType: type,
           reference: reference,
           projectId: projectId || null,
           paymentPurpose: config.purpose,
+          discountCode: discountPercent > 0 ? discountCode : null,
         }),
       });
 
       const createData = await createResponse.json();
+      if (!createResponse.ok) throw new Error(createData.error || 'Could not save payment record');
 
-      if (!createResponse.ok) {
-        throw new Error(createData.error || 'Could not save payment record');
-      }
-
-      // Step 2: Initiate payment via SDK
       const sdkResponse = await fetch('/api/paynow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: parseFloat(amount),
           customerEmail: user.email,
           planType: type,
           planName: config.name,
@@ -136,37 +137,21 @@ export default function PaymentPage() {
           projectId: projectId || null,
           paymentPurpose: config.purpose,
           reference: reference,
+          discountCode: discountPercent > 0 ? discountCode : null,
         }),
       });
 
       const sdkData = await sdkResponse.json();
+      if (!sdkResponse.ok) throw new Error(sdkData.error || 'Could not initiate payment');
 
-      if (!sdkResponse.ok) {
-        throw new Error(sdkData.error || 'Could not initiate payment');
-      }
+      if (sdkData.reference) localStorage.setItem('paynow_reference', sdkData.reference);
+      if (sdkData.pollUrl) localStorage.setItem('paynow_pollUrl', sdkData.pollUrl);
+      if (projectId) localStorage.setItem('paynow_project_id', String(projectId));
+      else localStorage.removeItem('paynow_project_id');
 
-      // Store reference and poll URL for the success page to use
-      if (sdkData.reference) {
-        localStorage.setItem('paynow_reference', sdkData.reference);
-      }
-      if (sdkData.pollUrl) {
-        localStorage.setItem('paynow_pollUrl', sdkData.pollUrl);
-      }
-      if (projectId) {
-        localStorage.setItem('paynow_project_id', String(projectId));
-      } else {
-        localStorage.removeItem('paynow_project_id');
-      }
-
-      // Step 3: Trigger branded overlay and redirect
       if (sdkData.redirectUrl) {
         setRedirecting(true);
-        
-        // Wait 1.5 seconds so the user can read the message
-        setTimeout(() => {
-          window.location.href = sdkData.redirectUrl;
-        }, 1500);
-        
+        setTimeout(() => { window.location.href = sdkData.redirectUrl; }, 1500);
         return;
       }
 
@@ -195,16 +180,8 @@ export default function PaymentPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
           <h2 className="text-xl font-bold text-gray-900 mb-2">Please Log In</h2>
-          <p className="text-sm text-gray-600 mb-6">
-            You need to be logged in to complete payment.
-          </p>
-          <Link
-            href="/login"
-            className="inline-flex items-center px-6 py-3 rounded-lg text-white font-medium"
-            style={{ backgroundColor: '#F47B20' }}
-          >
-            Go to Login
-          </Link>
+          <p className="text-sm text-gray-600 mb-6">You need to be logged in to complete payment.</p>
+          <Link href="/login" className="inline-flex items-center px-6 py-3 rounded-lg text-white font-medium" style={{ backgroundColor: '#F47B20' }}>Go to Login</Link>
         </div>
       </div>
     );
@@ -216,9 +193,7 @@ export default function PaymentPage() {
         <div className="px-6 py-5" style={{ backgroundColor: '#F47B20' }}>
           <div className="text-center">
             <h1 className="text-white text-2xl font-bold">VeriBuild</h1>
-            <p className="text-orange-100 text-xs font-medium tracking-wider mt-1">
-              A PRODUCT OF GATEKEEPERAI
-            </p>
+            <p className="text-orange-100 text-xs font-medium tracking-wider mt-1">A PRODUCT OF GATEKEEPERAI</p>
             <p className="text-white/80 text-sm mt-2">Complete Your Payment</p>
           </div>
         </div>
@@ -232,10 +207,36 @@ export default function PaymentPage() {
           <div className="rounded-lg p-4 mb-5" style={{ backgroundColor: '#FFF3E8' }}>
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium text-gray-700">Amount</span>
-              <span className="text-2xl font-bold" style={{ color: '#F47B20' }}>
-                ${amount}.00 USD
-              </span>
+              <div className="text-right">
+                {discountPercent > 0 && (
+                  <span className="text-sm text-gray-400 line-through mr-2">${baseAmount.toFixed(2)}</span>
+                )}
+                <span className="text-2xl font-bold" style={{ color: '#F47B20' }}>
+                  ${finalAmount} USD
+                </span>
+              </div>
             </div>
+          </div>
+
+          <div className="mb-5">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Promo code (optional)"
+                value={discountCode}
+                onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] outline-none text-sm uppercase"
+              />
+              <button 
+                onClick={applyCode}
+                type="button"
+                className="bg-gray-800 text-white px-4 rounded-lg font-semibold hover:bg-gray-900 transition text-sm"
+              >
+                Apply
+              </button>
+            </div>
+            {codeError && <p className="text-red-500 text-xs mt-1">{codeError}</p>}
+            {discountPercent > 0 && <p className="text-green-600 text-xs mt-1">{discountPercent}% discount applied!</p>}
           </div>
 
           <div className="rounded-lg p-3 mb-5 bg-gray-50">
@@ -251,10 +252,7 @@ export default function PaymentPage() {
 
           {typeUnknown && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-              <p className="text-sm text-red-600">
-                Unknown payment type: <strong>{type}</strong>. Please return to the
-                previous page and try again.
-              </p>
+              <p className="text-sm text-red-600">Unknown payment type: <strong>{type}</strong>.</p>
             </div>
           )}
 
@@ -271,14 +269,11 @@ export default function PaymentPage() {
             className="w-full flex justify-center items-center px-4 py-3 border border-transparent text-base font-semibold rounded-lg text-white transition-colors disabled:opacity-50"
             style={{ backgroundColor: '#F47B20' }}
           >
-            {loading ? 'Processing...' : `Pay $${amount} Now`}
+            {loading ? 'Processing...' : `Pay $${finalAmount} Now`}
           </button>
 
           <div className="mt-4 flex flex-col items-center gap-2">
-            <Link
-              href="/dashboard"
-              className="text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg px-4 py-2"
-            >
+            <Link href="/dashboard" className="text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg px-4 py-2">
               Cancel payment
             </Link>
           </div>
@@ -298,15 +293,12 @@ export default function PaymentPage() {
         </div>
       </div>
 
-      {/* The New Branded Redirect Overlay */}
       {redirecting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
             <div className="w-16 h-16 border-4 border-[#F47B20] border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">Connecting to Paynow</h3>
-            <p className="text-gray-600 text-sm mb-6">
-              We are securing your payment gateway. Please do not close or refresh this window.
-            </p>
+            <p className="text-gray-600 text-sm mb-6">We are securing your payment gateway. Please do not close this window.</p>
             <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -318,4 +310,4 @@ export default function PaymentPage() {
       )}
     </div>
   );
-        }
+                  }
