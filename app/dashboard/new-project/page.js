@@ -198,22 +198,25 @@ function NewProject() {
         projectId = projectData[0].id;
       }
 
-      // UPDATED TEXT HERE
       setStatusText('Yaka AI is reading your plan...');
-      setUploadProgress(30);
+      setUploadProgress(30); // Reset bar for AI phase
       
+      // Animate up to 95% while waiting for AI
       progressInterval.current = setInterval(() => {
         setUploadProgress((prev) => {
-          if (prev >= 95) return prev;
+          if (prev >= 95) return prev; // Stop at 95% and wait for real data
           return prev + 1;
         });
-      }, 500);
+      }, 400);
 
       try {
+        // This is where the real data comes back
         const result = await readPlan(projectId, urlData.publicUrl);
+        
         clearInterval(progressInterval.current);
         setUploadProgress(100);
 
+        // ONLY show the detected numbers AFTER the result comes back
         if (result.success) {
           setStatusText(`Detected: ${result.windowsFound || 0} windows, ${result.doorsFound || 0} doors`);
         } else {
@@ -221,13 +224,15 @@ function NewProject() {
         }
       } catch (planError) {
         clearInterval(progressInterval.current);
+        setUploadProgress(100);
         console.error('Server action error:', planError);
         setStatusText('Yaka AI reading skipped. Proceeding to manual entry.');
       }
 
+      // Wait 2 seconds on the 100% state so they can read the result before redirecting
       setTimeout(() => {
         router.push(`/dashboard/verify/${projectId}`);
-      }, 1000);
+      }, 2000);
 
     } catch (err) {
       clearInterval(progressInterval.current);
