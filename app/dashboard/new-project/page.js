@@ -33,7 +33,6 @@ function NewProject() {
   const [cityId, setCityId] = useState(1);
   const [uploadMethod, setUploadMethod] = useState(modeParam === 'file' ? 'file' : 'camera');
   
-  // Progress states
   const [uploadProgress, setUploadProgress] = useState(0);
   const [statusText, setStatusText] = useState('');
 
@@ -55,7 +54,6 @@ function NewProject() {
     }
     loadRetryProject();
     
-    // Cleanup interval on unmount
     return () => {
       if (progressInterval.current) clearInterval(progressInterval.current);
     };
@@ -120,7 +118,6 @@ function NewProject() {
 
       const userId = session.user.id;
 
-      // Simulate upload progress since we can't get real Supabase progress easily
       setStatusText('Uploading floor plan...');
       progressInterval.current = setInterval(() => {
         setUploadProgress((prev) => {
@@ -201,9 +198,9 @@ function NewProject() {
         projectId = projectData[0].id;
       }
 
-      // Now we wait for AI. Simulating a slow progress bar while waiting.
-      setStatusText('AI is reading your plan...');
-      setUploadProgress(30); // Drop back to 30% to show the AI phase
+      // UPDATED TEXT HERE
+      setStatusText('Yaka AI is reading your plan...');
+      setUploadProgress(30);
       
       progressInterval.current = setInterval(() => {
         setUploadProgress((prev) => {
@@ -225,7 +222,7 @@ function NewProject() {
       } catch (planError) {
         clearInterval(progressInterval.current);
         console.error('Server action error:', planError);
-        setStatusText('AI reading skipped. Proceeding to manual entry.');
+        setStatusText('Yaka AI reading skipped. Proceeding to manual entry.');
       }
 
       setTimeout(() => {
@@ -421,7 +418,6 @@ function NewProject() {
               )}
             </div>
 
-            {/* NEW: Progress Bar Area */}
             {loading && (
               <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
                 <div className="flex justify-between items-center mb-2">
