@@ -209,13 +209,13 @@ function NewProject() {
       }, 400);
 
       try {
-        // We await the readPlan but we don't use the result for display anymore
+        // We await the readPlan but we don't use the result for display
         await readPlan(projectId, urlData.publicUrl);
         
         clearInterval(progressInterval.current);
         setUploadProgress(100);
         
-        // NEW: Generic completion message instead of showing counts
+        // Show only generic completion message
         setStatusText('Analysis complete. Opening results...');
         
       } catch (planError) {
@@ -225,7 +225,6 @@ function NewProject() {
         setStatusText('Analysis complete. Opening results...');
       }
 
-      // Wait 1.5 seconds so they can see the 100% and then redirect
       setTimeout(() => {
         router.push(`/dashboard/verify/${projectId}`);
       }, 1500);
