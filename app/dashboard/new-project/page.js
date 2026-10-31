@@ -33,6 +33,9 @@ function NewProject() {
   const [cityId, setCityId] = useState(1);
   const [uploadMethod, setUploadMethod] = useState(modeParam === 'file' ? 'file' : 'camera');
   
+  // New state for the camera guide modal
+  const [showCameraGuide, setShowCameraGuide] = useState(false);
+
   const [uploadProgress, setUploadProgress] = useState(0);
   const [statusText, setStatusText] = useState('');
 
@@ -87,8 +90,18 @@ function NewProject() {
       return;
     }
 
-    setFile(selectedFile);
-    setError('');
+    // NEW: Resolution Check
+    const img = new Image();
+    img.onload = () => {
+      if (img.width < 1000) {
+        setError('This photo is too small for the AI to read. Please take a clearer photo or upload a PDF.');
+        setFile(null);
+      } else {
+        setFile(selectedFile);
+        setError('');
+      }
+    };
+    img.src = URL.createObjectURL(selectedFile);
   };
 
   const handleSubmit = async (e) => {
@@ -209,15 +222,10 @@ function NewProject() {
       }, 400);
 
       try {
-        // We await the readPlan but we don't use the result for display
         await readPlan(projectId, urlData.publicUrl);
-        
         clearInterval(progressInterval.current);
         setUploadProgress(100);
-        
-        // Show only generic completion message
         setStatusText('Analysis complete. Opening results...');
-        
       } catch (planError) {
         clearInterval(progressInterval.current);
         setUploadProgress(100);
@@ -363,12 +371,19 @@ function NewProject() {
                       </svg>
                     )}
                     <div className="mt-4 text-sm text-gray-600">
-                      <label
-                        htmlFor={uploadMethod === 'camera' ? 'camera-upload' : 'file-upload'}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (uploadMethod === 'camera') {
+                            setShowCameraGuide(true);
+                          } else {
+                            fileInputRef.current?.click();
+                          }
+                        }}
                         className="relative cursor-pointer rounded-md font-semibold text-[#F47B20] focus-within:outline-none hover:text-[#E06B10]"
                       >
                         <span>{uploadMethod === 'camera' ? 'Open Camera' : 'Choose a file'}</span>
-                      </label>
+                      </button>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
                       {uploadMethod === 'camera' ? 'Take a clear photo of the plan' : 'PDF, JPG, PNG up to 20MB'}
@@ -456,6 +471,67 @@ function NewProject() {
           </form>
         </div>
       </div>
+
+      {/* Camera Guide Modal */}
+      {showCameraGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="bg-[#2C3E50] p-5 text-center relative">
+              <button 
+                onClick={() => setShowCameraGuide(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-white"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              <div className="w-12 h-12 bg-[#F47B20] rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-white">Photo Guide</h3>
+              <p className="text-sm text-gray-300 mt-1">For the AI to read your plan, please follow these steps.</p>
+            </div>
+            
+            <div className="p-6">
+              <ul className="space-y-4 mb-6">
+                <li className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-orange-100 text-[#F47B20] flex items-center justify-center font-bold text-sm flex-shrink-0">1</div>
+                  <p className="text-sm text-gray-700">Place the plan on a flat table near a window (use daylight, not a roof lamp).</p>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-orange-100 text-[#F47B20] flex items-center justify-center font-bold text-sm flex-shrink-0">2</div>
+                  <p className="text-sm text-gray-700">Hold the phone directly above the paper, looking straight down.</p>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-orange-100 text-[#F47B20] flex items-center justify-center font-bold text-sm flex-shrink-0">3</div>
+                  <p className="text-sm text-gray-700">Make sure the whole page fits in the frame.</p>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-orange-100 text-[#F47B20] flex items-center justify-center font-bold text-sm flex-shrink-0">4</div>
+                  <p className="text-sm text-gray-700">Tap the screen on the plan so the camera focuses.</p>
+                </li>
+              </ul>
+
+              <button
+                onClick={() => {
+                  setShowCameraGuide(false);
+                  cameraInputRef.current?.click();
+                }}
+                className="w-full bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                I Understand, Open Camera
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
     }
