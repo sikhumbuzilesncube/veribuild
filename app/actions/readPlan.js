@@ -91,6 +91,7 @@ export async function readPlan(projectId, fileUrl) {
 
         const criticalFieldsPresent =
           textResult.success &&
+          textResult.fields &&
           textResult.fields.floor_area !== undefined &&
           textResult.fields.wall_length !== undefined &&
           textResult.fields.doors !== undefined;
@@ -236,9 +237,12 @@ function extractFromText(text) {
 }
 
 async function saveAndReturn(projectId, extraction, readMethod) {
+  // SAFETY CHECK: Ensure fields exist before trying to save them
+  const safeFields = extraction.fields || {};
+  
   const { error: updateError } = await supabase
     .from('projects')
-    .update(extraction.fields)
+    .update(safeFields)
     .eq('id', projectId);
 
   if (updateError) {
@@ -256,8 +260,8 @@ async function saveAndReturn(projectId, extraction, readMethod) {
     success: true,
     readMethod,
     error: null,
-    data: extraction.fields,
-    notes: extraction.fields.notes,
+    data: safeFields,
+    notes: safeFields.notes || 'Extracted from plan',
     windowsFound: extraction.windowsFound || 0,
     doorsFound: extraction.doorsFound || 0,
     roomsFound: extraction.roomsFound || [],
