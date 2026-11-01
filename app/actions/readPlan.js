@@ -35,7 +35,7 @@ export async function readPlan(projectId, fileUrl) {
 
     const lowerUrl = String(fileUrl).toLowerCase();
 
-    // Determine media type from extension
+    // Determine media type
     let mediaType = null;
     if (lowerUrl.endsWith('.pdf')) mediaType = 'application/pdf';
     else if (lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg')) mediaType = 'image/jpeg';
@@ -62,8 +62,6 @@ export async function readPlan(projectId, fileUrl) {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    console.log('readPlan: media type', mediaType, 'file size', buffer.length, 'bytes');
-
     // ----------------------------------------------------------
     // PDF path: try text extraction first (fast, free)
     // ----------------------------------------------------------
@@ -76,57 +74,30 @@ export async function readPlan(projectId, fileUrl) {
         extractedText = pdfData.text || '';
         const meaningfulText = extractedText.replace(/[\s\d\W]/g, '').length;
         textExtractionWorked = meaningfulText >= 50;
-        console.log(
-          'readPlan: text extraction length',
-          extractedText.length,
-          'meaningful chars',
-          meaningfulText
-        );
       } catch (pdfErr) {
-        console.warn('readPlan: pdf-parse failed, will try vision:', pdfErr.message);
+        console.warn('pdf-parse failed, will try vision:', pdfErr.message);
       }
 
       if (textExtractionWorked) {
         const textResult = extractFromText(extractedText);
 
+        // Only accept text extraction if it produced the critical fields.
         const criticalFieldsPresent =
           textResult.success &&
-          textResult.fields &&
           textResult.fields.floor_area !== undefined &&
           textResult.fields.wall_length !== undefined &&
           textResult.fields.doors !== undefined;
 
         if (criticalFieldsPresent) {
-          console.log('readPlan: text extraction succeeded with critical fields');
           return await saveAndReturn(projectId, textResult, 'text-extraction');
         }
-
-        console.log(
-          'readPlan: text extraction incomplete. Falling through to vision.'
-        );
-      } else {
-        console.log('readPlan: text extraction not usable. Falling through to vision.');
       }
-    } else {
-      console.log('readPlan: image upload, skipping text extraction');
     }
 
     // ----------------------------------------------------------
     // Vision path: PDF (raster or incomplete) or image
     // ----------------------------------------------------------
-    console.log('readPlan: calling Claude vision with', mediaType);
     const visionResult = await readPlanImage(buffer, mediaType);
-
-    if (visionResult.usage) {
-      console.log(
-        'readPlan: vision usage',
-        visionResult.usage.inputTokens,
-        'in',
-        visionResult.usage.outputTokens,
-        'out',
-        '$' + visionResult.usage.estimatedCostUsd.toFixed(4)
-      );
-    }
 
     if (!visionResult.success) {
       result.error = visionResult.error || 'Vision extraction failed.';
@@ -136,7 +107,6 @@ export async function readPlan(projectId, fileUrl) {
       return result;
     }
 
-    console.log('readPlan: vision succeeded');
     return await saveAndReturn(projectId, visionResult, 'vision-extraction');
   } catch (error) {
     console.error('readPlan error:', error);
@@ -237,16 +207,13 @@ function extractFromText(text) {
 }
 
 async function saveAndReturn(projectId, extraction, readMethod) {
-  // SAFETY CHECK: Ensure fields exist before trying to save them
-  const safeFields = extraction.fields || {};
-  
   const { error: updateError } = await supabase
     .from('projects')
-    .update(safeFields)
+    .update(extraction.fields)
     .eq('id', projectId);
 
   if (updateError) {
-    console.error('readPlan: failed to save extraction:', updateError);
+    console.error('Failed to save extraction:', updateError);
     return {
       success: false,
       readMethod: 'save-failed',
@@ -260,8 +227,8 @@ async function saveAndReturn(projectId, extraction, readMethod) {
     success: true,
     readMethod,
     error: null,
-    data: safeFields,
-    notes: safeFields.notes || 'Extracted from plan',
+    data: extraction.fields,
+    notes: extraction.fields.notes,
     windowsFound: extraction.windowsFound || 0,
     doorsFound: extraction.doorsFound || 0,
     roomsFound: extraction.roomsFound || [],
@@ -281,6 +248,6 @@ async function writeStatus(projectId, result) {
       .update({ notes: note, status: 'processing' })
       .eq('id', projectId);
   } catch (err) {
-    console.error('readPlan: failed to write status:', err);
+    console.error('Failed to write read status:', err);
   }
-    }
+}
