@@ -184,12 +184,9 @@ function extractFromText(text) {
   const count = Object.keys(fields).length;
   if (count === 0) return result;
 
-  fields.notes = `Extracted from PDF text: ${windowCodes.length} window codes, ${doorCodes.length} door codes, ${foundRooms.length} room labels, ${dims.length} dimensions, area ${area || 'not computed'} m2`;
-  fields.status = 'processing';
-
   result.success = true;
   result.fields = fields;
-  result.notes = fields.notes;
+  result.notes = `Extracted from PDF text: ${windowCodes.length} window codes, ${doorCodes.length} door codes, ${foundRooms.length} room labels, ${dims.length} dimensions, area ${area || 'not computed'} m2`;
   result.windowsFound = windowCodes.length;
   result.doorsFound = doorCodes.length;
   result.roomsFound = foundRooms;
@@ -199,7 +196,6 @@ function extractFromText(text) {
 }
 
 async function saveAndReturn(projectId, extraction, readMethod) {
-  // NEW: Strict Whitelist. Only send fields that exist in the database.
   const rawFields = extraction.fields || {};
   
   const allowedColumns = [
@@ -221,8 +217,23 @@ async function saveAndReturn(projectId, extraction, readMethod) {
     }
   }
   
-  // Force status to processing so the verify page knows it's ready
   cleanFields.status = 'processing';
+
+  // NEW: Format the notes and confidence for the Verify page
+  const confidence = rawFields.confidence || 0;
+  const planNotes = rawFields.plan_notes || '';
+  
+  // We build a string that matches the Verify page's expected format
+  let notesString = `Extracted from PDF via vision: `;
+  if (cleanFields.floor_area) notesString += `floor_area=${cleanFields.floor_area} (conf ${confidence}), `;
+  if (cleanFields.wall_length) notesString += `wall_length=${cleanFields.wall_length} (conf ${confidence}), `;
+  if (cleanFields.rooms) notesString += `rooms=${cleanFields.rooms} (conf ${confidence}), `;
+  if (cleanFields.doors) notesString += `doors=${cleanFields.doors} (conf ${confidence}), `;
+  if (cleanFields.windows) notesString += `windows=${cleanFields.windows} (conf ${confidence}), `;
+  if (planNotes) notesString += `plan_notes="${planNotes}", `;
+  
+  notesString += `overall=${confidence}`;
+  cleanFields.notes = notesString;
 
   const { error: updateError } = await supabase
     .from('projects')
@@ -245,7 +256,7 @@ async function saveAndReturn(projectId, extraction, readMethod) {
     readMethod,
     error: null,
     data: cleanFields,
-    notes: rawFields.notes || 'Extracted from plan',
+    notes: cleanFields.notes,
     windowsFound: extraction.windowsFound || 0,
     doorsFound: extraction.doorsFound || 0,
     roomsFound: extraction.roomsFound || [],
@@ -267,4 +278,4 @@ async function writeStatus(projectId, result) {
   } catch (err) {
     console.error('Failed to write read status:', err);
   }
-  }
+                        }
