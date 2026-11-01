@@ -125,6 +125,15 @@ export default function PaymentPage() {
       const createData = await createResponse.json();
       if (!createResponse.ok) throw new Error(createData.error || 'Could not save payment record');
 
+      // NEW: Check if the payment is free
+      if (createData.isFree) {
+        // Skip Paynow, go straight to success page
+        if (createData.reference) localStorage.setItem('paynow_reference', createData.reference);
+        if (projectId) localStorage.setItem('paynow_project_id', String(projectId));
+        window.location.href = `/payment/success?reference=${createData.reference}`;
+        return;
+      }
+
       const sdkResponse = await fetch('/api/paynow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -310,4 +319,4 @@ export default function PaymentPage() {
       )}
     </div>
   );
-                  }
+        }
