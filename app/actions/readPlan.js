@@ -199,11 +199,29 @@ function extractFromText(text) {
 }
 
 async function saveAndReturn(projectId, extraction, readMethod) {
-  // NEW: Clean the fields to remove any AI metadata (like 'confidence') 
-  // that doesn't exist in the database schema.
-  const cleanFields = { ...extraction.fields };
-  delete cleanFields.confidence;
-  delete cleanFields.status; // We handle status separately
+  // NEW: Strict Whitelist. Only send fields that exist in the database.
+  const rawFields = extraction.fields || {};
+  
+  const allowedColumns = [
+    'floor_area', 'wall_length', 'wall_height', 'wall_thickness',
+    'foundation_type', 'soil_type', 'foundation_depth', 'foundation_width',
+    'slab_type', 'slab_thickness', 'concrete_grade',
+    'rooms', 'room_labels', 'doors', 'door_details', 'windows', 'window_details',
+    'electrical_points', 'plumbing_points',
+    'red_wall_length', 'green_concrete_area', 'yellow_timber_length',
+    'brown_sewer_length', 'blue_water_length',
+    'foundation_brick_type', 'wall_brick_type', 'face_brick_proportion',
+    'plaster_scope', 'plan_scale'
+  ];
+
+  const cleanFields = {};
+  for (const key of allowedColumns) {
+    if (rawFields[key] !== undefined) {
+      cleanFields[key] = rawFields[key];
+    }
+  }
+  
+  // Force status to processing so the verify page knows it's ready
   cleanFields.status = 'processing';
 
   const { error: updateError } = await supabase
@@ -227,7 +245,7 @@ async function saveAndReturn(projectId, extraction, readMethod) {
     readMethod,
     error: null,
     data: cleanFields,
-    notes: cleanFields.notes || 'Extracted from plan',
+    notes: rawFields.notes || 'Extracted from plan',
     windowsFound: extraction.windowsFound || 0,
     doorsFound: extraction.doorsFound || 0,
     roomsFound: extraction.roomsFound || [],
@@ -249,4 +267,4 @@ async function writeStatus(projectId, result) {
   } catch (err) {
     console.error('Failed to write read status:', err);
   }
-    }
+  }
