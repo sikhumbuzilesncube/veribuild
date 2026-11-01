@@ -35,7 +35,6 @@ export async function readPlan(projectId, fileUrl) {
 
     const lowerUrl = String(fileUrl).toLowerCase();
 
-    // Determine media type
     let mediaType = null;
     if (lowerUrl.endsWith('.pdf')) mediaType = 'application/pdf';
     else if (lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg')) mediaType = 'image/jpeg';
@@ -62,9 +61,6 @@ export async function readPlan(projectId, fileUrl) {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // ----------------------------------------------------------
-    // PDF path: try text extraction first (fast, free)
-    // ----------------------------------------------------------
     if (mediaType === 'application/pdf') {
       let extractedText = '';
       let textExtractionWorked = false;
@@ -81,7 +77,6 @@ export async function readPlan(projectId, fileUrl) {
       if (textExtractionWorked) {
         const textResult = extractFromText(extractedText);
 
-        // Only accept text extraction if it produced the critical fields.
         const criticalFieldsPresent =
           textResult.success &&
           textResult.fields.floor_area !== undefined &&
@@ -94,9 +89,6 @@ export async function readPlan(projectId, fileUrl) {
       }
     }
 
-    // ----------------------------------------------------------
-    // Vision path: PDF (raster or incomplete) or image
-    // ----------------------------------------------------------
     const visionResult = await readPlanImage(buffer, mediaType);
 
     if (!visionResult.success) {
@@ -207,9 +199,16 @@ function extractFromText(text) {
 }
 
 async function saveAndReturn(projectId, extraction, readMethod) {
+  // NEW: Clean the fields to remove any AI metadata (like 'confidence') 
+  // that doesn't exist in the database schema.
+  const cleanFields = { ...extraction.fields };
+  delete cleanFields.confidence;
+  delete cleanFields.status; // We handle status separately
+  cleanFields.status = 'processing';
+
   const { error: updateError } = await supabase
     .from('projects')
-    .update(extraction.fields)
+    .update(cleanFields)
     .eq('id', projectId);
 
   if (updateError) {
@@ -227,8 +226,8 @@ async function saveAndReturn(projectId, extraction, readMethod) {
     success: true,
     readMethod,
     error: null,
-    data: extraction.fields,
-    notes: extraction.fields.notes,
+    data: cleanFields,
+    notes: cleanFields.notes || 'Extracted from plan',
     windowsFound: extraction.windowsFound || 0,
     doorsFound: extraction.doorsFound || 0,
     roomsFound: extraction.roomsFound || [],
@@ -250,4 +249,4 @@ async function writeStatus(projectId, result) {
   } catch (err) {
     console.error('Failed to write read status:', err);
   }
-}
+    }
