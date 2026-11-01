@@ -16,6 +16,8 @@ export async function POST(request) {
     const paymentPurpose = getPaymentPurpose(planType);
     const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+    let appliedDiscount = null;
+
     if (discountCode) {
       const { data: codeData } = await supabase
         .from('discount_codes')
@@ -26,6 +28,7 @@ export async function POST(request) {
 
       if (codeData && codeData.times_used < codeData.max_uses) {
         amount = amount - (amount * (codeData.percentage / 100));
+        appliedDiscount = codeData.code;
         
         await supabase
           .from('discount_codes')
@@ -40,7 +43,6 @@ export async function POST(request) {
       if (!isNaN(num)) parsedProjectId = num;
     }
 
-    // NEW: If amount is 0, mark as completed immediately
     const isFree = amount <= 0;
     const paymentStatus = isFree ? 'completed' : 'pending';
 
@@ -56,6 +58,7 @@ export async function POST(request) {
         provider: isFree ? 'internal' : 'paynow',
         project_id: parsedProjectId,
         payment_purpose: paymentPurpose,
+        discount_code_used: appliedDiscount, // SAVES THE CODE TO THE PAYMENT
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -64,7 +67,6 @@ export async function POST(request) {
 
     if (error) return NextResponse.json({ error: 'Failed to save payment', details: error.message }, { status: 500 });
 
-    // If it's free, we don't need to hit Paynow. Just return success.
     if (isFree) {
       return NextResponse.json({ 
         success: true, 
@@ -80,4 +82,4 @@ export async function POST(request) {
     console.error('Create payment error:', error);
     return NextResponse.json({ error: error.message || 'Failed' }, { status: 500 });
   }
-          }
+        }
