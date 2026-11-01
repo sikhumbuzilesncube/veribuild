@@ -133,7 +133,7 @@ export default function VerifyPage() {
       const hasRooms = Number(data.rooms) > 0;
 
       let quality;
-      if (hasFloorArea && hasWallLength) {
+      if (hasFloorArea && hasRooms) {
         quality = 'complete';
       } else if (hasFloorArea || hasWallLength || hasDoors || hasWindows || hasRooms) {
         quality = 'partial';
