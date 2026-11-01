@@ -38,7 +38,7 @@ export async function GET(request) {
     ] = await Promise.all([
       supabase.from('projects').select(`id, project_name, created_at, user_id, payments (payment_status, payment_purpose)`).order('created_at', { ascending: false }),
       supabase.auth.admin.listUsers(),
-      supabase.from('payments').select('amount, payment_method, payment_purpose, payment_status, created_at, user_id').eq('payment_status', 'completed'),
+      supabase.from('payments').select('amount, payment_method, payment_purpose, payment_status, created_at, user_id, discount_code_used').eq('payment_status', 'completed').order('created_at', { ascending: false }),
       supabase.from('payments').select('*', { count: 'exact', head: true }).eq('payment_status', 'failed').gte('created_at', oneDayAgo),
       supabase.from('job_requests').select('*', { count: 'exact', head: true }),
       supabase.from('system_logs').select('*').order('created_at', { ascending: false }).limit(5),
@@ -133,7 +133,14 @@ export async function GET(request) {
           if (p.payment_purpose === 'boq') chartMap[dateKey].boqs += 1;
         }
 
-        if (recentPayments.length < 5) recentPayments.push(p);
+        if (recentPayments.length < 20) {
+          const clientInfo = userMap[p.user_id] || { name: 'Unknown', email: 'Unknown' };
+          recentPayments.push({
+            ...p,
+            client_name: clientInfo.name,
+            client_email: clientInfo.email
+          });
+        }
       });
     }
 
@@ -166,4 +173,4 @@ export async function GET(request) {
     console.error('Admin stats error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-      }
+                                          }
