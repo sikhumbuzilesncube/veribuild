@@ -6,6 +6,23 @@ module.exports = {
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  safelist: [
+    'pb-20',
+    'pb-safe',
+    'hide-scrollbar',
+    'snap-x',
+    'snap-start',
+    'min-w-[140px]',
+    'bg-brand-500',
+    'text-brand-500',
+    'border-brand-500',
+    'bg-brand-600',
+    'hover:bg-brand-600',
+    'bg-slate-700',
+    'text-slate-700',
+    'bg-brand-100',
+    'text-brand-100',
+  ],
   theme: {
     extend: {
       colors: {
