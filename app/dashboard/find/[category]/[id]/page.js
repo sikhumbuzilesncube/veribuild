@@ -63,11 +63,9 @@ function SubscriptionBadge({ item }) {
 
   let bgColor = '#2C3E50'; // Default Slate for Standard
   let label = 'STANDARD';
-  let textColor = '#FFFFFF';
 
   if (item.subscription_status !== 'active') {
-    bgColor = '#F3F4F6'; // Gray 100
-    textColor = '#6B7280'; // Gray 500
+    bgColor = '#D1D5DB'; // Gray 300 for Unsubscribed
     label = 'UNSUBSCRIBED';
   } else if (item.subscription_tier === 'premium') {
     bgColor = '#F47B20'; // Brand Orange
@@ -75,21 +73,19 @@ function SubscriptionBadge({ item }) {
   }
 
   return (
-    <div className="relative flex items-center justify-center w-16 h-16 shrink-0 -mt-2">
-      <svg className="w-full h-full absolute inset-0 drop-shadow-sm" viewBox="0 0 100 100">
-        {/* Scalloped shape */}
+    <div className="relative flex flex-col items-center justify-center w-16 h-16 shrink-0 opacity-80">
+      <svg className="w-full h-full absolute inset-0" viewBox="0 0 100 100">
         <path 
           fill={bgColor}
           d="M50 0 C54 0 58 4 62 2 C66 0 71 3 74 6 C77 9 82 9 85 13 C88 17 93 19 94 24 C95 29 99 33 98 38 C97 43 99 48 96 52 C93 56 93 62 89 65 C85 68 83 74 78 76 C73 78 70 84 65 84 C60 84 56 88 51 86 C46 84 41 86 37 83 C33 80 27 80 24 75 C21 70 15 68 13 63 C11 58 6 55 6 50 C6 45 10 41 11 36 C12 31 8 26 12 21 C16 16 20 15 23 10 C26 5 32 6 36 3 C40 0 45 0 50 0 Z" 
         />
-        {/* Inner circle */}
         <circle cx="50" cy="50" r="32" fill="white" />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <svg className="w-4 h-4 mb-0.5" fill={bgColor} viewBox="0 0 20 20">
+        <svg className="w-3.5 h-3.5 mb-0.5" fill={bgColor} viewBox="0 0 20 20">
           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
         </svg>
-        <span style={{ color: bgColor }} className="text-[7px] font-black leading-none tracking-widest">{label}</span>
+        <span style={{ color: bgColor }} className="text-[6px] font-black leading-none tracking-wider text-center px-1">{label}</span>
       </div>
     </div>
   );
@@ -187,7 +183,6 @@ export default function ProviderProfilePage() {
   const whatsappNumber = toWhatsAppNumber(provider.phone);
   const imageUrl = config.imageField ? provider[config.imageField] : null;
   
-  // Filter out any empty or broken photos
   const photos = Array.isArray(provider.photos) 
     ? provider.photos.filter(url => url && typeof url === 'string' && url.trim() !== '') 
     : [];
@@ -210,36 +205,37 @@ export default function ProviderProfilePage() {
           </div>
 
           {/* Header */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 sm:p-6 mb-6">
-            <div className="flex justify-between items-start gap-2 mb-5">
-              <div className="flex items-start gap-4 flex-1 min-w-0">
-                <Avatar
-                  name={displayName}
-                  imageUrl={imageUrl}
-                  size={72}
-                  shape={config.shape}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold bg-gray-100 px-2 py-0.5 rounded">
-                      {config.label}
-                    </span>
-                  </div>
-                  <h1 className="text-xl sm:text-2xl font-bold text-slate-700 mt-1.5 leading-tight break-words">
-                    {displayName}
-                  </h1>
-                  {provider.contact_person && (
-                    <p className="text-sm text-gray-500 mt-1 truncate">
-                      Contact: {provider.contact_person}
-                    </p>
-                  )}
-                </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 sm:p-6 mb-6 relative">
+            
+            {/* Badge absolutely positioned in top right */}
+            <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+               <SubscriptionBadge item={provider} />
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-start gap-4 pr-16">
+              <Avatar
+                name={displayName}
+                imageUrl={imageUrl}
+                size={80}
+                shape={config.shape}
+              />
+              <div className="flex-1 min-w-0 w-full">
+                <span className="inline-block text-[10px] uppercase tracking-wider text-gray-500 font-bold bg-gray-100 px-2 py-1 rounded">
+                  {config.label}
+                </span>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-700 mt-2 leading-snug break-words">
+                  {displayName}
+                </h1>
+                {provider.contact_person && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Contact: {provider.contact_person}
+                  </p>
+                )}
               </div>
-              <SubscriptionBadge item={provider} />
             </div>
 
             {/* Contact buttons */}
-            <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-100">
+            <div className="flex flex-wrap gap-2 pt-4 mt-4 border-t border-gray-100">
               {provider.phone && (
                 <a
                   href={`tel:${provider.phone}`}
@@ -343,27 +339,6 @@ export default function ProviderProfilePage() {
                 <Section title="About">
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">
                     {provider.about_me}
-                  </p>
-                </Section>
-              )}
-
-              {provider.portfolio_link && (
-                <Section title="Portfolio">
-                  <a
-                    href={provider.portfolio_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-brand-500 hover:underline break-all"
-                  >
-                    {provider.portfolio_link}
-                  </a>
-                </Section>
-              )}
-
-              {provider.references_text && (
-                <Section title="References">
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                    {provider.references_text}
                   </p>
                 </Section>
               )}
@@ -517,4 +492,4 @@ function ProductsList({ storeId }) {
       </table>
     </div>
   );
-  }
+      }
