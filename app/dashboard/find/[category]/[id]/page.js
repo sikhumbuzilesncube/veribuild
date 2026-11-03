@@ -57,24 +57,42 @@ function toWhatsAppNumber(phone) {
   return cleaned;
 }
 
-function getTierLabel(item) {
-  if (!item || item.subscription_status !== 'active') return 'Not Subscribed';
-  if (item.subscription_tier === 'premium') {
-    return item.subscription_coverage === 'national'
-      ? 'Premium · National'
-      : 'Premium · Local';
-  }
-  return 'Standard';
-}
+// Custom Scalloped Stamp Badge
+function SubscriptionBadge({ item }) {
+  if (!item) return null;
 
-function getTierBadgeClass(item) {
-  if (!item || item.subscription_status !== 'active') {
-    return 'bg-gray-100 text-gray-700';
+  let bgColor = '#2C3E50'; // Default Slate for Standard
+  let label = 'STANDARD';
+  let textColor = '#FFFFFF';
+
+  if (item.subscription_status !== 'active') {
+    bgColor = '#F3F4F6'; // Gray 100
+    textColor = '#6B7280'; // Gray 500
+    label = 'UNSUBSCRIBED';
+  } else if (item.subscription_tier === 'premium') {
+    bgColor = '#F47B20'; // Brand Orange
+    label = 'PREMIUM';
   }
-  if (item.subscription_tier === 'premium') {
-    return 'bg-[#F47B20] text-white';
-  }
-  return 'bg-blue-100 text-blue-800';
+
+  return (
+    <div className="relative flex items-center justify-center w-16 h-16 shrink-0 -mt-2">
+      <svg className="w-full h-full absolute inset-0 drop-shadow-sm" viewBox="0 0 100 100">
+        {/* Scalloped shape */}
+        <path 
+          fill={bgColor}
+          d="M50 0 C54 0 58 4 62 2 C66 0 71 3 74 6 C77 9 82 9 85 13 C88 17 93 19 94 24 C95 29 99 33 98 38 C97 43 99 48 96 52 C93 56 93 62 89 65 C85 68 83 74 78 76 C73 78 70 84 65 84 C60 84 56 88 51 86 C46 84 41 86 37 83 C33 80 27 80 24 75 C21 70 15 68 13 63 C11 58 6 55 6 50 C6 45 10 41 11 36 C12 31 8 26 12 21 C16 16 20 15 23 10 C26 5 32 6 36 3 C40 0 45 0 50 0 Z" 
+        />
+        {/* Inner circle */}
+        <circle cx="50" cy="50" r="32" fill="white" />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <svg className="w-4 h-4 mb-0.5" fill={bgColor} viewBox="0 0 20 20">
+          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+        </svg>
+        <span style={{ color: bgColor }} className="text-[7px] font-black leading-none tracking-widest">{label}</span>
+      </div>
+    </div>
+  );
 }
 
 export default function ProviderProfilePage() {
@@ -132,7 +150,7 @@ export default function ProviderProfilePage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#F47B20] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-12 h-12 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Loading profile...</p>
         </div>
       </div>
@@ -145,14 +163,14 @@ export default function ProviderProfilePage() {
         <Sidebar />
         <div className="md:ml-64 p-4 sm:p-6">
           <div className="max-w-3xl mx-auto">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-              <div className="text-6xl mb-4 text-gray-300">[ ]</div>
-              <h2 className="text-xl font-bold text-[#2C3E50] mb-2">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center mt-10">
+              <div className="text-6xl mb-4 text-gray-200">[ ]</div>
+              <h2 className="text-xl font-bold text-slate-700 mb-2">
                 {error || 'Provider not found'}
               </h2>
               <button
                 onClick={() => router.push(config ? config.backHref : '/dashboard/find')}
-                className="mt-4 bg-[#F47B20] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition"
+                className="mt-4 bg-brand-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-brand-600 transition"
               >
                 Back to Directory
               </button>
@@ -168,51 +186,56 @@ export default function ProviderProfilePage() {
   const cityName = CITIES.find((c) => c.id === provider.city_id)?.name || '';
   const whatsappNumber = toWhatsAppNumber(provider.phone);
   const imageUrl = config.imageField ? provider[config.imageField] : null;
-  const photos = Array.isArray(provider.photos) ? provider.photos : [];
+  
+  // Filter out any empty or broken photos
+  const photos = Array.isArray(provider.photos) 
+    ? provider.photos.filter(url => url && typeof url === 'string' && url.trim() !== '') 
+    : [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-24 md:pb-0">
       <Sidebar />
 
       <div className="md:ml-64 p-4 sm:p-6">
         <div className="max-w-3xl mx-auto">
 
-          <div className="mb-6">
+          <div className="mb-4">
             <button
               onClick={() => router.push(config.backHref)}
-              className="text-sm text-gray-600 hover:text-gray-800 mb-3"
+              className="text-sm text-gray-500 hover:text-slate-700 flex items-center gap-1 font-medium transition"
             >
-              ← Back to {config.label}s
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+              Back to {config.label}s
             </button>
           </div>
 
           {/* Header */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex items-start gap-4 flex-1">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 sm:p-6 mb-6">
+            <div className="flex justify-between items-start gap-2 mb-5">
+              <div className="flex items-start gap-4 flex-1 min-w-0">
                 <Avatar
                   name={displayName}
                   imageUrl={imageUrl}
-                  size={80}
+                  size={72}
                   shape={config.shape}
                 />
-                <div className="flex-1">
-                  <span className="text-xs uppercase tracking-wide text-gray-500 font-semibold">
-                    {config.label}
-                  </span>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] mt-1">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold bg-gray-100 px-2 py-0.5 rounded">
+                      {config.label}
+                    </span>
+                  </div>
+                  <h1 className="text-xl sm:text-2xl font-bold text-slate-700 mt-1.5 leading-tight break-words">
                     {displayName}
                   </h1>
                   {provider.contact_person && (
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-sm text-gray-500 mt-1 truncate">
                       Contact: {provider.contact_person}
                     </p>
                   )}
                 </div>
               </div>
-              <span className={`text-xs px-3 py-1.5 rounded ${getTierBadgeClass(provider)}`}>
-                {getTierLabel(provider)}
-              </span>
+              <SubscriptionBadge item={provider} />
             </div>
 
             {/* Contact buttons */}
@@ -220,7 +243,7 @@ export default function ProviderProfilePage() {
               {provider.phone && (
                 <a
                   href={`tel:${provider.phone}`}
-                  className="bg-[#F47B20] text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-[#E06B10] transition text-sm"
+                  className="flex-1 sm:flex-none text-center bg-brand-500 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-brand-600 transition text-sm"
                 >
                   Call
                 </a>
@@ -230,7 +253,7 @@ export default function ProviderProfilePage() {
                   href={`https://wa.me/${whatsappNumber}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-[#25D366] text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-[#1ebe5a] transition text-sm"
+                  className="flex-1 sm:flex-none text-center bg-[#25D366] text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-[#1ebe5a] transition text-sm"
                 >
                   WhatsApp
                 </a>
@@ -238,7 +261,7 @@ export default function ProviderProfilePage() {
               {provider.email && (
                 <a
                   href={`mailto:${provider.email}`}
-                  className="border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
+                  className="flex-1 sm:flex-none text-center border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
                 >
                   Email
                 </a>
@@ -261,7 +284,7 @@ export default function ProviderProfilePage() {
                       href={`https://${provider.website.replace(/^https?:\/\//, '')}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[#F47B20] hover:underline"
+                      className="text-brand-500 hover:underline break-all"
                     >
                       {provider.website}
                     </a>
@@ -271,7 +294,7 @@ export default function ProviderProfilePage() {
             </DetailGrid>
           </Section>
 
-          {/* Photo gallery (workers, architects, construction) */}
+          {/* Photo gallery */}
           {config.hasGallery && photos.length > 0 && (
             <PhotoGallery
               photos={photos}
@@ -330,7 +353,7 @@ export default function ProviderProfilePage() {
                     href={provider.portfolio_link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-[#F47B20] hover:underline break-all"
+                    className="text-sm text-brand-500 hover:underline break-all"
                   >
                     {provider.portfolio_link}
                   </a>
@@ -422,8 +445,8 @@ export default function ProviderProfilePage() {
 
 function Section({ title, children }) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-6">
-      <h2 className="text-base font-bold text-[#2C3E50] mb-4 pb-2 border-b border-gray-100">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
+      <h2 className="text-base font-bold text-slate-700 mb-4 pb-2 border-b border-gray-100">
         {title}
       </h2>
       {children}
@@ -438,8 +461,8 @@ function DetailGrid({ children }) {
 function Detail({ label, value }) {
   return (
     <div>
-      <div className="text-xs text-gray-500">{label}</div>
-      <div className="text-gray-800 mt-0.5">{value}</div>
+      <div className="text-xs text-gray-500 mb-0.5">{label}</div>
+      <div className="text-slate-700 font-medium">{value}</div>
     </div>
   );
 }
@@ -483,9 +506,9 @@ function ProductsList({ storeId }) {
         <tbody>
           {products.map((p, idx) => (
             <tr key={idx} className="border-b border-gray-50 last:border-0">
-              <td className="py-2 text-gray-800">{p.name}</td>
-              <td className="py-2 text-gray-600">{p.unit}</td>
-              <td className="py-2 text-right text-gray-800">
+              <td className="py-2 text-slate-700">{p.name}</td>
+              <td className="py-2 text-gray-500">{p.unit}</td>
+              <td className="py-2 text-right font-medium text-slate-700">
                 ${Number(p.price_usd).toFixed(2)}
               </td>
             </tr>
@@ -494,4 +517,4 @@ function ProductsList({ storeId }) {
       </table>
     </div>
   );
-      }
+  }
