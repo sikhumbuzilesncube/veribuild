@@ -74,29 +74,36 @@ function isActive(currentPath, href) {
   return currentPath.startsWith(base);
 }
 
-function HamburgerIcon() {
-  return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="3" y1="6" x2="21" y2="6" />
-      <line x1="3" y1="12" x2="21" y2="12" />
-      <line x1="3" y1="18" x2="21" y2="18" />
-    </svg>
-  );
-}
+// Icon Components for Bottom Nav
+const HomeIcon = ({ active }) => (
+  <svg className={`w-6 h-6 ${active ? 'text-brand-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+  </svg>
+);
+const SearchIcon = ({ active }) => (
+  <svg className={`w-6 h-6 ${active ? 'text-brand-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+);
+const PlusIcon = ({ active }) => (
+  <svg className={`w-6 h-6 ${active ? 'text-brand-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+  </svg>
+);
+const FolderIcon = ({ active }) => (
+  <svg className={`w-6 h-6 ${active ? 'text-brand-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+  </svg>
+);
+const UserIcon = ({ active }) => (
+  <svg className={`w-6 h-6 ${active ? 'text-brand-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+  </svg>
+);
 
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userType, setUserType] = useState('client');
   const [loading, setLoading] = useState(true);
   const [urgentCount, setUrgentCount] = useState(0);
@@ -220,7 +227,7 @@ export default function Sidebar() {
       <span className="flex items-center justify-between">
         <span>{item.label}</span>
         {showBadge && (
-          <span className="ml-2 bg-[#F47B20] text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[1.5rem] text-center">
+          <span className="ml-2 bg-brand-500 text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[1.5rem] text-center">
             {urgentCount}
           </span>
         )}
@@ -228,55 +235,54 @@ export default function Sidebar() {
     );
   };
 
+  // Bottom Nav Items
+  const bottomNavItems = [
+    { label: 'Home', href: '/dashboard', icon: HomeIcon },
+    { label: 'Find', href: '/dashboard/find', icon: SearchIcon },
+    { label: 'New BOQ', href: '/dashboard/new-project', icon: PlusIcon },
+    { label: 'Projects', href: '/dashboard/projects', icon: FolderIcon },
+    { label: 'Profile', href: '/dashboard/settings', icon: UserIcon },
+  ];
+
   return (
     <>
-      <div className="md:hidden bg-[#2C3E50] text-white p-4 flex justify-between items-center sticky top-0 z-50">
+      {/* Mobile Top Header */}
+      <div className="md:hidden bg-white text-slate-700 p-4 flex justify-between items-center sticky top-0 z-50 border-b border-gray-100">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-sm">
+          <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
             V
           </div>
-          <h1 className="text-lg font-bold">VeriBuild</h1>
+          <h1 className="text-lg font-bold text-slate-700">VeriBuild</h1>
         </div>
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="text-white focus:outline-none"
-          aria-label="Toggle menu"
-        >
-          <HamburgerIcon />
-        </button>
+        <div className="flex gap-3">
+          <Link href="/dashboard/settings" className="text-gray-500 hover:text-brand-500">
+             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+          </Link>
+        </div>
       </div>
 
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-[#2C3E50] text-white p-4 border-t border-[#F47B20]/30">
-          <nav className="space-y-3">
-            {items.map((item) => {
-              const active = isActive(pathname, item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`block py-3 px-4 rounded-lg transition font-medium ${
-                    active ? 'bg-[#F47B20]' : 'hover:bg-[#F47B20]/20'
-                  }`}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {renderLabel(item)}
-                </Link>
-              );
-            })}
-            <button
-              onClick={handleLogout}
-              className="block w-full text-left py-3 px-4 hover:bg-red-500/20 rounded-lg transition font-medium mt-4 text-red-300"
-            >
-              Logout
-            </button>
-          </nav>
+      {/* Mobile Bottom Nav (Fixed) */}
+      <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-50 pb-safe">
+        <div className="flex justify-around items-center h-16">
+          {bottomNavItems.map((item) => {
+            const active = isActive(pathname, item.href);
+            const Icon = item.icon;
+            return (
+              <Link key={item.href} href={item.href} className="flex flex-col items-center justify-center w-full h-full space-y-1">
+                <Icon active={active} />
+                <span className={`text-[10px] font-medium ${active ? 'text-brand-500' : 'text-gray-400'}`}>
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
         </div>
-      )}
+      </div>
 
-      <div className="fixed left-0 top-0 h-full w-64 bg-[#2C3E50] text-white p-6 hidden md:block overflow-y-auto">
+      {/* Desktop Sidebar (Unchanged) */}
+      <div className="fixed left-0 top-0 h-full w-64 bg-slate-700 text-white p-6 hidden md:block overflow-y-auto">
         <div className="flex items-center gap-2 mb-8">
-          <div className="w-8 h-8 bg-[#F47B20] rounded-lg flex items-center justify-center text-white font-bold text-sm">
+          <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
             V
           </div>
           <h1 className="text-xl font-bold">VeriBuild</h1>
@@ -290,7 +296,7 @@ export default function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={`block py-2.5 px-4 rounded-lg transition font-medium text-sm ${
-                  active ? 'bg-[#F47B20]' : 'hover:bg-[#F47B20]/20'
+                  active ? 'bg-brand-500' : 'hover:bg-brand-500/20'
                 }`}
               >
                 {renderLabel(item)}
@@ -307,4 +313,4 @@ export default function Sidebar() {
       </div>
     </>
   );
-      }
+     }
