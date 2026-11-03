@@ -63,20 +63,6 @@ function getTierRank(item) {
   return 1;
 }
 
-function getTierLabel(item) {
-  if (item.subscription_status !== 'active') return 'Not Subscribed';
-  if (item.subscription_tier === 'premium') {
-    return item.subscription_coverage === 'national' ? 'Premium · National' : 'Premium · Local';
-  }
-  return 'Standard';
-}
-
-function getTierBadgeClass(item) {
-  if (item.subscription_status !== 'active') return 'bg-gray-100 text-gray-700';
-  if (item.subscription_tier === 'premium') return 'bg-brand-500 text-white';
-  return 'bg-blue-100 text-blue-800';
-}
-
 function toWhatsAppNumber(phone) {
   if (!phone) return '';
   let cleaned = String(phone).replace(/[^\d+]/g, '');
@@ -87,7 +73,7 @@ function toWhatsAppNumber(phone) {
   return cleaned;
 }
 
-// Icons for the buttons
+// Icons
 const PhoneIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -101,6 +87,22 @@ const WhatsAppIcon = () => (
 const EmailIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+  </svg>
+);
+const LocationIcon = () => (
+  <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+const StarBadgeIcon = () => (
+  <svg className="w-4 h-4 text-brand-500" fill="currentColor" viewBox="0 0 20 20">
+    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+  </svg>
+);
+const CheckBadgeIcon = () => (
+  <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
   </svg>
 );
 
@@ -238,7 +240,7 @@ function FindContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24 md:pb-0">
+    <div className="min-h-screen bg-gray-50 pb-24 md:pb-0 overflow-x-hidden">
       <Sidebar />
 
       <div className="md:ml-64 p-4 sm:p-6">
@@ -253,7 +255,7 @@ function FindContent() {
             </p>
           </div>
 
-          {/* Category Tabs */}
+          {/* Category Tabs - Fixed horizontal scroll */}
           <div className="flex overflow-x-auto hide-scrollbar gap-2 mb-4 pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap md:bg-white md:rounded-lg md:shadow-sm md:border md:border-gray-200 md:p-2">
             {CATEGORIES.map((cat) => {
               const isActive = activeCategory === cat.key;
@@ -262,7 +264,7 @@ function FindContent() {
                 <button
                   key={cat.key}
                   onClick={() => setActiveCategory(cat.key)}
-                  className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition md:rounded-lg ${
+                  className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition md:rounded-lg shrink-0 ${
                     isActive
                       ? 'bg-slate-700 text-white shadow-md md:shadow-none'
                       : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 md:border-transparent md:bg-transparent md:hover:bg-gray-100'
@@ -430,12 +432,22 @@ function ProviderCard({ item, category, showProfileButton }) {
     }
   };
 
+  // Subscription Icon Logic
+  let SubIcon = null;
+  if (item.subscription_status === 'active') {
+    if (item.subscription_tier === 'premium') {
+      SubIcon = <StarBadgeIcon />;
+    } else {
+      SubIcon = <CheckBadgeIcon />;
+    }
+  }
+
   return (
     <div 
       onClick={handleViewProfile}
-      className={`bg-white rounded-xl shadow-sm border border-gray-100 p-4 transition ${showProfileButton ? 'cursor-pointer hover:shadow-md hover:border-brand-500' : ''}`}
+      className={`bg-white rounded-xl shadow-sm border border-gray-100 p-4 transition overflow-hidden w-full ${showProfileButton ? 'cursor-pointer hover:shadow-md hover:border-brand-500' : ''}`}
     >
-      <div className="flex justify-between items-start mb-4 gap-3">
+      <div className="flex justify-between items-start mb-3 gap-3">
         <div className="flex items-start gap-3 flex-1 min-w-0">
           <Avatar
             name={displayName}
@@ -444,8 +456,17 @@ function ProviderCard({ item, category, showProfileButton }) {
             shape={category.shape}
           />
           <div className="flex-1 min-w-0 pt-1">
-            <h3 className="font-bold text-slate-700 text-base truncate leading-tight">{displayName}</h3>
             
+            {/* Name + Subscription Icon */}
+            <div className="flex items-center gap-1.5">
+              <h3 className="font-bold text-slate-700 text-base truncate leading-tight">{displayName}</h3>
+              {SubIcon && (
+                <div title={item.subscription_tier === 'premium' ? 'Premium Provider' : 'Standard Provider'} className="shrink-0">
+                  {SubIcon}
+                </div>
+              )}
+            </div>
+
             {category.key === 'hardware' && item.tagline && (
               <p className="text-xs text-gray-500 mt-1 truncate">{item.tagline}</p>
             )}
@@ -467,28 +488,27 @@ function ProviderCard({ item, category, showProfileButton }) {
         </div>
       </div>
 
-      <div className="text-xs text-gray-500 space-y-1 pt-3 border-t border-gray-100">
-        <div className="flex items-center gap-1.5">
-          <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-          <span>{cityName}{item.location ? ` — ${item.location}` : ''}</span>
-        </div>
-        {category.key === 'workers' && (
-          <div className="font-medium text-slate-700">
-            {item.daily_rate_usd != null ? `$${item.daily_rate_usd} / day` : 'Rate on request'}
+      <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
+        
+        {/* Left side: Location & Rate */}
+        <div className="text-xs text-gray-500 flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 truncate">
+            <LocationIcon />
+            <span className="truncate">{cityName}{item.location ? ` — ${item.location}` : ''}</span>
           </div>
-        )}
-      </div>
+          {category.key === 'workers' && (
+            <div className="font-medium text-slate-700 mt-1">
+              {item.daily_rate_usd != null ? `$${item.daily_rate_usd} / day` : 'Rate on request'}
+            </div>
+          )}
+        </div>
 
-      <div className="flex items-center justify-between mt-4">
-        <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide ${getTierBadgeClass(item)}`}>
-          {getTierLabel(item)}
-        </span>
-
-        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+        {/* Right side: Contact Icons */}
+        <div className="flex gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
           {item.phone && (
             <a
               href={`tel:${item.phone}`}
-              className="w-8 h-8 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center hover:bg-brand-500 hover:text-white transition"
+              className="w-9 h-9 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center hover:bg-brand-500 hover:text-white transition"
               title="Call"
             >
               <PhoneIcon />
@@ -499,7 +519,7 @@ function ProviderCard({ item, category, showProfileButton }) {
               href={`https://wa.me/${whatsappNumber}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-8 h-8 rounded-full bg-[#25D366]/10 text-[#25D366] flex items-center justify-center hover:bg-[#25D366] hover:text-white transition"
+              className="w-9 h-9 rounded-full bg-[#25D366]/10 text-[#25D366] flex items-center justify-center hover:bg-[#25D366] hover:text-white transition"
               title="WhatsApp"
             >
               <WhatsAppIcon />
@@ -508,7 +528,7 @@ function ProviderCard({ item, category, showProfileButton }) {
           {item.email && (
             <a
               href={`mailto:${item.email}`}
-              className="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center hover:bg-gray-200 transition"
+              className="w-9 h-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center hover:bg-gray-200 transition"
               title="Email"
             >
               <EmailIcon />
@@ -518,4 +538,4 @@ function ProviderCard({ item, category, showProfileButton }) {
       </div>
     </div>
   );
-  }
+      }
