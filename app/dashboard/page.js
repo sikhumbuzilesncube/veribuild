@@ -161,28 +161,37 @@ export default function Dashboard() {
     return 'bg-gray-100 text-gray-700';
   }
 
-  // PROFESSIONAL LOADING STATE
+  // PROFESSIONAL LOADING STATE WITH HORIZONTAL SLIDER
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-        <div className="relative flex items-center justify-center mb-6">
-          {/* Pulsing background rings */}
-          <div className="absolute w-24 h-24 bg-brand-500/10 rounded-full animate-ping"></div>
-          <div className="absolute w-16 h-16 bg-brand-500/20 rounded-full animate-pulse"></div>
-          
+        
+        {/* Custom CSS for the Slider Animation */}
+        <style>{`
+          @keyframes slide-horizontal {
+            0% { left: 0%; width: 0%; }
+            20% { left: 0%; width: 40%; }
+            50% { left: 20%; width: 60%; }
+            80% { left: 80%; width: 20%; }
+            100% { left: 100%; width: 0%; }
+          }
+          .animate-slider {
+            animation: slide-horizontal 1.5s cubic-bezier(0.65, 0.05, 0.36, 1) infinite;
+          }
+        `}</style>
+
+        <div className="flex flex-col items-center gap-5">
           {/* Brand Logo */}
-          <div className="relative w-12 h-12 bg-brand-500 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
+          <div className="w-14 h-14 bg-brand-500 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-brand-500/30">
             V
           </div>
-        </div>
-        
-        {/* Sleek minimal spinner */}
-        <div className="flex items-center gap-2 text-gray-500">
-          <svg className="w-4 h-4 animate-spin text-brand-500" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <span className="text-sm font-medium">Loading dashboard...</span>
+          
+          {/* Horizontal Slider Container */}
+          <div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden relative">
+            <div className="absolute top-0 bottom-0 bg-brand-500 rounded-full animate-slider"></div>
+          </div>
+          
+          <span className="text-sm font-medium text-gray-500 mt-2">Loading dashboard...</span>
         </div>
       </div>
     );
@@ -530,4 +539,4 @@ export default function Dashboard() {
       )}
     </>
   );
-}
+      }
