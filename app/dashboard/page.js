@@ -166,7 +166,7 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#F47B20] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-12 h-12 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Loading dashboard...</p>
         </div>
       </div>
@@ -183,13 +183,21 @@ export default function Dashboard() {
 
   return (
     <>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
         <Sidebar />
 
         <div className="md:ml-64 p-4 md:p-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+          
+          {/* Mobile Welcome Greeting */}
+          <div className="md:hidden mb-4">
+            <h1 className="text-2xl font-bold text-slate-700">Hello, {userName.split(' ')[0]}</h1>
+            <p className="text-gray-500 text-sm">What are we building today?</p>
+          </div>
+
+          {/* Desktop Header */}
+          <div className="hidden md:flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <div>
-              <h1 className="text-xl md:text-2xl font-bold text-[#2C3E50]">Dashboard</h1>
+              <h1 className="text-xl md:text-2xl font-bold text-slate-700">Dashboard</h1>
               <p className="text-gray-600 text-sm md:text-base">
                 Welcome back, {userName}!
               </p>
@@ -213,20 +221,20 @@ export default function Dashboard() {
             <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
               <Link
                 href="/dashboard/new-project"
-                className="bg-[#F47B20] text-white px-4 md:px-6 py-2 rounded-lg font-semibold hover:bg-[#E06B10] transition shadow-lg shadow-orange-200 text-sm md:text-base text-center"
+                className="bg-brand-500 text-white px-4 md:px-6 py-2 rounded-lg font-semibold hover:bg-brand-600 transition shadow-lg shadow-orange-200 text-sm md:text-base text-center"
               >
                 + New BOQ
               </Link>
               <Link
                 href="/dashboard/template"
-                className="border-2 border-[#F47B20] text-[#F47B20] px-4 md:px-6 py-2 rounded-lg font-semibold hover:bg-[#F47B20] hover:text-white transition text-sm md:text-base text-center"
+                className="border-2 border-brand-500 text-brand-500 px-4 md:px-6 py-2 rounded-lg font-semibold hover:bg-brand-500 hover:text-white transition text-sm md:text-base text-center"
               >
                 BOQ Without a Plan
               </Link>
               {isAdmin && (
                 <Link
                   href="/dashboard/admin-portal"
-                  className="bg-[#2C3E50] text-white px-4 md:px-6 py-2 rounded-lg font-semibold hover:bg-[#1a252f] transition shadow-lg shadow-gray-400 text-sm md:text-base text-center"
+                  className="bg-slate-700 text-white px-4 md:px-6 py-2 rounded-lg font-semibold hover:bg-slate-800 transition shadow-lg shadow-gray-400 text-sm md:text-base text-center"
                 >
                   Admin Portal
                 </Link>
@@ -234,8 +242,26 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* Search Bar (Mobile Only) */}
+          <div className="md:hidden mb-4">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 sm:text-sm"
+                placeholder="Search hardware, workers, architects..."
+                onClick={() => router.push('/dashboard/find')}
+                readOnly
+              />
+            </div>
+          </div>
+
           {showTrialCard && (
-            <div className="bg-[#2C3E50] rounded-xl p-5 mb-6 text-white">
+            <div className="bg-slate-700 rounded-xl p-5 mb-6 text-white">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <h2 className="text-lg font-bold mb-1">
@@ -254,7 +280,7 @@ export default function Dashboard() {
                   )}
                 </div>
                 {trialRemaining > 0 && (
-                  <div className="bg-[#F47B20] rounded-full w-14 h-14 flex items-center justify-center flex-shrink-0">
+                  <div className="bg-brand-500 rounded-full w-14 h-14 flex items-center justify-center flex-shrink-0">
                     <span className="text-white font-bold text-xl">{trialRemaining}</span>
                   </div>
                 )}
@@ -265,84 +291,102 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
             <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
               <p className="text-gray-500 text-xs md:text-sm">Total Projects</p>
-              <p className="text-2xl md:text-3xl font-bold text-[#2C3E50]">{stats.total}</p>
+              <p className="text-2xl md:text-3xl font-bold text-slate-700">{stats.total}</p>
             </div>
             <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
               <p className="text-gray-500 text-xs md:text-sm">Completed BOQs</p>
-              <p className="text-2xl md:text-3xl font-bold text-[#2C3E50]">{stats.completed}</p>
+              <p className="text-2xl md:text-3xl font-bold text-slate-700">{stats.completed}</p>
             </div>
             <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
               <p className="text-gray-500 text-xs md:text-sm">Average Cost</p>
-              <p className="text-2xl md:text-3xl font-bold text-[#2C3E50]">
+              <p className="text-2xl md:text-3xl font-bold text-slate-700">
                 ${stats.averageCost}
               </p>
             </div>
             <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
               <p className="text-gray-500 text-xs md:text-sm">Active Projects</p>
-              <p className="text-2xl md:text-3xl font-bold text-[#2C3E50]">{stats.active}</p>
+              <p className="text-2xl md:text-3xl font-bold text-slate-700">{stats.active}</p>
             </div>
           </div>
 
+          {/* Orange CTA Banner (Replaces old Find Providers text) */}
           {isClient && (
             <div className="mb-6 md:mb-8">
-              <h2 className="text-base md:text-lg font-bold text-[#2C3E50] mb-3">
-                Find Providers
-              </h2>
-              <p className="text-xs md:text-sm text-gray-500 mb-3">
-                Browse hardware stores, construction companies, architects, and
-                skilled workers across Zimbabwe.
-              </p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div 
+                className="bg-brand-500 rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:bg-brand-600 transition"
+                onClick={() => router.push('/dashboard/find')}
+              >
+                <div>
+                  <h3 className="text-white font-bold text-lg mb-1">Need a professional?</h3>
+                  <p className="text-brand-100 text-sm max-w-[200px]">Find hardware stores, contractors, and skilled workers near you.</p>
+                </div>
+                <div className="bg-white/20 p-3 rounded-full flex-shrink-0">
+                  <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Swipeable Category Cards (Mobile) / Grid (Desktop) */}
+          {isClient && (
+            <div className="mb-6 md:mb-8">
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="text-lg font-bold text-slate-700">Browse Directory</h2>
+                <Link href="/dashboard/find" className="text-brand-500 text-sm font-semibold">See all</Link>
+              </div>
+              
+              <div className="flex overflow-x-auto gap-3 pb-2 snap-x hide-scrollbar md:grid md:grid-cols-4 md:overflow-visible">
                 <button
                   onClick={() => router.push('/dashboard/find?category=hardware')}
-                  className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-[#F47B20] transition"
+                  className="min-w-[140px] snap-start bg-white border border-gray-100 rounded-xl p-4 text-left hover:shadow-md hover:border-brand-500 transition"
                 >
-                  <div className="font-bold text-[#2C3E50] mb-1 text-sm md:text-base">
-                    Hardware Stores
+                  <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center mb-3">
+                    <svg className="w-5 h-5 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                   </div>
-                  <div className="text-xs text-gray-500">
-                    Building supplies and materials
-                  </div>
+                  <div className="font-bold text-slate-700 mb-1 text-sm">Hardware</div>
+                  <div className="text-xs text-gray-500">Supplies</div>
                 </button>
+
                 <button
                   onClick={() => router.push('/dashboard/find?category=construction')}
-                  className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-[#F47B20] transition"
+                  className="min-w-[140px] snap-start bg-white border border-gray-100 rounded-xl p-4 text-left hover:shadow-md hover:border-brand-500 transition"
                 >
-                  <div className="font-bold text-[#2C3E50] mb-1 text-sm md:text-base">
-                    Construction
+                  <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center mb-3">
+                    <svg className="w-5 h-5 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                   </div>
-                  <div className="text-xs text-gray-500">
-                    Builders and contractors
-                  </div>
+                  <div className="font-bold text-slate-700 mb-1 text-sm">Construction</div>
+                  <div className="text-xs text-gray-500">Builders</div>
                 </button>
+
                 <button
                   onClick={() => router.push('/dashboard/find?category=architects')}
-                  className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-[#F47B20] transition"
+                  className="min-w-[140px] snap-start bg-white border border-gray-100 rounded-xl p-4 text-left hover:shadow-md hover:border-brand-500 transition"
                 >
-                  <div className="font-bold text-[#2C3E50] mb-1 text-sm md:text-base">
-                    Architects
+                  <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center mb-3">
+                    <svg className="w-5 h-5 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
                   </div>
-                  <div className="text-xs text-gray-500">
-                    Plans and drawings
-                  </div>
+                  <div className="font-bold text-slate-700 mb-1 text-sm">Architects</div>
+                  <div className="text-xs text-gray-500">Plans</div>
                 </button>
+
                 <button
                   onClick={() => router.push('/dashboard/find?category=workers')}
-                  className="bg-white border border-gray-200 rounded-xl p-4 text-left hover:shadow-md hover:border-[#F47B20] transition"
+                  className="min-w-[140px] snap-start bg-white border border-gray-100 rounded-xl p-4 text-left hover:shadow-md hover:border-brand-500 transition"
                 >
-                  <div className="font-bold text-[#2C3E50] mb-1 text-sm md:text-base">
-                    Skilled Workers
+                  <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center mb-3">
+                    <svg className="w-5 h-5 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                   </div>
-                  <div className="text-xs text-gray-500">
-                    Trades and labour
-                  </div>
+                  <div className="font-bold text-slate-700 mb-1 text-sm">Workers</div>
+                  <div className="text-xs text-gray-500">Labour</div>
                 </button>
               </div>
             </div>
           )}
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
-            <h2 className="text-base md:text-lg font-bold text-[#2C3E50] mb-4">
+            <h2 className="text-base md:text-lg font-bold text-slate-700 mb-4">
               Recent Projects
             </h2>
             {projects.length > 0 ? (
@@ -361,7 +405,7 @@ export default function Dashboard() {
                   <tbody>
                     {projects.slice(0, 10).map((project) => (
                       <tr key={project.id} className="border-b last:border-0">
-                        <td className="py-3 font-medium text-[#2C3E50] text-sm">
+                        <td className="py-3 font-medium text-slate-700 text-sm">
                           {project.name}
                         </td>
                         <td className="py-3 text-xs text-gray-500 capitalize hidden sm:table-cell">
@@ -379,14 +423,14 @@ export default function Dashboard() {
                             {project.status}
                           </span>
                         </td>
-                        <td className="py-3 font-bold text-[#2C3E50] text-sm">
+                        <td className="py-3 font-bold text-slate-700 text-sm">
                           ${project.cost}
                         </td>
                         <td className="py-3 text-right">
                           <div className="flex items-center justify-end gap-3">
                             <Link
                               href={`/dashboard/boq/${project.id}`}
-                              className="text-[#F47B20] hover:underline text-sm font-medium"
+                              className="text-brand-500 hover:underline text-sm font-medium"
                             >
                               View
                             </Link>
@@ -413,13 +457,13 @@ export default function Dashboard() {
                 <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4">
                   <Link
                     href="/dashboard/new-project"
-                    className="bg-[#F47B20] text-white px-6 py-2 rounded-lg hover:bg-[#E06B10] transition"
+                    className="bg-brand-500 text-white px-6 py-2 rounded-lg hover:bg-brand-600 transition"
                   >
                     Upload a Plan
                   </Link>
                   <Link
                     href="/dashboard/template"
-                    className="border-2 border-[#F47B20] text-[#F47B20] px-6 py-2 rounded-lg hover:bg-[#F47B20] hover:text-white transition"
+                    className="border-2 border-brand-500 text-brand-500 px-6 py-2 rounded-lg hover:bg-brand-500 hover:text-white transition"
                   >
                     Start from a Template
                   </Link>
@@ -432,7 +476,7 @@ export default function Dashboard() {
 
       {/* Refined Delete Confirmation Modal */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2C3E50]/70 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-700/70 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden border border-gray-200">
             <div className="p-6">
               <div className="flex items-start gap-4 mb-4">
@@ -442,7 +486,7 @@ export default function Dashboard() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-[#2C3E50]">Delete Project</h3>
+                  <h3 className="text-lg font-bold text-slate-700">Delete Project</h3>
                   <p className="text-sm text-gray-600 mt-1 leading-relaxed">
                     Are you sure you want to delete <strong>{deleteTarget.name}</strong>? This action cannot be undone.
                   </p>
