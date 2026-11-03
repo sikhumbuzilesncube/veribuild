@@ -447,7 +447,7 @@ function ProviderCard({ item, category, showProfileButton }) {
       onClick={handleViewProfile}
       className={`bg-white rounded-xl shadow-sm border border-gray-100 p-4 transition overflow-hidden w-full ${showProfileButton ? 'cursor-pointer hover:shadow-md hover:border-brand-500' : ''}`}
     >
-      <div className="flex justify-between items-start mb-3 gap-3">
+      <div className="flex justify-between items-start mb-3 gap-3 w-full">
         <div className="flex items-start gap-3 flex-1 min-w-0">
           <Avatar
             name={displayName}
@@ -458,8 +458,8 @@ function ProviderCard({ item, category, showProfileButton }) {
           <div className="flex-1 min-w-0 pt-1">
             
             {/* Name + Subscription Icon */}
-            <div className="flex items-center gap-1.5">
-              <h3 className="font-bold text-slate-700 text-base truncate leading-tight">{displayName}</h3>
+            <div className="flex items-center gap-1.5 w-full">
+              <h3 className="font-bold text-slate-700 text-base truncate leading-tight max-w-full">{displayName}</h3>
               {SubIcon && (
                 <div title={item.subscription_tier === 'premium' ? 'Premium Provider' : 'Standard Provider'} className="shrink-0">
                   {SubIcon}
@@ -482,17 +482,17 @@ function ProviderCard({ item, category, showProfileButton }) {
               <p className="text-xs text-gray-500 mt-1 truncate">{item.services.join(', ')}</p>
             )}
             {category.key === 'construction' && item.ad_text && (
-              <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.ad_text}</p>
+              <p className="text-xs text-gray-500 mt-1 line-clamp-2 break-words">{item.ad_text}</p>
             )}
           </div>
         </div>
       </div>
 
-      <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
+      <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2 w-full">
         
         {/* Left side: Location & Rate */}
         <div className="text-xs text-gray-500 flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 truncate">
+          <div className="flex items-center gap-1.5 w-full">
             <LocationIcon />
             <span className="truncate">{cityName}{item.location ? ` — ${item.location}` : ''}</span>
           </div>
@@ -538,4 +538,4 @@ function ProviderCard({ item, category, showProfileButton }) {
       </div>
     </div>
   );
-      }
+  }
