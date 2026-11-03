@@ -136,7 +136,6 @@ export default function Dashboard() {
       return;
     }
 
-    const originalProjects = [...projects];
     const updatedProjects = projects.filter((p) => p.id !== deleteTarget.id);
     setProjects(updatedProjects);
 
@@ -162,12 +161,28 @@ export default function Dashboard() {
     return 'bg-gray-100 text-gray-700';
   }
 
+  // PROFESSIONAL LOADING STATE
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading dashboard...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="relative flex items-center justify-center mb-6">
+          {/* Pulsing background rings */}
+          <div className="absolute w-24 h-24 bg-brand-500/10 rounded-full animate-ping"></div>
+          <div className="absolute w-16 h-16 bg-brand-500/20 rounded-full animate-pulse"></div>
+          
+          {/* Brand Logo */}
+          <div className="relative w-12 h-12 bg-brand-500 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
+            V
+          </div>
+        </div>
+        
+        {/* Sleek minimal spinner */}
+        <div className="flex items-center gap-2 text-gray-500">
+          <svg className="w-4 h-4 animate-spin text-brand-500" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span className="text-sm font-medium">Loading dashboard...</span>
         </div>
       </div>
     );
@@ -309,7 +324,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Orange CTA Banner (Replaces old Find Providers text) */}
+          {/* Orange CTA Banner */}
           {isClient && (
             <div className="mb-6 md:mb-8">
               <div 
@@ -329,7 +344,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Swipeable Category Cards (Mobile) / Grid (Desktop) */}
+          {/* Swipeable Category Cards */}
           {isClient && (
             <div className="mb-6 md:mb-8">
               <div className="flex justify-between items-center mb-3">
@@ -515,4 +530,4 @@ export default function Dashboard() {
       )}
     </>
   );
-    }
+}
