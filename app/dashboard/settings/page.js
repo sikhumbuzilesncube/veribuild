@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
+
+const ADMIN_EMAIL = 'gatekeeperzw@gmail.com';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -93,6 +96,8 @@ export default function SettingsPage() {
     );
   }
 
+  const isAdmin = formData.email === ADMIN_EMAIL;
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
       <Sidebar />
@@ -103,6 +108,22 @@ export default function SettingsPage() {
             <h1 className="text-2xl md:text-3xl font-bold text-slate-700 mb-2">Settings</h1>
             <p className="text-gray-500 text-sm md:text-base">Manage your profile and account settings</p>
           </div>
+
+          {/* Admin Access Card */}
+          {isAdmin && (
+            <div className="bg-slate-700 rounded-2xl shadow-sm p-6 mb-6 text-white">
+              <h2 className="text-lg font-bold mb-2">Administrator Access</h2>
+              <p className="text-sm text-slate-300 mb-4">
+                You are logged in as the system administrator. Access the master control panel to manage users, revenue, and platform settings.
+              </p>
+              <Link
+                href="/dashboard/admin-portal"
+                className="inline-block bg-brand-500 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-brand-600 transition text-center w-full sm:w-auto"
+              >
+                Open Admin Portal
+              </Link>
+            </div>
+          )}
 
           {/* Profile Form */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 mb-6">
@@ -200,4 +221,4 @@ export default function SettingsPage() {
       </div>
     </div>
   );
-  }
+        }
