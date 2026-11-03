@@ -57,7 +57,7 @@ function toWhatsAppNumber(phone) {
   return cleaned;
 }
 
-// Custom Scalloped Stamp Badge
+// Custom Scalloped Stamp Badge for non-workers
 function SubscriptionBadge({ item }) {
   if (!item) return null;
 
@@ -187,6 +187,14 @@ export default function ProviderProfilePage() {
     ? provider.photos.filter(url => url && typeof url === 'string' && url.trim() !== '') 
     : [];
 
+  const isWorker = category === 'workers';
+
+  // Mock Progress Data (Replace with real database columns if available)
+  const level = provider.level || 5;
+  const maxLevel = 10;
+  const jobsCompleted = provider.jobs_completed || 24;
+  const jobsToNext = 30;
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24 md:pb-0">
       <Sidebar />
@@ -204,212 +212,268 @@ export default function ProviderProfilePage() {
             </button>
           </div>
 
-          {/* Header */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 sm:p-6 mb-6 relative">
-            
-            {/* Badge absolutely positioned in top right */}
-            <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
-               <SubscriptionBadge item={provider} />
-            </div>
+          {/* =========================================
+              WORKER EXACT MOCKUP LAYOUT
+          ========================================= */}
+          {isWorker ? (
+            <div className="space-y-4">
+              
+              {/* Header Card */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center text-center">
+                <div className="relative mb-3">
+                  <Avatar
+                    name={displayName}
+                    imageUrl={imageUrl}
+                    size={96}
+                    shape="circle"
+                  />
+                  {/* Verified Checkmark */}
+                  <div className="absolute bottom-0 right-0 bg-white rounded-full p-0.5">
+                    <svg className="w-6 h-6 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                </div>
+                
+                <h1 className="text-2xl font-bold text-slate-800">{displayName}</h1>
+                <p className="text-xs text-gray-500 mt-1 mb-2">{cityName} • Zimbabwe</p>
 
-            <div className="flex flex-col sm:flex-row items-start gap-4 pr-16">
-              <Avatar
-                name={displayName}
-                imageUrl={imageUrl}
-                size={80}
-                shape={config.shape}
-              />
-              <div className="flex-1 min-w-0 w-full">
-                <span className="inline-block text-[10px] uppercase tracking-wider text-gray-500 font-bold bg-gray-100 px-2 py-1 rounded">
-                  {config.label}
-                </span>
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-700 mt-2 leading-snug break-words">
-                  {displayName}
-                </h1>
-                {provider.contact_person && (
-                  <p className="text-sm text-gray-600 mt-1">
-                    Contact: {provider.contact_person}
-                  </p>
+                <div className="inline-flex items-center gap-1.5 bg-brand-500 text-white px-3 py-1 rounded-full text-sm font-semibold mb-2">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                  Level {level} • Pro
+                </div>
+
+                <div className="flex items-center justify-center gap-1 text-sm text-gray-600 mt-1">
+                  <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                  <span className="font-semibold text-slate-700">4.8</span>
+                  <span className="text-gray-400">•</span>
+                  <span>62 reviews</span>
+                </div>
+              </div>
+
+              {/* Progress Tracker */}
+              <div className="bg-[#FFF4EC] rounded-2xl border border-brand-100 p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="font-bold text-slate-800">Level Progress</h2>
+                  <span className="font-bold text-brand-600">Level {level} of {maxLevel}</span>
+                </div>
+                
+                {/* 10 Segment Progress Bar */}
+                <div className="flex gap-1 mb-2">
+                  {[...Array(10)].map((_, i) => (
+                    <div 
+                      key={i} 
+                      className={`h-3 flex-1 rounded-sm ${i < level ? 'bg-brand-500' : 'bg-white border border-brand-200'}`}
+                    ></div>
+                  ))}
+                </div>
+
+                <div className="flex justify-between items-center text-xs text-gray-500 font-medium">
+                  <span>Level 1</span>
+                  <div className="flex items-center gap-1 text-brand-600">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                    <span>{jobsCompleted}/{jobsToNext} jobs to Level {level + 1}</span>
+                  </div>
+                  <span>Level {maxLevel}</span>
+                </div>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 gap-4">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center shrink-0">
+                    <svg className="w-6 h-6 text-brand-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd" /><path d="M2 13.692V16a2 2 0 002 2h12a2 2 0 002-2v-2.308A24.974 24.974 0 0110 15c-2.796 0-5.487-.46-8-1.308z" /></svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">Jobs Completed</p>
+                    <p className="text-2xl font-bold text-slate-800 leading-tight">{jobsCompleted}</p>
+                    <p className="text-xs text-gray-500">/{jobsToNext} to next level</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Perks Unlocked */}
+              <div className="pt-2">
+                <div className="flex justify-between items-center mb-3">
+                  <h2 className="text-lg font-bold text-slate-800">Perks Unlocked</h2>
+                  <span className="text-sm font-bold text-brand-500">2 of 6</span>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 bg-white rounded-xl shadow-sm border border-gray-100 p-3">
+                    <div className="w-10 h-10 rounded-lg bg-[#FFF4EC] flex items-center justify-center shrink-0">
+                      <svg className="w-5 h-5 text-brand-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-800 text-sm">Verified Pro Badge</p>
+                      <p className="text-xs text-gray-500">Increased trust, shown to customers</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 bg-white rounded-xl shadow-sm border border-gray-100 p-3">
+                    <div className="w-10 h-10 rounded-lg bg-[#FFF4EC] flex items-center justify-center shrink-0">
+                      <svg className="w-5 h-5 text-brand-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" /></svg>
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-800 text-sm">Priority Job Alerts</p>
+                      <p className="text-xs text-gray-500">Get jobs 10 min before others</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-2 pt-4">
+                {provider.phone && (
+                  <a href={`tel:${provider.phone}`} className="flex-1 text-center bg-brand-500 text-white px-5 py-3 rounded-xl font-bold hover:bg-brand-600 transition text-sm shadow-md">
+                    Call
+                  </a>
+                )}
+                {whatsappNumber && (
+                  <a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="flex-1 text-center bg-[#25D366] text-white px-5 py-3 rounded-xl font-bold hover:bg-[#1ebe5a] transition text-sm shadow-md">
+                    WhatsApp
+                  </a>
+                )}
+                {provider.email && (
+                  <a href={`mailto:${provider.email}`} className="flex-1 text-center border-2 border-gray-300 text-gray-700 px-5 py-3 rounded-xl font-bold hover:bg-gray-50 transition text-sm">
+                    Email
+                  </a>
                 )}
               </div>
-            </div>
 
-            {/* Contact buttons */}
-            <div className="flex flex-wrap gap-2 pt-4 mt-4 border-t border-gray-100">
-              {provider.phone && (
-                <a
-                  href={`tel:${provider.phone}`}
-                  className="flex-1 sm:flex-none text-center bg-brand-500 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-brand-600 transition text-sm"
-                >
-                  Call
-                </a>
-              )}
-              {whatsappNumber && (
-                <a
-                  href={`https://wa.me/${whatsappNumber}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 sm:flex-none text-center bg-[#25D366] text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-[#1ebe5a] transition text-sm"
-                >
-                  WhatsApp
-                </a>
-              )}
-              {provider.email && (
-                <a
-                  href={`mailto:${provider.email}`}
-                  className="flex-1 sm:flex-none text-center border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
-                >
-                  Email
-                </a>
+              {/* About Section */}
+              {provider.about_me && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mt-4">
+                  <h2 className="text-base font-bold text-slate-800 mb-3">About</h2>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{provider.about_me}</p>
+                </div>
               )}
             </div>
-          </div>
-
-          {/* Location and contact details */}
-          <Section title="Contact Details">
-            <DetailGrid>
-              {cityName && <Detail label="City" value={cityName} />}
-              {provider.location && <Detail label="Location" value={provider.location} />}
-              {provider.phone && <Detail label="Phone" value={provider.phone} />}
-              {provider.email && <Detail label="Email" value={provider.email} />}
-              {provider.website && (
-                <Detail
-                  label="Website"
-                  value={
-                    <a
-                      href={`https://${provider.website.replace(/^https?:\/\//, '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-brand-500 hover:underline break-all"
-                    >
-                      {provider.website}
-                    </a>
-                  }
-                />
-              )}
-            </DetailGrid>
-          </Section>
-
-          {/* Photo gallery */}
-          {config.hasGallery && photos.length > 0 && (
-            <PhotoGallery
-              photos={photos}
-              title={category === 'construction' ? 'Our Work' : 'Work Photos'}
-            />
-          )}
-
-          {/* Worker-specific */}
-          {category === 'workers' && (
+          ) : (
+            
+            /* =========================================
+               STANDARD LAYOUT FOR NON-WORKERS
+            ========================================= */
             <>
-              <Section title="Trade Details">
+              {/* Header */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 sm:p-6 mb-6 relative">
+                <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+                   <SubscriptionBadge item={provider} />
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-start gap-4 pr-16">
+                  <Avatar
+                    name={displayName}
+                    imageUrl={imageUrl}
+                    size={80}
+                    shape={config.shape}
+                  />
+                  <div className="flex-1 min-w-0 w-full">
+                    <span className="inline-block text-[10px] uppercase tracking-wider text-gray-500 font-bold bg-gray-100 px-2 py-1 rounded">
+                      {config.label}
+                    </span>
+                    <h1 className="text-xl sm:text-2xl font-bold text-slate-700 mt-2 leading-snug break-words">
+                      {displayName}
+                    </h1>
+                    {provider.contact_person && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        Contact: {provider.contact_person}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-4 mt-4 border-t border-gray-100">
+                  {provider.phone && (
+                    <a href={`tel:${provider.phone}`} className="flex-1 sm:flex-none text-center bg-brand-500 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-brand-600 transition text-sm">
+                      Call
+                    </a>
+                  )}
+                  {whatsappNumber && (
+                    <a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="flex-1 sm:flex-none text-center bg-[#25D366] text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-[#1ebe5a] transition text-sm">
+                      WhatsApp
+                    </a>
+                  )}
+                  {provider.email && (
+                    <a href={`mailto:${provider.email}`} className="flex-1 sm:flex-none text-center border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition text-sm">
+                      Email
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* Location and contact details */}
+              <Section title="Contact Details">
                 <DetailGrid>
-                  {provider.trade && <Detail label="Trade" value={provider.trade} />}
-                  {provider.sub_trade && (
-                    <Detail label="Speciality" value={provider.sub_trade} />
-                  )}
-                  {provider.years_experience != null && (
+                  {cityName && <Detail label="City" value={cityName} />}
+                  {provider.location && <Detail label="Location" value={provider.location} />}
+                  {provider.phone && <Detail label="Phone" value={provider.phone} />}
+                  {provider.email && <Detail label="Email" value={provider.email} />}
+                  {provider.website && (
                     <Detail
-                      label="Experience"
-                      value={`${provider.years_experience} year${
-                        provider.years_experience === 1 ? '' : 's'
-                      }`}
-                    />
-                  )}
-                  {provider.daily_rate_usd != null ? (
-                    <Detail label="Daily rate" value={`$${provider.daily_rate_usd}`} />
-                  ) : (
-                    <Detail label="Daily rate" value="Rate on request" />
-                  )}
-                  {provider.availability && (
-                    <Detail
-                      label="Availability"
+                      label="Website"
                       value={
-                        provider.availability === 'available'
-                          ? 'Available now'
-                          : provider.availability === 'limited'
-                          ? 'Limited availability'
-                          : 'Not available'
+                        <a href={`https://${provider.website.replace(/^https?:\/\//, '')}`} target="_blank" rel="noopener noreferrer" className="text-brand-500 hover:underline break-all">
+                          {provider.website}
+                        </a>
                       }
                     />
                   )}
                 </DetailGrid>
               </Section>
 
-              {provider.about_me && (
+              {config.hasGallery && photos.length > 0 && (
+                <PhotoGallery
+                  photos={photos}
+                  title={category === 'construction' ? 'Our Work' : 'Work Photos'}
+                />
+              )}
+
+              {category === 'architects' && (
+                <>
+                  <Section title="Services">
+                    {provider.services && provider.services.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {provider.services.map((service, idx) => (
+                          <span key={idx} className="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-sm">{service}</span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">No services listed</p>
+                    )}
+                  </Section>
+
+                  <Section title="Experience and Pricing">
+                    <DetailGrid>
+                      {provider.years_experience != null && (
+                        <Detail label="Years of Experience" value={`${provider.years_experience} year${provider.years_experience === 1 ? '' : 's'}`} />
+                      )}
+                      {(provider.price_per_m2_min || provider.price_per_m2_max) && (
+                        <Detail label="Price per m²" value={`$${provider.price_per_m2_min || 0} – $${provider.price_per_m2_max || 0}`} />
+                      )}
+                    </DetailGrid>
+                  </Section>
+
+                  {provider.description && (
+                    <Section title="About">
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{provider.description}</p>
+                    </Section>
+                  )}
+                </>
+              )}
+
+              {category === 'hardware' && (
+                <Section title="Products">
+                  <ProductsList storeId={provider.id} />
+                </Section>
+              )}
+
+              {category === 'construction' && provider.ad_text && (
                 <Section title="About">
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                    {provider.about_me}
-                  </p>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{provider.ad_text}</p>
                 </Section>
               )}
             </>
-          )}
-
-          {/* Architect-specific */}
-          {category === 'architects' && (
-            <>
-              <Section title="Services">
-                {provider.services && provider.services.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {provider.services.map((service, idx) => (
-                      <span
-                        key={idx}
-                        className="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-sm"
-                      >
-                        {service}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500">No services listed</p>
-                )}
-              </Section>
-
-              <Section title="Experience and Pricing">
-                <DetailGrid>
-                  {provider.years_experience != null && (
-                    <Detail
-                      label="Years of Experience"
-                      value={`${provider.years_experience} year${
-                        provider.years_experience === 1 ? '' : 's'
-                      }`}
-                    />
-                  )}
-                  {(provider.price_per_m2_min || provider.price_per_m2_max) && (
-                    <Detail
-                      label="Price per m²"
-                      value={`$${provider.price_per_m2_min || 0} – $${
-                        provider.price_per_m2_max || 0
-                      }`}
-                    />
-                  )}
-                </DetailGrid>
-              </Section>
-
-              {provider.description && (
-                <Section title="About">
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                    {provider.description}
-                  </p>
-                </Section>
-              )}
-            </>
-          )}
-
-          {/* Hardware-specific */}
-          {category === 'hardware' && (
-            <Section title="Products">
-              <ProductsList storeId={provider.id} />
-            </Section>
-          )}
-
-          {/* Construction-specific */}
-          {category === 'construction' && provider.ad_text && (
-            <Section title="About">
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                {provider.ad_text}
-              </p>
-            </Section>
           )}
 
         </div>
@@ -460,13 +524,8 @@ function ProductsList({ storeId }) {
     load();
   }, [storeId]);
 
-  if (loading) {
-    return <p className="text-sm text-gray-500">Loading products...</p>;
-  }
-
-  if (products.length === 0) {
-    return <p className="text-sm text-gray-500">No products listed yet.</p>;
-  }
+  if (loading) return <p className="text-sm text-gray-500">Loading products...</p>;
+  if (products.length === 0) return <p className="text-sm text-gray-500">No products listed yet.</p>;
 
   return (
     <div className="overflow-x-auto">
@@ -483,13 +542,11 @@ function ProductsList({ storeId }) {
             <tr key={idx} className="border-b border-gray-50 last:border-0">
               <td className="py-2 text-slate-700">{p.name}</td>
               <td className="py-2 text-gray-500">{p.unit}</td>
-              <td className="py-2 text-right font-medium text-slate-700">
-                ${Number(p.price_usd).toFixed(2)}
-              </td>
+              <td className="py-2 text-right font-medium text-slate-700">${Number(p.price_usd).toFixed(2)}</td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
   );
-      }
+  }
