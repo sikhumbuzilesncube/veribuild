@@ -74,7 +74,7 @@ function isActive(currentPath, href) {
   return currentPath.startsWith(base);
 }
 
-// Icon Components for Bottom Nav
+// Icon Components
 const HomeIcon = ({ active }) => (
   <svg className={`w-6 h-6 ${active ? 'text-brand-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -83,11 +83,6 @@ const HomeIcon = ({ active }) => (
 const SearchIcon = ({ active }) => (
   <svg className={`w-6 h-6 ${active ? 'text-brand-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-  </svg>
-);
-const PlusIcon = ({ active }) => (
-  <svg className={`w-6 h-6 ${active ? 'text-brand-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
   </svg>
 );
 const FolderIcon = ({ active }) => (
@@ -100,6 +95,21 @@ const UserIcon = ({ active }) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
   </svg>
 );
+const PlusIcon = () => (
+  <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+  </svg>
+);
+const DocumentIcon = () => (
+  <svg className="w-6 h-6 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+const TemplateIcon = () => (
+  <svg className="w-6 h-6 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+  </svg>
+);
 
 export default function Sidebar() {
   const router = useRouter();
@@ -110,6 +120,9 @@ export default function Sidebar() {
   const [myWorkerId, setMyWorkerId] = useState(null);
   const [myTrade, setMyTrade] = useState(null);
   const [myCityId, setMyCityId] = useState(null);
+  
+  // State for the FAB popup
+  const [isFabOpen, setIsFabOpen] = useState(false);
 
   useEffect(() => {
     async function loadUserType() {
@@ -157,52 +170,23 @@ export default function Sidebar() {
 
     const channel = supabase
       .channel('sidebar-urgent-jobs')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'job_requests' },
-        (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'job_requests' }, (payload) => {
           const job = payload.new;
-          if (
-            job &&
-            job.status === 'open' &&
-            job.trade === myTrade &&
-            job.city_id === myCityId &&
-            !isExpired(job)
-          ) {
+          if (job && job.status === 'open' && job.trade === myTrade && job.city_id === myCityId && !isExpired(job)) {
             setUrgentCount((prev) => prev + 1);
           }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'job_requests' },
-        (payload) => {
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'job_requests' }, (payload) => {
           const job = payload.new;
           const old = payload.old;
           if (!job) return;
-
-          if (
-            old &&
-            old.status === 'open' &&
-            job.status !== 'open' &&
-            job.trade === myTrade &&
-            job.city_id === myCityId
-          ) {
+          if (old && old.status === 'open' && job.status !== 'open' && job.trade === myTrade && job.city_id === myCityId) {
             setUrgentCount((prev) => Math.max(0, prev - 1));
           }
-
-          if (
-            old &&
-            old.status !== 'open' &&
-            job.status === 'open' &&
-            job.trade === myTrade &&
-            job.city_id === myCityId &&
-            !isExpired(job)
-          ) {
+          if (old && old.status !== 'open' && job.status === 'open' && job.trade === myTrade && job.city_id === myCityId && !isExpired(job)) {
             setUrgentCount((prev) => prev + 1);
           }
-        }
-      )
+      })
       .subscribe();
 
     return () => {
@@ -235,19 +219,10 @@ export default function Sidebar() {
     );
   };
 
-  // Bottom Nav Items
-  const bottomNavItems = [
-    { label: 'Home', href: '/dashboard', icon: HomeIcon },
-    { label: 'Find', href: '/dashboard/find', icon: SearchIcon },
-    { label: 'New BOQ', href: '/dashboard/new-project', icon: PlusIcon },
-    { label: 'Projects', href: '/dashboard/projects', icon: FolderIcon },
-    { label: 'Profile', href: '/dashboard/settings', icon: UserIcon },
-  ];
-
   return (
     <>
       {/* Mobile Top Header */}
-      <div className="md:hidden bg-white text-slate-700 p-4 flex justify-between items-center sticky top-0 z-50 border-b border-gray-100">
+      <div className="md:hidden bg-white text-slate-700 p-4 flex justify-between items-center sticky top-0 z-40 border-b border-gray-100">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
             V
@@ -262,22 +237,87 @@ export default function Sidebar() {
       </div>
 
       {/* Mobile Bottom Nav (Fixed) */}
-      <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-50 pb-safe">
-        <div className="flex justify-around items-center h-16">
-          {bottomNavItems.map((item) => {
-            const active = isActive(pathname, item.href);
-            const Icon = item.icon;
-            return (
-              <Link key={item.href} href={item.href} className="flex flex-col items-center justify-center w-full h-full space-y-1">
-                <Icon active={active} />
-                <span className={`text-[10px] font-medium ${active ? 'text-brand-500' : 'text-gray-400'}`}>
-                  {item.label}
-                </span>
-              </Link>
-            );
-          })}
+      <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-40 pb-safe">
+        <div className="flex justify-between items-center h-16 px-2 relative">
+          
+          {/* Left 2 Items */}
+          <Link href="/dashboard" className="flex flex-col items-center justify-center w-16 h-full space-y-1">
+            <HomeIcon active={isActive(pathname, '/dashboard')} />
+            <span className={`text-[10px] font-medium ${isActive(pathname, '/dashboard') ? 'text-brand-500' : 'text-gray-400'}`}>Home</span>
+          </Link>
+          <Link href="/dashboard/find" className="flex flex-col items-center justify-center w-16 h-full space-y-1">
+            <SearchIcon active={isActive(pathname, '/dashboard/find')} />
+            <span className={`text-[10px] font-medium ${isActive(pathname, '/dashboard/find') ? 'text-brand-500' : 'text-gray-400'}`}>Find</span>
+          </Link>
+
+          {/* Center FAB (New BOQ) */}
+          <div className="relative w-16 h-full flex justify-center">
+            <button 
+              onClick={() => setIsFabOpen(true)}
+              className="absolute -top-5 w-14 h-14 bg-brand-500 rounded-full flex items-center justify-center shadow-lg shadow-brand-500/40 ring-4 ring-white hover:bg-brand-600 transition"
+              aria-label="Create New BOQ"
+            >
+              <PlusIcon />
+            </button>
+            <span className="absolute bottom-2 text-[10px] font-medium text-gray-400">New BOQ</span>
+          </div>
+
+          {/* Right 2 Items */}
+          <Link href="/dashboard/projects" className="flex flex-col items-center justify-center w-16 h-full space-y-1">
+            <FolderIcon active={isActive(pathname, '/dashboard/projects')} />
+            <span className={`text-[10px] font-medium ${isActive(pathname, '/dashboard/projects') ? 'text-brand-500' : 'text-gray-400'}`}>Projects</span>
+          </Link>
+          <Link href="/dashboard/settings" className="flex flex-col items-center justify-center w-16 h-full space-y-1">
+            <UserIcon active={isActive(pathname, '/dashboard/settings')} />
+            <span className={`text-[10px] font-medium ${isActive(pathname, '/dashboard/settings') ? 'text-brand-500' : 'text-gray-400'}`}>Profile</span>
+          </Link>
         </div>
       </div>
+
+      {/* FAB Popup Modal */}
+      {isFabOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsFabOpen(false)}>
+          <div 
+            className="bg-white w-full max-w-sm rounded-3xl p-5 mb-16 sm:mb-0 shadow-2xl animate-in slide-in-from-bottom-8 duration-300 fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-lg font-bold text-slate-800">Create BOQ</h3>
+              <button onClick={() => setIsFabOpen(false)} className="p-1 text-gray-400 hover:text-gray-600">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <button 
+                onClick={() => { setIsFabOpen(false); router.push('/dashboard/new-project'); }}
+                className="w-full flex items-center gap-4 p-4 border border-gray-200 rounded-2xl hover:border-brand-500 hover:bg-brand-50 transition text-left"
+              >
+                <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0">
+                  <DocumentIcon />
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800">BOQ with a Plan</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Upload a PDF or image of your floor plan</p>
+                </div>
+              </button>
+
+              <button 
+                onClick={() => { setIsFabOpen(false); router.push('/dashboard/template'); }}
+                className="w-full flex items-center gap-4 p-4 border border-gray-200 rounded-2xl hover:border-brand-500 hover:bg-brand-50 transition text-left"
+              >
+                <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center shrink-0">
+                  <TemplateIcon />
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800">BOQ Without a Plan</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Generate an estimate from a house template</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Desktop Sidebar (Unchanged) */}
       <div className="fixed left-0 top-0 h-full w-64 bg-slate-700 text-white p-6 hidden md:block overflow-y-auto">
@@ -313,4 +353,4 @@ export default function Sidebar() {
       </div>
     </>
   );
-     }
+    }
