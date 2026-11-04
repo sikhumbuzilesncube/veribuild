@@ -189,11 +189,13 @@ export default function ProviderProfilePage() {
 
   const isWorker = category === 'workers';
 
-  // Mock Progress Data (Replace with real database columns if available)
-  const level = provider.level || 5;
+  // REAL DATABASE STATS (with safe fallbacks)
+  const level = provider.current_level || 1;
   const maxLevel = 10;
-  const jobsCompleted = provider.jobs_completed || 24;
-  const jobsToNext = 30;
+  const jobsCompleted = provider.jobs_completed || 0;
+  const jobsToNext = provider.jobs_to_next_level || 5;
+  const averageRating = provider.average_rating ? Number(provider.average_rating).toFixed(1) : '0.0';
+  const reviewCount = provider.review_count || 0;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24 md:pb-0">
@@ -245,9 +247,9 @@ export default function ProviderProfilePage() {
 
                 <div className="flex items-center justify-center gap-1 text-sm text-gray-600 mt-1">
                   <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                  <span className="font-semibold text-slate-700">4.8</span>
+                  <span className="font-semibold text-slate-700">{averageRating}</span>
                   <span className="text-gray-400">•</span>
-                  <span>62 reviews</span>
+                  <span>{reviewCount} reviews</span>
                 </div>
               </div>
 
@@ -296,29 +298,36 @@ export default function ProviderProfilePage() {
               <div className="pt-2">
                 <div className="flex justify-between items-center mb-3">
                   <h2 className="text-lg font-bold text-slate-800">Perks Unlocked</h2>
-                  <span className="text-sm font-bold text-brand-500">2 of 6</span>
+                  <span className="text-sm font-bold text-brand-500">
+                    {/* Example logic: 1 perk per level */}
+                    {Math.min(level, 6)} of 6
+                  </span>
                 </div>
                 
                 <div className="space-y-2">
-                  <div className="flex items-center gap-3 bg-white rounded-xl shadow-sm border border-gray-100 p-3">
-                    <div className="w-10 h-10 rounded-lg bg-[#FFF4EC] flex items-center justify-center shrink-0">
-                      <svg className="w-5 h-5 text-brand-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                  {level >= 1 && (
+                    <div className="flex items-center gap-3 bg-white rounded-xl shadow-sm border border-gray-100 p-3">
+                      <div className="w-10 h-10 rounded-lg bg-[#FFF4EC] flex items-center justify-center shrink-0">
+                        <svg className="w-5 h-5 text-brand-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-800 text-sm">Verified Pro Badge</p>
+                        <p className="text-xs text-gray-500">Increased trust, shown to customers</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold text-slate-800 text-sm">Verified Pro Badge</p>
-                      <p className="text-xs text-gray-500">Increased trust, shown to customers</p>
-                    </div>
-                  </div>
+                  )}
 
-                  <div className="flex items-center gap-3 bg-white rounded-xl shadow-sm border border-gray-100 p-3">
-                    <div className="w-10 h-10 rounded-lg bg-[#FFF4EC] flex items-center justify-center shrink-0">
-                      <svg className="w-5 h-5 text-brand-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" /></svg>
+                  {level >= 2 && (
+                    <div className="flex items-center gap-3 bg-white rounded-xl shadow-sm border border-gray-100 p-3">
+                      <div className="w-10 h-10 rounded-lg bg-[#FFF4EC] flex items-center justify-center shrink-0">
+                        <svg className="w-5 h-5 text-brand-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" /></svg>
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-800 text-sm">Priority Job Alerts</p>
+                        <p className="text-xs text-gray-500">Get jobs 10 min before others</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold text-slate-800 text-sm">Priority Job Alerts</p>
-                      <p className="text-xs text-gray-500">Get jobs 10 min before others</p>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
