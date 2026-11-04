@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import Sidebar from '@/components/Sidebar';
 
@@ -9,7 +10,7 @@ const TRIAL_LIMIT = 2;
 
 function getPlanLabel(firm) {
   if (!firm) return 'No Plan';
-  if (firm.subscription_status !== 'active') return 'No Plan';
+  if (firm.subscription_status !== 'active') return 'No Active Plan';
   if (firm.subscription_tier === 'premium') {
     return firm.subscription_coverage === 'national'
       ? 'Premium · National'
@@ -20,7 +21,7 @@ function getPlanLabel(firm) {
 
 function getBadgeClass(firm) {
   if (!firm || firm.subscription_status !== 'active') {
-    return 'bg-yellow-100 text-yellow-800';
+    return 'bg-gray-100 text-gray-600';
   }
   if (firm.subscription_tier === 'premium') {
     return 'bg-brand-500 text-white';
@@ -74,6 +75,7 @@ export default function ArchitectsPage() {
 
   const trialUsed = myFirm?.boqs_generated_count || 0;
   const trialRemaining = Math.max(0, TRIAL_LIMIT - trialUsed);
+  const isSubscribed = myFirm?.subscription_status === 'active';
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24 md:pb-0">
@@ -82,23 +84,43 @@ export default function ArchitectsPage() {
       <div className="md:ml-64 p-4 sm:p-6">
         <div className="max-w-3xl mx-auto">
 
-          <div className="mb-6">
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="text-sm text-gray-600 hover:text-slate-700 mb-3 flex items-center gap-1 font-medium transition"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-              Back to Dashboard
-            </button>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-700 mb-2">
-              My Firm
-            </h1>
-            <p className="text-gray-600 text-sm">
-              Manage your firm listing and subscription.
-            </p>
+          {/* Header */}
+          <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="text-sm text-gray-600 hover:text-slate-700 mb-2 flex items-center gap-1 font-medium transition"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                Back to Dashboard
+              </button>
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-700">
+                My Firm
+              </h1>
+              <p className="text-gray-600 text-sm mt-1">
+                Manage your firm listing and subscription.
+              </p>
+            </div>
+            
+            {/* Quick Subscription Status / CTA */}
+            <div className="w-full sm:w-auto shrink-0 bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex items-center justify-between sm:justify-start gap-4">
+              <div>
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-0.5">Current Plan</p>
+                <span className={`text-sm font-bold ${getBadgeClass(myFirm)} px-2 py-0.5 rounded`}>
+                  {getPlanLabel(myFirm)}
+                </span>
+              </div>
+              <button
+                onClick={() => router.push('/dashboard/subscription?category=architect')}
+                className="bg-brand-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-brand-600 transition text-sm shrink-0"
+              >
+                {isSubscribed ? 'Manage Plan' : 'Subscribe'}
+              </button>
+            </div>
           </div>
 
-          {myFirm && (
+          {/* Trial Banner */}
+          {myFirm && !isSubscribed && (
             <div className="bg-slate-700 rounded-xl p-5 mb-6 text-white shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
@@ -126,6 +148,7 @@ export default function ArchitectsPage() {
             </div>
           )}
 
+          {/* Marketing Banner */}
           <div className="bg-gradient-to-r from-brand-500 to-brand-600 rounded-xl p-6 mb-6 text-white shadow-sm">
             <h2 className="text-lg font-bold mb-1">Promote Your Firm</h2>
             <p className="text-sm mb-4 opacity-90">
@@ -135,17 +158,16 @@ export default function ArchitectsPage() {
               onClick={() => router.push('/dashboard/subscription?category=architect')}
               className="bg-white text-brand-600 px-5 py-2 rounded-lg font-semibold hover:bg-gray-50 transition text-sm shadow-sm"
             >
-              View Plans
+              {isSubscribed ? 'View Upgrades' : 'View Plans'}
             </button>
           </div>
 
           {myFirm ? (
             <>
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
-                {/* Flex wrap for badge */}
                 <div className="flex flex-wrap justify-between items-start gap-3 mb-4">
                   <div className="flex-1 min-w-0">
-                    <h2 className="text-base font-bold text-slate-700">Your Firm</h2>
+                    <h2 className="text-base font-bold text-slate-700">Firm Details</h2>
                     <p className="text-xl font-semibold text-slate-800 mt-1 break-words">{myFirm.firm_name}</p>
                     <div className="mt-3 text-sm text-gray-500 space-y-1">
                       {myFirm.contact_person && <div>Contact: {myFirm.contact_person}</div>}
@@ -166,11 +188,6 @@ export default function ArchitectsPage() {
                       )}
                     </div>
                   </div>
-                  <div className="shrink-0">
-                    <span className={`text-xs font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap ${getBadgeClass(myFirm)}`}>
-                      {getPlanLabel(myFirm)}
-                    </span>
-                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-100">
@@ -180,16 +197,16 @@ export default function ArchitectsPage() {
                   >
                     Edit Firm
                   </button>
-                  <button
-                    onClick={() => router.push('/dashboard/subscription?category=architect')}
-                    className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition text-sm"
+                  <Link
+                    href={`/dashboard/find/architects/${myFirm.id}`}
+                    className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition text-sm flex items-center justify-center"
                   >
-                    {myFirm.subscription_status === 'active' ? 'Change Plan' : 'Choose a Plan'}
-                  </button>
+                    View Public Profile
+                  </Link>
                 </div>
               </div>
 
-              {myFirm.subscription_status !== 'active' && (
+              {!isSubscribed && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
                   <div className="font-semibold text-amber-900 mb-1">
                     Your firm is not subscribed
@@ -207,7 +224,7 @@ export default function ArchitectsPage() {
                 </div>
               )}
 
-              {myFirm.subscription_status === 'active' && (
+              {isSubscribed && (
                 <div className="bg-green-50 border border-green-200 rounded-xl p-5 mb-6">
                   <div className="font-semibold text-green-900 mb-1 flex items-center gap-2">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -231,7 +248,7 @@ export default function ArchitectsPage() {
               </div>
               <p className="text-sm text-amber-800 mb-4">
                 Create your firm listing to appear in the marketplace and on template
-                BOQ documents.
+                BOQ documents. You can then select a subscription plan.
               </p>
               <button
                 onClick={() => router.push('/dashboard/architects/new')}
@@ -261,4 +278,4 @@ export default function ArchitectsPage() {
       </div>
     </div>
   );
-                                     }
+  }
