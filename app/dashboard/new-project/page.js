@@ -33,24 +33,15 @@ function NewProject() {
   const [cityId, setCityId] = useState(1);
   const [uploadMethod, setUploadMethod] = useState(modeParam === 'file' ? 'file' : 'camera');
   
-  // New state for the camera guide modal
   const [showCameraGuide, setShowCameraGuide] = useState(false);
-
   const [uploadProgress, setUploadProgress] = useState(0);
   const [statusText, setStatusText] = useState('');
 
   useEffect(() => {
     async function loadRetryProject() {
       if (!retryProjectId) return;
-
-      const { data, error: fetchError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', retryProjectId)
-        .single();
-
+      const { data, error: fetchError } = await supabase.from('projects').select('*').eq('id', retryProjectId).single();
       if (fetchError || !data) return;
-
       setProjectName(data.project_name || '');
       setPlanType(data.plan_type || 'residential');
       setCityId(data.city_id || 1);
@@ -65,18 +56,9 @@ function NewProject() {
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
-
-    if (selectedFile.size > 20 * 1024 * 1024) {
-      setError('File size exceeds 20MB limit');
-      return;
-    }
-
+    if (selectedFile.size > 20 * 1024 * 1024) { setError('File size exceeds 20MB limit'); return; }
     const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-    if (!validTypes.includes(selectedFile.type)) {
-      setError('Please upload a PDF, JPEG, or PNG file');
-      return;
-    }
-
+    if (!validTypes.includes(selectedFile.type)) { setError('Please upload a PDF, JPEG, or PNG file'); return; }
     setFile(selectedFile);
     setError('');
   };
@@ -84,13 +66,8 @@ function NewProject() {
   const handleCameraCapture = (e) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
-
-    if (selectedFile.size > 20 * 1024 * 1024) {
-      setError('File size exceeds 20MB limit');
-      return;
-    }
-
-    // NEW: Resolution Check
+    if (selectedFile.size > 20 * 1024 * 1024) { setError('File size exceeds 20MB limit'); return; }
+    
     const img = new Image();
     img.onload = () => {
       if (img.width < 1000) {
@@ -106,16 +83,8 @@ function NewProject() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!file) {
-      setError('Please upload a floor plan or take a photo');
-      return;
-    }
-
-    if (!projectName && !isRetry) {
-      setError('Please enter a project name');
-      return;
-    }
+    if (!file) { setError('Please upload a floor plan or take a photo'); return; }
+    if (!projectName && !isRetry) { setError('Please enter a project name'); return; }
 
     setLoading(true);
     setError('');
@@ -124,31 +93,22 @@ function NewProject() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push('/login');
-        return;
-      }
+      if (!session) { router.push('/login'); return; }
 
       const userId = session.user.id;
 
       setStatusText('Uploading floor plan...');
       progressInterval.current = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 90) return prev;
-          return prev + 10;
-        });
+        setUploadProgress((prev) => { if (prev >= 90) return prev; return prev + 10; });
       }, 300);
 
       const fileExt = file.name.split('.').pop();
       const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('plans')
-        .upload(fileName, file);
+      const { error: uploadError } = await supabase.storage.from('plans').upload(fileName, file);
 
       if (uploadError) {
         clearInterval(progressInterval.current);
-        console.error('Upload error:', uploadError);
         setError('Failed to upload file. Please try again.');
         setLoading(false);
         setUploadProgress(0);
@@ -160,54 +120,18 @@ function NewProject() {
       setUploadProgress(100);
       setStatusText('File uploaded successfully');
 
-      const { data: urlData } = supabase.storage
-        .from('plans')
-        .getPublicUrl(fileName);
-
+      const { data: urlData } = supabase.storage.from('plans').getPublicUrl(fileName);
       let projectId;
 
       if (isRetry) {
         setStatusText('Updating project...');
-        const { error: updateError } = await supabase
-          .from('projects')
-          .update({
-            file_url: urlData.publicUrl,
-            status: 'processing',
-            notes: null,
-          })
-          .eq('id', retryProjectId);
-
-        if (updateError) {
-          setError(`Failed to update project: ${updateError.message}`);
-          setLoading(false);
-          setUploadProgress(0);
-          setStatusText('');
-          return;
-        }
+        const { error: updateError } = await supabase.from('projects').update({ file_url: urlData.publicUrl, status: 'processing', notes: null }).eq('id', retryProjectId);
+        if (updateError) { setError(`Failed to update project: ${updateError.message}`); setLoading(false); setUploadProgress(0); setStatusText(''); return; }
         projectId = retryProjectId;
       } else {
         setStatusText('Creating project...');
-        const { data: projectData, error: projectError } = await supabase
-          .from('projects')
-          .insert([
-            {
-              user_id: userId,
-              project_name: projectName,
-              city_id: cityId,
-              plan_type: planType,
-              status: 'processing',
-              file_url: urlData.publicUrl,
-            },
-          ])
-          .select();
-
-        if (projectError) {
-          setError(`Failed to create project: ${projectError.message}`);
-          setLoading(false);
-          setUploadProgress(0);
-          setStatusText('');
-          return;
-        }
+        const { data: projectData, error: projectError } = await supabase.from('projects').insert([{ user_id: userId, project_name: projectName, city_id: cityId, plan_type: planType, status: 'processing', file_url: urlData.publicUrl }]).select();
+        if (projectError) { setError(`Failed to create project: ${projectError.message}`); setLoading(false); setUploadProgress(0); setStatusText(''); return; }
         projectId = projectData[0].id;
       }
 
@@ -215,10 +139,7 @@ function NewProject() {
       setUploadProgress(30);
       
       progressInterval.current = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 95) return prev;
-          return prev + 1;
-        });
+        setUploadProgress((prev) => { if (prev >= 95) return prev; return prev + 1; });
       }, 400);
 
       try {
@@ -229,17 +150,13 @@ function NewProject() {
       } catch (planError) {
         clearInterval(progressInterval.current);
         setUploadProgress(100);
-        console.error('Server action error:', planError);
         setStatusText('Analysis complete. Opening results...');
       }
 
-      setTimeout(() => {
-        router.push(`/dashboard/verify/${projectId}`);
-      }, 1500);
+      setTimeout(() => { router.push(`/dashboard/verify/${projectId}`); }, 1500);
 
     } catch (err) {
       clearInterval(progressInterval.current);
-      console.error('Unexpected error:', err);
       setError('Something went wrong. Please try again.');
       setLoading(false);
       setUploadProgress(0);
@@ -252,20 +169,9 @@ function NewProject() {
       <div className="max-w-2xl mx-auto">
         
         <div className="mb-6">
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="text-sm text-gray-600 hover:text-gray-800 mb-3 inline-block"
-          >
-            ← Back to Dashboard
-          </button>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] mb-2">
-            {isRetry ? 'Retake Photo' : 'New BOQ'}
-          </h1>
-          <p className="text-gray-600 text-sm">
-            {isRetry
-              ? 'Capture or upload a clearer plan for this project'
-              : 'Upload your floor plan and generate a professional BOQ'}
-          </p>
+          <button onClick={() => router.push('/dashboard')} className="text-sm text-gray-600 hover:text-gray-800 mb-3 inline-block">← Back to Dashboard</button>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#2C3E50] mb-2">{isRetry ? 'Retake Photo' : 'New BOQ'}</h1>
+          <p className="text-gray-600 text-sm">{isRetry ? 'Capture or upload a clearer plan for this project' : 'Upload your floor plan and generate a professional BOQ'}</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-8">
@@ -274,258 +180,103 @@ function NewProject() {
             {!isRetry && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Project Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={projectName}
-                    onChange={(e) => setProjectName(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-                    placeholder="e.g., 3-Bedroom House"
-                    required
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Project Name <span className="text-red-500">*</span></label>
+                  <input type="text" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition" placeholder="e.g., 3-Bedroom House" required />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Plan Type <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={planType}
-                      onChange={(e) => setPlanType(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-                    >
-                      <option value="residential">Residential - $10</option>
-                      <option value="townhouse">Townhouse - $10</option>
-                      <option value="commercial">Commercial - $30</option>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Plan Type <span className="text-red-500">*</span></label>
+                    <select value={planType} onChange={(e) => setPlanType(e.target.value)} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition">
+                      <option value="residential">Residential - $1</option>
+                      <option value="townhouse">Townhouse - $1</option>
+                      <option value="commercial">Commercial - $1</option>
                     </select>
                   </div>
-
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Project Location <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={cityId}
-                      onChange={(e) => setCityId(parseInt(e.target.value))}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition"
-                    >
-                      {CITIES.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Project Location <span className="text-red-500">*</span></label>
+                    <select value={cityId} onChange={(e) => setCityId(parseInt(e.target.value))} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#F47B20] focus:border-transparent outline-none transition">
+                      {CITIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                 </div>
               </>
             )}
 
-            {isRetry && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
-                Re-uploading to project: <strong>{projectName}</strong>
-              </div>
-            )}
+            {isRetry && <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">Re-uploading to project: <strong>{projectName}</strong></div>}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Upload Floor Plan <span className="text-red-500">*</span>
-              </label>
-
+              <label className="block text-sm font-medium text-gray-700 mb-2">Upload Floor Plan <span className="text-red-500">*</span></label>
               <div className="flex p-1 bg-gray-100 rounded-lg mb-4 w-full sm:w-64">
-                <button
-                  type="button"
-                  onClick={() => setUploadMethod('file')}
-                  className={`flex-1 py-1.5 text-sm font-medium rounded-md transition ${
-                    uploadMethod === 'file'
-                      ? 'bg-white text-[#2C3E50] shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Upload File
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUploadMethod('camera')}
-                  className={`flex-1 py-1.5 text-sm font-medium rounded-md transition ${
-                    uploadMethod === 'camera'
-                      ? 'bg-white text-[#2C3E50] shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Take Photo
-                </button>
+                <button type="button" onClick={() => setUploadMethod('file')} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition ${uploadMethod === 'file' ? 'bg-white text-[#2C3E50] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Upload File</button>
+                <button type="button" onClick={() => setUploadMethod('camera')} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition ${uploadMethod === 'camera' ? 'bg-white text-[#2C3E50] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Take Photo</button>
               </div>
 
               {!file ? (
                 <div className="flex justify-center rounded-lg border border-dashed border-gray-300 px-6 py-10 hover:border-[#F47B20] transition bg-gray-50">
                   <div className="text-center">
                     {uploadMethod === 'camera' ? (
-                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
+                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                     ) : (
-                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
+                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                     )}
                     <div className="mt-4 text-sm text-gray-600">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (uploadMethod === 'camera') {
-                            setShowCameraGuide(true);
-                          } else {
-                            fileInputRef.current?.click();
-                          }
-                        }}
-                        className="relative cursor-pointer rounded-md font-semibold text-[#F47B20] focus-within:outline-none hover:text-[#E06B10]"
-                      >
+                      <button type="button" onClick={() => { if (uploadMethod === 'camera') setShowCameraGuide(true); else fileInputRef.current?.click(); }} className="relative cursor-pointer rounded-md font-semibold text-[#F47B20] focus-within:outline-none hover:text-[#E06B10]">
                         <span>{uploadMethod === 'camera' ? 'Open Camera' : 'Choose a file'}</span>
                       </button>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {uploadMethod === 'camera' ? 'Take a clear photo of the plan' : 'PDF, JPG, PNG up to 20MB'}
-                    </p>
-
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileChange}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      className="hidden"
-                      id="file-upload"
-                    />
-
-                    <input
-                      type="file"
-                      ref={cameraInputRef}
-                      onChange={handleCameraCapture}
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      id="camera-upload"
-                    />
+                    <p className="text-xs text-gray-500 mt-1">{uploadMethod === 'camera' ? 'Take a clear photo of the plan' : 'PDF, JPG, PNG up to 20MB'}</p>
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png" className="hidden" id="file-upload" />
+                    <input type="file" ref={cameraInputRef} onChange={handleCameraCapture} accept="image/*" capture="environment" className="hidden" id="camera-upload" />
                   </div>
                 </div>
               ) : (
                 <div className="mt-2 flex items-center justify-between p-4 border border-green-200 bg-green-50 rounded-lg">
                   <div className="flex items-center gap-3 overflow-hidden">
                     <div className="w-10 h-10 rounded bg-white flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-100">
-                      <svg className="w-6 h-6 text-[#F47B20]" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
-                      </svg>
+                      <svg className="w-6 h-6 text-[#F47B20]" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
-                      <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                    </div>
+                    <div className="min-w-0"><p className="text-sm font-medium text-gray-900 truncate">{file.name}</p><p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p></div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setFile(null)}
-                    className="text-xs font-semibold text-red-600 hover:text-red-800 bg-white border border-red-200 px-3 py-1.5 rounded-md shadow-sm transition"
-                  >
-                    Remove
-                  </button>
+                  <button type="button" onClick={() => setFile(null)} className="text-xs font-semibold text-red-600 hover:text-red-800 bg-white border border-red-200 px-3 py-1.5 rounded-md shadow-sm transition">Remove</button>
                 </div>
               )}
             </div>
 
             {loading && (
               <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-semibold text-[#2C3E50]">{statusText}</span>
-                  <span className="text-sm font-bold text-[#F47B20]">{Math.min(100, Math.round(uploadProgress))}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className="bg-[#F47B20] h-2.5 rounded-full transition-all duration-300 ease-out" 
-                    style={{ width: `${Math.min(100, uploadProgress)}%` }}
-                  ></div>
-                </div>
+                <div className="flex justify-between items-center mb-2"><span className="text-sm font-semibold text-[#2C3E50]">{statusText}</span><span className="text-sm font-bold text-[#F47B20]">{Math.min(100, Math.round(uploadProgress))}%</span></div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5"><div className="bg-[#F47B20] h-2.5 rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.min(100, uploadProgress)}%` }}></div></div>
               </div>
             )}
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
+            {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition disabled:opacity-50 disabled:cursor-not-allowed text-lg flex justify-center items-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Processing...
-                </>
-              ) : (
-                isRetry ? 'Retake & Read Plan' : 'Upload & Generate BOQ'
-              )}
+            <button type="submit" disabled={loading} className="w-full bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition disabled:opacity-50 disabled:cursor-not-allowed text-lg flex justify-center items-center gap-2">
+              {loading ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>Processing...</> : isRetry ? 'Retake & Read Plan' : 'Upload & Generate BOQ'}
             </button>
           </form>
         </div>
       </div>
 
-      {/* Camera Guide Modal */}
       {showCameraGuide && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
             <div className="bg-[#2C3E50] p-5 text-center relative">
-              <button 
-                onClick={() => setShowCameraGuide(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-white"
-              >
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-              <div className="w-12 h-12 bg-[#F47B20] rounded-full flex items-center justify-center mx-auto mb-3">
-                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </div>
+              <button onClick={() => setShowCameraGuide(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white"><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+              <div className="w-12 h-12 bg-[#F47B20] rounded-full flex items-center justify-center mx-auto mb-3"><svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg></div>
               <h3 className="text-xl font-bold text-white">Photo Guide</h3>
               <p className="text-sm text-gray-300 mt-1">For the AI to read your plan, please follow these steps.</p>
             </div>
-            
             <div className="p-6">
               <ul className="space-y-4 mb-6">
-                <li className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-orange-100 text-[#F47B20] flex items-center justify-center font-bold text-sm flex-shrink-0">1</div>
-                  <p className="text-sm text-gray-700">Place the plan on a flat table near a window (use daylight, not a roof lamp).</p>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-orange-100 text-[#F47B20] flex items-center justify-center font-bold text-sm flex-shrink-0">2</div>
-                  <p className="text-sm text-gray-700">Hold the phone directly above the paper, looking straight down.</p>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-orange-100 text-[#F47B20] flex items-center justify-center font-bold text-sm flex-shrink-0">3</div>
-                  <p className="text-sm text-gray-700">Make sure the whole page fits in the frame.</p>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-orange-100 text-[#F47B20] flex items-center justify-center font-bold text-sm flex-shrink-0">4</div>
-                  <p className="text-sm text-gray-700">Tap the screen on the plan so the camera focuses.</p>
-                </li>
+                <li className="flex items-start gap-3"><div className="w-6 h-6 rounded-full bg-orange-100 text-[#F47B20] flex items-center justify-center font-bold text-sm flex-shrink-0">1</div><p className="text-sm text-gray-700">Place the plan on a flat table near a window.</p></li>
+                <li className="flex items-start gap-3"><div className="w-6 h-6 rounded-full bg-orange-100 text-[#F47B20] flex items-center justify-center font-bold text-sm flex-shrink-0">2</div><p className="text-sm text-gray-700">Hold the phone directly above the paper.</p></li>
+                <li className="flex items-start gap-3"><div className="w-6 h-6 rounded-full bg-orange-100 text-[#F47B20] flex items-center justify-center font-bold text-sm flex-shrink-0">3</div><p className="text-sm text-gray-700">Make sure the whole page fits in the frame.</p></li>
+                <li className="flex items-start gap-3"><div className="w-6 h-6 rounded-full bg-orange-100 text-[#F47B20] flex items-center justify-center font-bold text-sm flex-shrink-0">4</div><p className="text-sm text-gray-700">Tap the screen on the plan so the camera focuses.</p></li>
               </ul>
-
-              <button
-                onClick={() => {
-                  setShowCameraGuide(false);
-                  cameraInputRef.current?.click();
-                }}
-                className="w-full bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition flex items-center justify-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
+              <button onClick={() => { setShowCameraGuide(false); cameraInputRef.current?.click(); }} className="w-full bg-[#F47B20] text-white py-3 rounded-lg font-semibold hover:bg-[#E06B10] transition flex items-center justify-center gap-2">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                 I Understand, Open Camera
               </button>
             </div>
@@ -534,4 +285,4 @@ function NewProject() {
       )}
     </div>
   );
-    }
+  }
