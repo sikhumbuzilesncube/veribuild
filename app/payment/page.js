@@ -20,8 +20,11 @@ function buildPaymentTypes() {
       };
     }
   }
-  map.boq_with_plan = { name: 'BOQ Generation', price: 10, label: 'with floor plan upload', duration: 'one-off', purpose: 'boq' };
-  map.boq_without_plan = { name: 'BOQ Generation', price: 5, label: 'from a template', duration: 'one-off', purpose: 'boq' };
+  
+  // PROMOTION PRICING: Both dropped to $1
+  map.boq_with_plan = { name: 'BOQ Generation', price: 1, label: 'with floor plan upload', duration: 'one-off', purpose: 'boq' };
+  map.boq_without_plan = { name: 'BOQ Generation', price: 1, label: 'from a template', duration: 'one-off', purpose: 'boq' };
+  
   return map;
 }
 
@@ -103,6 +106,13 @@ export default function PaymentPage() {
       return;
     }
 
+    // NEW: Paynow Minimum Amount Check
+    // If the discount drops the amount below $1.00 (except for 100% free orders), block it.
+    if (parseFloat(finalAmount) > 0 && parseFloat(finalAmount) < 1.00) {
+      setError('Paynow requires a minimum transaction of $1.00. Please use a lower discount code or pay the full amount.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -125,7 +135,7 @@ export default function PaymentPage() {
       const createData = await createResponse.json();
       if (!createResponse.ok) throw new Error(createData.error || 'Could not save payment record');
 
-      // NEW: Check if the payment is free
+      // Check if the payment is free
       if (createData.isFree) {
         // Skip Paynow, go straight to success page
         if (createData.reference) localStorage.setItem('paynow_reference', createData.reference);
