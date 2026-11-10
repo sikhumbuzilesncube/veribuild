@@ -18,6 +18,7 @@ export default function AdminPortal() {
   const [searchResults, setSearchResults] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
   
+  // Discount form states
   const [newCode, setNewCode] = useState('');
   const [newPercentage, setNewPercentage] = useState('');
   const [newMaxUses, setNewMaxUses] = useState('');
@@ -49,6 +50,22 @@ export default function AdminPortal() {
       if (res.ok) { setNewCode(''); setNewPercentage(''); setNewMaxUses(''); await loadStats(); }
       else { const err = await res.json(); alert(err.error || 'Failed'); }
     } catch (err) { alert('Failed'); } finally { setCreatingCode(false); }
+  };
+
+  // NEW: Disable code handler
+  const handleDisableCode = async (codeId) => {
+    if (!confirm('Are you sure you want to disable this code? It will stop working immediately.')) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch('/api/discounts/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({ codeId }),
+      });
+      if (res.ok) await loadStats();
+      else { const err = await res.json(); alert(err.error || 'Failed to disable code'); }
+    } catch (err) { alert('Failed to disable code'); }
   };
 
   const handleSearch = async (e) => {
@@ -183,6 +200,7 @@ export default function AdminPortal() {
                   </div>
                 </div>
               </div>
+
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
                   <div className="p-4 border-b bg-gray-50"><h2 className="font-bold text-[#2C3E50]">Recent Payments (Who used promos)</h2></div>
@@ -273,9 +291,17 @@ export default function AdminPortal() {
                         <p className="font-bold text-lg text-[#2C3E50]">{code.code}</p>
                         <p className="text-xs text-gray-500">{new Date(code.created_at).toLocaleDateString()}</p>
                       </div>
-                      <div className="text-right flex items-center gap-6">
-                        <div><p className="text-sm font-semibold text-green-600">{code.percentage}% Off</p><p className="text-xs text-gray-500">{code.times_used} / {code.max_uses} used</p></div>
-                        <span className={`px-2 py-1 text-xs font-bold rounded ${code.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{code.is_active ? 'Active' : 'Inactive'}</span>
+                      <div className="text-right flex items-center gap-4">
+                        <div>
+                          <p className="text-sm font-semibold text-green-600">{code.percentage}% Off</p>
+                          <p className="text-xs text-gray-500">{code.times_used} / {code.max_uses} used</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className={`px-2 py-1 text-xs font-bold rounded ${code.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{code.is_active ? 'Active' : 'Inactive'}</span>
+                          {code.is_active && (
+                            <button onClick={() => handleDisableCode(code.id)} className="text-[10px] text-red-500 hover:text-red-700 font-semibold">Disable</button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -326,4 +352,4 @@ export default function AdminPortal() {
       )}
     </div>
   );
-            }
+    }
