@@ -58,7 +58,8 @@ export default function BOQPage() {
 
       const isTemplateBOQ = !projectData.file_url;
       const planType = isTemplateBOQ ? 'boq_without_plan' : 'boq_with_plan';
-      const price = isTemplateBOQ ? 5 : 10;
+      // UPDATED PRICE TO $1 FOR WITH PLAN, $5 FOR TEMPLATE
+      const price = isTemplateBOQ ? 5 : 1;
       const isAdmin = session.user.email === ADMIN_EMAIL;
 
       const { data: existingPayment } = await supabase
@@ -289,7 +290,7 @@ export default function BOQPage() {
           <h2 className="text-2xl font-bold text-[#2C3E50] mb-2">Monthly Limit Reached</h2>
           <p className="text-sm text-gray-600 mb-6">Limit resets on <strong>{limitResetDate ? limitResetDate.toLocaleDateString() : 'next cycle'}</strong>.</p>
           <div className="flex flex-col gap-3">
-            <Link href={`/payment?type=${!project.file_url ? 'boq_without_plan' : 'boq_with_plan'}&amount=${!project.file_url ? 5 : 10}&project_id=${project.id}`} className="bg-[#F47B20] text-white px-6 py-3 rounded-lg font-semibold">Buy Standalone BOQ</Link>
+            <Link href={`/payment?type=${!project.file_url ? 'boq_without_plan' : 'boq_with_plan'}&amount=${!project.file_url ? 5 : 1}&project_id=${project.id}`} className="bg-[#F47B20] text-white px-6 py-3 rounded-lg font-semibold">Buy Standalone BOQ</Link>
             <Link href="/dashboard" className="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-medium">Back to Dashboard</Link>
           </div>
         </div>
@@ -499,4 +500,4 @@ export default function BOQPage() {
       )}
     </>
   );
-  }
+}
